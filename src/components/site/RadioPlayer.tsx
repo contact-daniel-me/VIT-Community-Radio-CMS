@@ -1,24 +1,37 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PublicNowPlayingRow } from '@/types/database';
-import { useTheme } from '@/hooks/useTheme';
-import { SPOTIFY_SHOW_URL, spotifyEmbedSrc } from '@/lib/spotify';
+import { useSpotifyEmbed } from '@/hooks/useSpotifyEmbed';
+import { SPOTIFY_SHOW_URL } from '@/lib/spotify';
 import { Logo } from './Logo';
 import { Waveform } from './Waveform';
 
 /**
  * The persistent station player.
  *
- * This plays a REAL stream, or nothing. VITE_STREAM_URL is the station's live
- * encoder URL; if it is not configured the transport is disabled and the bar
- * says so, rather than pretending to play. Nothing here fakes audio.
+ * Two sources live here and they are never conflated:
  *
- * The Spotify button docks the station's own show above the bar, and Spotify's
- * player does the playing. It is not wired into the transport above, and it
- * cannot be: playing Spotify audio through our own controls needs their Web
- * Playback SDK, which means an OAuth login and a Premium account for every
- * listener. The embed needs neither, so the show is one press away for anyone.
+ *   A. the live 90.8 MHz stream -- VITE_STREAM_URL, played by the <audio>
+ *      element below, and only when the station is actually on air
+ *   B. the station's Spotify show -- on demand, played by Spotify's own embed
+ *
+ * The live stream always wins. Spotify is what the red button reaches for when
+ * there is no broadcast to play, and it is labelled as Spotify whenever it is
+ * the thing playing, so nobody is told a podcast is the FM signal.
+ *
+ * Nothing here fakes audio. `spotify.playing` is Spotify reporting through the
+ * Embed API that it is playing -- not an assumption made after a click -- so
+ * pausing inside Spotify's own player moves this bar too.
  */
 const STREAM_URL = import.meta.env.VITE_STREAM_URL ?? '';
+
+/** 1271044 -> "21:11" */
+function clock(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return '0:00';
+  const total = Math.floor(ms / 1000);
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
 
 export function RadioPlayer({
   now,
@@ -33,12 +46,17 @@ export function RadioPlayer({
   const [volume, setVolume] = useState(0.8);
   const [muted, setMuted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [spotifyOpen, setSpotifyOpen] = useState(false);
-  const { theme } = useTheme();
+  const [panelOpen, setPanelOpen] = useState(true);
 
   const live = now?.broadcast_status === 'ON_AIR';
   const configured = STREAM_URL.length > 0;
   const canPlay = configured && live;
+
+  const spotify = useSpotifyEmbed();
+  /** Spotify is the transport only when the live stream cannot be. */
+  const spotifyDrives = !canPlay;
+  const spotifyPlaying = spotifyDrives && spotify.playing;
+  const active = playing || spotifyPlaying;
 
   const start = async () => {
     const el = audioRef.current;
@@ -58,7 +76,17 @@ export function RadioPlayer({
     setPlaying(false);
   };
 
-  const toggle = () => (playing ? stop() : void start());
+  const toggle = () => {
+    if (spotifyDrives) {
+      // Reopen the panel on the press that starts it, so the listener can see
+      // and reach Spotify's own controls.
+      if (!spotify.started || !spotify.playing) setPanelOpen(true);
+      spotify.toggle();
+      return;
+    }
+    if (playing) stop();
+    else void start();
+  };
 
   // The hero button asks the player to start.
   useEffect(() => {
@@ -80,35 +108,72 @@ export function RadioPlayer({
     }
   }, [volume, muted]);
 
+  const status = playing
+    ? 'ON AIR'
+    : spotifyPlaying
+      ? 'NOW PLAYING'
+      : spotify.loading && spotifyDrives
+        ? 'CONNECTING'
+        : live
+          ? 'LIVE — PRESS PLAY'
+          : // A paused show is paused, not off air: OFF AIR is about the
+            // transmitter, and saying it here would misdescribe both.
+            spotifyDrives && spotify.started
+            ? 'PAUSED'
+            : 'OFF AIR';
+
+  const buttonLabel = active
+    ? 'Pause'
+    : spotifyDrives
+      ? 'Play the VIT Community Radio show on Spotify'
+      : 'Play the live stream';
+
   return (
-    <div className={`player ${playing ? 'is-playing' : ''}`}>
+    <div className={`player ${active ? 'is-playing' : ''}`}>
       {configured && <audio ref={audioRef} src={STREAM_URL} preload="none" />}
 
-      {spotifyOpen && (
-        <div className="player-spotify" id="player-spotify">
+      {/* Mounted only once someone asks for the show, and never unmounted
+          afterwards: removing the iframe would stop the audio. Collapsing hides
+          it with height rather than display:none for the same reason. */}
+      {spotify.started && (
+        <div
+          className={`player-spotify ${panelOpen ? '' : 'is-collapsed'}`}
+          id="player-spotify"
+          aria-hidden={!panelOpen}
+        >
           <div className="player-spotify-head">
             <span className="player-spotify-label">VIT Community Radio on Spotify</span>
-            <a
-              className="player-spotify-out"
-              href={SPOTIFY_SHOW_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Open in Spotify
-              <span className="visually-hidden"> (opens in a new tab)</span>
-            </a>
+            <span className="player-spotify-actions">
+              <a
+                className="player-spotify-out"
+                href={SPOTIFY_SHOW_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open in Spotify
+                <span className="visually-hidden"> (opens in a new tab)</span>
+              </a>
+              <button
+                type="button"
+                className="player-spotify-collapse"
+                onClick={() => setPanelOpen(false)}
+                aria-controls="player-spotify"
+                aria-label="Hide the Spotify player"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                  <path
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    d="M6 9l6 6 6-6"
+                  />
+                </svg>
+              </button>
+            </span>
           </div>
-          <iframe
-            key={theme}
-            src={spotifyEmbedSrc(theme)}
-            title="VIT Community Radio: the official show on Spotify"
-            width="100%"
-            height="152"
-            style={{ border: 0 }}
-            loading="lazy"
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            allowFullScreen
-          />
+          {/* Spotify replaces this element with its iframe. */}
+          <div ref={spotify.hostRef} className="player-spotify-host" />
         </div>
       )}
 
@@ -125,6 +190,11 @@ export function RadioPlayer({
                   <span className="player-live-dot" aria-hidden="true" />
                   {now?.episode_title ?? 'Live now'}
                 </>
+              ) : spotifyPlaying ? (
+                <>
+                  <span className="player-source-dot" aria-hidden="true" />
+                  The station show on Spotify
+                </>
               ) : (
                 '90.8 MHz · VIT Vellore'
               )}
@@ -137,17 +207,19 @@ export function RadioPlayer({
             type="button"
             className="player-btn player-play"
             onClick={toggle}
-            disabled={!canPlay}
-            aria-label={playing ? 'Pause the live stream' : 'Play the live stream'}
+            disabled={!canPlay && !spotifyDrives}
+            aria-label={buttonLabel}
             title={
-              !configured
-                ? 'No live stream is configured yet'
-                : !live
-                  ? 'The station is off air'
-                  : undefined
+              spotifyDrives
+                ? 'Play the station show on Spotify'
+                : !configured
+                  ? 'No live stream is configured yet'
+                  : !live
+                    ? 'The station is off air'
+                    : undefined
             }
           >
-            {playing ? (
+            {active ? (
               <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
                 <path fill="currentColor" d="M7 5h4v14H7zM13 5h4v14h-4z" />
               </svg>
@@ -158,10 +230,22 @@ export function RadioPlayer({
             )}
           </button>
 
-          <Waveform active={playing} bars={14} className="player-wave" />
+          <Waveform active={active} bars={14} className="player-wave" />
 
-          <span className="player-state">
-            {playing ? 'ON AIR' : live ? 'LIVE — PRESS PLAY' : 'OFF AIR'}
+          <span className="player-status">
+            <span className="player-state" role="status">
+              {status}
+            </span>
+            {spotifyPlaying && (
+              <span className="player-substate">
+                VIT Community Radio
+                {spotify.durationMs > 0 && (
+                  <span className="player-time">
+                    {clock(spotify.positionMs)} / {clock(spotify.durationMs)}
+                  </span>
+                )}
+              </span>
+            )}
           </span>
         </div>
 
@@ -197,35 +281,59 @@ export function RadioPlayer({
               setMuted(false);
             }}
             aria-label="Volume"
+            // Spotify's embed keeps its own volume, inside a frame we cannot
+            // reach, so this would silently do nothing while it is playing.
+            disabled={spotifyDrives}
+            title={spotifyDrives ? 'Volume is set in the Spotify player' : undefined}
           />
 
-          <button
-            type="button"
-            className={`player-btn player-spotify-btn ${spotifyOpen ? 'is-open' : ''}`}
-            onClick={() => setSpotifyOpen((open) => !open)}
-            aria-expanded={spotifyOpen}
-            aria-controls="player-spotify"
-            aria-label={spotifyOpen ? 'Hide the Spotify player' : 'Listen on Spotify'}
-            title={spotifyOpen ? 'Hide the Spotify player' : 'Listen on Spotify'}
-          >
-            <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm4.586 14.424a.623.623 0 0 1-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.871 7.077-.496 9.712 1.115a.623.623 0 0 1 .207.857Zm1.223-2.722a.78.78 0 0 1-1.072.257c-2.688-1.652-6.786-2.131-9.965-1.166a.78.78 0 1 1-.452-1.492c3.632-1.102 8.147-.568 11.233 1.329a.78.78 0 0 1 .256 1.072Zm.105-2.835c-3.223-1.914-8.54-2.09-11.617-1.156a.935.935 0 1 1-.543-1.79c3.532-1.072 9.404-.865 13.115 1.338a.935.935 0 1 1-.955 1.608Z"
-              />
-            </svg>
-          </button>
+          {spotify.started && !panelOpen ? (
+            <button
+              type="button"
+              className="player-btn player-spotify-btn is-open"
+              onClick={() => setPanelOpen(true)}
+              aria-controls="player-spotify"
+              aria-expanded={false}
+              aria-label="Show the Spotify player"
+              title="Show the Spotify player"
+            >
+              <SpotifyGlyph />
+            </button>
+          ) : (
+            <a
+              className={`player-btn player-spotify-btn ${spotifyPlaying ? 'is-open' : ''}`}
+              href={SPOTIFY_SHOW_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Open VIT Community Radio on Spotify"
+              title="Open the show on Spotify"
+            >
+              <SpotifyGlyph />
+            </a>
+          )}
 
           <span className="player-freq">90.8&nbsp;MHz</span>
         </div>
       </div>
 
-      {(error || (!configured && live)) && (
+      {(error || spotify.error || (!configured && live)) && (
         <p className="player-note" role="status">
           {error ??
+            spotify.error ??
             'Live now — audio streaming is not connected yet, so there is nothing to play here.'}
         </p>
       )}
     </div>
+  );
+}
+
+function SpotifyGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+      <path
+        fill="currentColor"
+        d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm4.586 14.424a.623.623 0 0 1-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.871 7.077-.496 9.712 1.115a.623.623 0 0 1 .207.857Zm1.223-2.722a.78.78 0 0 1-1.072.257c-2.688-1.652-6.786-2.131-9.965-1.166a.78.78 0 1 1-.452-1.492c3.632-1.102 8.147-.568 11.233 1.329a.78.78 0 0 1 .256 1.072Zm.105-2.835c-3.223-1.914-8.54-2.09-11.617-1.156a.935.935 0 1 1-.543-1.79c3.532-1.072 9.404-.865 13.115 1.338a.935.935 0 1 1-.955 1.608Z"
+      />
+    </svg>
   );
 }

@@ -288,44 +288,49 @@ export function RadioPlayer({
 
         {/* ---- settings ---- */}
         <div className="player-right">
-          <button
-            type="button"
-            className="player-btn"
-            onClick={() => setMuted((m) => !m)}
-            aria-label={muted ? 'Unmute' : 'Mute'}
-            disabled={spotifyDrives}
-            title={spotifyDrives ? 'Volume is set in the Spotify player' : undefined}
-          >
-            {muted ? (
-              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                <path fill="currentColor" d="M4 9v6h4l5 4V5L8 9H4Z" />
-                <path stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" d="M16 9.5l4 5M20 9.5l-4 5" />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-                <path fill="currentColor" d="M4 9v6h4l5 4V5L8 9H4Z" />
-                <path fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" d="M16.5 9.2a4 4 0 0 1 0 5.6M19 7a7.3 7.3 0 0 1 0 10" />
-              </svg>
-            )}
-          </button>
+          {/*
+            Volume belongs to whatever is making the sound. Spotify keeps its
+            own, inside a frame we cannot reach, so while it drives there is
+            nothing here for a slider to move -- and a permanently greyed-out
+            control is just clutter. The live stream does have volume we can
+            set, so the control comes back with it.
+          */}
+          {!spotifyDrives && (
+            <>
+              <button
+                type="button"
+                className="player-btn"
+                onClick={() => setMuted((m) => !m)}
+                aria-label={muted ? 'Unmute' : 'Mute'}
+              >
+                {muted ? (
+                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                    <path fill="currentColor" d="M4 9v6h4l5 4V5L8 9H4Z" />
+                    <path stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" d="M16 9.5l4 5M20 9.5l-4 5" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                    <path fill="currentColor" d="M4 9v6h4l5 4V5L8 9H4Z" />
+                    <path fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" d="M16.5 9.2a4 4 0 0 1 0 5.6M19 7a7.3 7.3 0 0 1 0 10" />
+                  </svg>
+                )}
+              </button>
 
-          <input
-            type="range"
-            className="player-volume"
-            min={0}
-            max={1}
-            step={0.01}
-            value={muted ? 0 : volume}
-            onChange={(e) => {
-              setVolume(Number(e.target.value));
-              setMuted(false);
-            }}
-            aria-label="Volume"
-            // Spotify's embed keeps its own volume, inside a frame we cannot
-            // reach, so this would silently do nothing while it is playing.
-            disabled={spotifyDrives}
-            title={spotifyDrives ? 'Volume is set in the Spotify player' : undefined}
-          />
+              <input
+                type="range"
+                className="player-volume"
+                min={0}
+                max={1}
+                step={0.01}
+                value={muted ? 0 : volume}
+                onChange={(e) => {
+                  setVolume(Number(e.target.value));
+                  setMuted(false);
+                }}
+                aria-label="Volume"
+              />
+            </>
+          )}
 
           <a
             className={`player-btn player-spotify-btn ${spotifyPlaying ? 'is-open' : ''}`}

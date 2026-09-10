@@ -25,6 +25,7 @@ describe('schema and constraints', () => {
       'audio_files',
       'broadcast_state',
       'episodes',
+      'homepage_featured_audio',
       'profiles',
       'programs',
       'qc_reviews',

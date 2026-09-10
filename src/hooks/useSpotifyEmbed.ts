@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { SPOTIFY_SHOW_ID } from '@/lib/spotify';
+import { fetchShowMeta, SPOTIFY_SHOW_ID, type SpotifyShowMeta } from '@/lib/spotify';
 
 /**
  * Drive the station's Spotify show through Spotify's official Embed iframe API.
@@ -29,6 +29,8 @@ interface SpotifyController {
   play: () => void;
   pause: () => void;
   togglePlay: () => void;
+  /** Seconds, not milliseconds -- the API takes a position in seconds. */
+  seek: (seconds: number) => void;
   destroy: () => void;
   addListener: (event: string, handler: (payload: { data: PlaybackData }) => void) => void;
 }
@@ -102,8 +104,12 @@ export interface SpotifyEmbedState {
   error: string | null;
   positionMs: number;
   durationMs: number;
+  /** Artwork and episode title from Spotify's public oEmbed. Null until loaded. */
+  meta: SpotifyShowMeta | null;
   /** Start on the first press, then toggle. Must be called from a user gesture. */
   toggle: () => void;
+  /** Jump by whole seconds, clamped to the episode. No-op before it is ready. */
+  nudge: (seconds: number) => void;
 }
 
 export function useSpotifyEmbed(): SpotifyEmbedState {
@@ -118,6 +124,18 @@ export function useSpotifyEmbed(): SpotifyEmbedState {
   const [error, setError] = useState<string | null>(null);
   const [positionMs, setPositionMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
+  const [meta, setMeta] = useState<SpotifyShowMeta | null>(null);
+
+  // The artwork and title are wanted before anyone presses play, so this small
+  // public JSON is fetched on mount. The iframe and the API script are not --
+  // they still wait for a deliberate press.
+  useEffect(() => {
+    const abort = new AbortController();
+    fetchShowMeta(abort.signal)
+      .then(setMeta)
+      .catch(() => undefined);
+    return () => abort.abort();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -190,5 +208,28 @@ export function useSpotifyEmbed(): SpotifyEmbedState {
     setStarted(true);
   }, []);
 
-  return { hostRef, playing, ready, started, loading, error, positionMs, durationMs, toggle };
+  const nudge = useCallback(
+    (seconds: number) => {
+      const controller = controllerRef.current;
+      if (!controller) return;
+      const target = Math.max(0, positionMs + seconds * 1000);
+      const capped = durationMs > 0 ? Math.min(target, durationMs - 1000) : target;
+      controller.seek(Math.max(0, Math.round(capped / 1000)));
+    },
+    [positionMs, durationMs],
+  );
+
+  return {
+    hostRef,
+    playing,
+    ready,
+    started,
+    loading,
+    error,
+    positionMs,
+    durationMs,
+    meta,
+    toggle,
+    nudge,
+  };
 }

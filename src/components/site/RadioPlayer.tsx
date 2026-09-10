@@ -14,23 +14,26 @@ import { Waveform } from './Waveform';
  *      element below, and only when the station is actually on air
  *   B. the station's Spotify show -- on demand, played by Spotify's own embed
  *
- * The live stream always wins. Spotify is what the red button reaches for when
+ * The live stream always wins. Spotify is what the transport reaches for when
  * there is no broadcast to play, and it is labelled as Spotify whenever it is
  * the thing playing, so nobody is told a podcast is the FM signal.
  *
  * Nothing here fakes audio. `spotify.playing` is Spotify reporting through the
  * Embed API that it is playing -- not an assumption made after a click -- so
  * pausing inside Spotify's own player moves this bar too.
+ *
+ * Layout is three sections: what is playing, the transport, and the settings
+ * that are not about a particular track. On a phone the third drops away and
+ * the first two share the row.
  */
 const STREAM_URL = import.meta.env.VITE_STREAM_URL ?? '';
+const SKIP_SECONDS = 15;
 
 /** 1271044 -> "21:11" */
 function clock(ms: number): string {
   if (!Number.isFinite(ms) || ms <= 0) return '0:00';
   const total = Math.floor(ms / 1000);
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
 export function RadioPlayer({
@@ -57,6 +60,8 @@ export function RadioPlayer({
   const spotifyDrives = !canPlay;
   const spotifyPlaying = spotifyDrives && spotify.playing;
   const active = playing || spotifyPlaying;
+  const progress =
+    spotify.durationMs > 0 ? Math.min(1, spotify.positionMs / spotify.durationMs) : 0;
 
   const start = async () => {
     const el = audioRef.current;
@@ -78,8 +83,6 @@ export function RadioPlayer({
 
   const toggle = () => {
     if (spotifyDrives) {
-      // Reopen the panel on the press that starts it, so the listener can see
-      // and reach Spotify's own controls.
       if (!spotify.started || !spotify.playing) setPanelOpen(true);
       spotify.toggle();
       return;
@@ -120,13 +123,21 @@ export function RadioPlayer({
             // transmitter, and saying it here would misdescribe both.
             spotifyDrives && spotify.started
             ? 'PAUSED'
-            : 'OFF AIR';
+            : spotifyDrives
+              ? 'READY'
+              : 'OFF AIR';
 
-  const buttonLabel = active
-    ? 'Pause'
-    : spotifyDrives
-      ? 'Play the VIT Community Radio show on Spotify'
-      : 'Play the live stream';
+  /** What is on: the live programme, or the episode Spotify named. */
+  const title = live
+    ? (now?.program_name ?? 'VIT Community Radio')
+    : (spotify.meta?.title ?? 'VIT Community Radio');
+  const subtitle = live
+    ? (now?.episode_title ?? 'Live now')
+    : spotifyDrives && spotify.started
+      ? 'The station show on Spotify'
+      : '90.8 MHz · VIT Vellore';
+
+  const seekable = spotifyDrives && spotify.started;
 
   return (
     <div className={`player ${active ? 'is-playing' : ''}`}>
@@ -161,13 +172,7 @@ export function RadioPlayer({
                 aria-label="Hide the Spotify player"
               >
                 <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                  <path
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    d="M6 9l6 6 6-6"
-                  />
+                  <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M6 9l6 6 6-6" />
                 </svg>
               </button>
             </span>
@@ -178,83 +183,139 @@ export function RadioPlayer({
       )}
 
       <div className="player-inner">
+        {/* ---- what is playing ---- */}
         <div className="player-id">
-          <Logo size={30} withWordmark={false} />
+          <span className={`player-art ${active ? 'is-active' : ''}`}>
+            {spotify.meta?.artworkUrl ? (
+              <img src={spotify.meta.artworkUrl} alt="" width={46} height={46} loading="lazy" />
+            ) : (
+              <span className="player-art-fallback">
+                <Logo size={26} withWordmark={false} />
+              </span>
+            )}
+          </span>
+
           <div className="player-id-text">
-            <span className="player-station">
-              {live && now?.program_name ? now.program_name : 'VIT Community Radio'}
+            <span className="player-station" title={title}>
+              {title}
             </span>
             <span className="player-sub">
               {live ? (
                 <>
                   <span className="player-live-dot" aria-hidden="true" />
-                  {now?.episode_title ?? 'Live now'}
+                  {subtitle}
                 </>
               ) : spotifyPlaying ? (
                 <>
                   <span className="player-source-dot" aria-hidden="true" />
-                  The station show on Spotify
+                  {subtitle}
                 </>
               ) : (
-                '90.8 MHz · VIT Vellore'
+                subtitle
               )}
             </span>
+            <a
+              className="player-listen"
+              href={SPOTIFY_SHOW_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <SpotifyGlyph size={13} />
+              Listen on Spotify
+              <span className="visually-hidden"> (opens in a new tab)</span>
+            </a>
           </div>
         </div>
 
+        {/* ---- transport ---- */}
         <div className="player-transport">
-          <button
-            type="button"
-            className="player-btn player-play"
-            onClick={toggle}
-            disabled={!canPlay && !spotifyDrives}
-            aria-label={buttonLabel}
-            title={
-              spotifyDrives
-                ? 'Play the station show on Spotify'
-                : !configured
-                  ? 'No live stream is configured yet'
-                  : !live
-                    ? 'The station is off air'
-                    : undefined
-            }
-          >
-            {active ? (
-              <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
-                <path fill="currentColor" d="M7 5h4v14H7zM13 5h4v14h-4z" />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
-                <path fill="currentColor" d="M8 5.2v13.6a.6.6 0 0 0 .92.51l10.5-6.8a.6.6 0 0 0 0-1.02L8.92 4.69A.6.6 0 0 0 8 5.2Z" />
-              </svg>
-            )}
-          </button>
+          <div className="player-controls">
+            <button
+              type="button"
+              className="player-btn player-skip"
+              onClick={() => spotify.nudge(-SKIP_SECONDS)}
+              disabled={!seekable}
+              aria-label={`Back ${SKIP_SECONDS} seconds`}
+              title={`Back ${SKIP_SECONDS} seconds`}
+            >
+              <SkipGlyph back />
+            </button>
 
-          <Waveform active={active} bars={14} className="player-wave" />
+            <button
+              type="button"
+              className="player-btn player-play"
+              onClick={toggle}
+              disabled={!canPlay && !spotifyDrives}
+              aria-label={
+                active
+                  ? 'Pause'
+                  : spotifyDrives
+                    ? 'Play the VIT Community Radio show on Spotify'
+                    : 'Play the live stream'
+              }
+              title={
+                spotifyDrives
+                  ? 'Play the station show on Spotify'
+                  : !configured
+                    ? 'No live stream is configured yet'
+                    : !live
+                      ? 'The station is off air'
+                      : undefined
+              }
+            >
+              <span className={`player-icon ${active ? 'is-pause' : ''}`} aria-hidden="true">
+                <svg className="player-icon-play" viewBox="0 0 24 24" width="18" height="18">
+                  <path fill="currentColor" d="M8 5.2v13.6a.6.6 0 0 0 .92.51l10.5-6.8a.6.6 0 0 0 0-1.02L8.92 4.69A.6.6 0 0 0 8 5.2Z" />
+                </svg>
+                <svg className="player-icon-pause" viewBox="0 0 24 24" width="18" height="18">
+                  <path fill="currentColor" d="M7 5h4v14H7zM13 5h4v14h-4z" />
+                </svg>
+              </span>
+            </button>
 
-          <span className="player-status">
+            <button
+              type="button"
+              className="player-btn player-skip"
+              onClick={() => spotify.nudge(SKIP_SECONDS)}
+              disabled={!seekable}
+              aria-label={`Forward ${SKIP_SECONDS} seconds`}
+              title={`Forward ${SKIP_SECONDS} seconds`}
+            >
+              <SkipGlyph />
+            </button>
+          </div>
+
+          <div className="player-meter">
+            <Waveform active={active} bars={18} className="player-wave" />
             <span className="player-state" role="status">
               {status}
             </span>
-            {spotifyPlaying && (
-              <span className="player-substate">
-                VIT Community Radio
-                {spotify.durationMs > 0 && (
-                  <span className="player-time">
-                    {clock(spotify.positionMs)} / {clock(spotify.durationMs)}
-                  </span>
-                )}
+            {seekable && spotify.durationMs > 0 && (
+              <span className="player-time">
+                <span className="player-elapsed">{clock(spotify.positionMs)}</span>
+                <span className="player-track" aria-hidden="true">
+                  <span className="player-track-fill" style={{ transform: `scaleX(${progress})` }} />
+                </span>
+                {/* Stands in for the bar once it is too narrow to draw, so the
+                    two numbers never run together as "0:0021:11". */}
+                <span className="player-time-sep" aria-hidden="true">
+                  /
+                </span>
+                <span className="player-duration">{clock(spotify.durationMs)}</span>
               </span>
             )}
-          </span>
+          </div>
         </div>
 
+        {/* ---- settings ---- */}
         <div className="player-right">
           <button
             type="button"
             className="player-btn"
             onClick={() => setMuted((m) => !m)}
             aria-label={muted ? 'Unmute' : 'Mute'}
+            disabled={spotifyDrives}
+            title={spotifyDrives ? 'Volume is set in the Spotify player' : undefined}
           >
             {muted ? (
               <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
@@ -327,13 +388,41 @@ export function RadioPlayer({
   );
 }
 
-function SpotifyGlyph() {
+function SpotifyGlyph({ size = 17 }: { size?: number }) {
   return (
-    <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
       <path
         fill="currentColor"
         d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm4.586 14.424a.623.623 0 0 1-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.871 7.077-.496 9.712 1.115a.623.623 0 0 1 .207.857Zm1.223-2.722a.78.78 0 0 1-1.072.257c-2.688-1.652-6.786-2.131-9.965-1.166a.78.78 0 1 1-.452-1.492c3.632-1.102 8.147-.568 11.233 1.329a.78.78 0 0 1 .256 1.072Zm.105-2.835c-3.223-1.914-8.54-2.09-11.617-1.156a.935.935 0 1 1-.543-1.79c3.532-1.072 9.404-.865 13.115 1.338a.935.935 0 1 1-.955 1.608Z"
       />
+    </svg>
+  );
+}
+
+/** A circular arrow with 15 inside, the way a podcast app draws a skip. */
+function SkipGlyph({ back = false }: { back?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true">
+      <g transform={back ? 'scale(-1,1) translate(-24,0)' : undefined}>
+        <path
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          d="M12 5.5a7 7 0 1 0 6.7 5"
+        />
+        <path fill="currentColor" d="M11.4 2.2 15 5l-3.6 2.8Z" />
+      </g>
+      <text
+        x="12"
+        y="15.6"
+        textAnchor="middle"
+        fontSize="7.4"
+        fontWeight="700"
+        fill="currentColor"
+      >
+        15
+      </text>
     </svg>
   );
 }

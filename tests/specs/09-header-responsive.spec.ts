@@ -18,22 +18,34 @@ import { describe, expect, it } from 'vitest';
 
 const css = readFileSync(join(process.cwd(), 'src', 'styles', 'site.css'), 'utf8');
 
-/** Return the body of the first `@media (max-width: <px>)` block. */
+/**
+ * Every `@media (max-width: <px>)` block in the file, joined.
+ *
+ * More than one block per width is ordinary CSS -- the player has its own set
+ * at the same breakpoints as the header -- so reading only the first would
+ * silently test the wrong rules.
+ */
 function mediaBlock(maxWidth: number): string {
   const marker = `@media (max-width: ${maxWidth}px)`;
-  const start = css.indexOf(marker);
-  if (start < 0) throw new Error(`no ${marker} block in site.css`);
+  const blocks: string[] = [];
 
-  const open = css.indexOf('{', start);
-  let depth = 0;
-  for (let i = open; i < css.length; i++) {
-    if (css[i] === '{') depth++;
-    else if (css[i] === '}') {
-      depth--;
-      if (depth === 0) return css.slice(open + 1, i);
+  for (let from = css.indexOf(marker); from >= 0; from = css.indexOf(marker, from + 1)) {
+    const open = css.indexOf('{', from);
+    let depth = 0;
+    for (let i = open; i < css.length; i++) {
+      if (css[i] === '{') depth++;
+      else if (css[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          blocks.push(css.slice(open + 1, i));
+          break;
+        }
+      }
     }
   }
-  throw new Error(`unbalanced braces after ${marker}`);
+
+  if (blocks.length === 0) throw new Error(`no ${marker} block in site.css`);
+  return blocks.join('\n');
 }
 
 describe('header at phone widths', () => {

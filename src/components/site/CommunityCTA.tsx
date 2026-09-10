@@ -3,7 +3,9 @@ import { Logo } from './Logo';
 
 export function CommunityCTA() {
   return (
-    <section className="cta" id="about">
+    // The About anchor moved to <AboutStation>, which says what the station is
+    // before this asks the reader to join it. Two id="about" would be invalid.
+    <section className="cta" id="join">
       <div className="cta-inner">
         <div className="cta-copy">
           <p className="eyebrow eyebrow-invert">Be a part of 90.8</p>

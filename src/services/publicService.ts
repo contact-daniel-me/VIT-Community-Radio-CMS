@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { unwrap, unwrapMaybe } from '@/lib/query';
 import type {
+  PublicChartRow,
   PublicEpisodeRow,
   PublicNowPlayingRow,
   PublicProgramRow,
@@ -35,6 +36,23 @@ export const publicService = {
         .order('aired_episode_count', { ascending: false })
         .order('name')
         .limit(limit),
+    );
+  },
+
+  /**
+   * The Fixed Point Chart: the fixed weekly shape of the broadcast day.
+   *
+   * Distinct from getTodaySchedule, which is what is actually booked to go out
+   * today. The chart is what the station broadcasts every week regardless, so
+   * the site has something real to show on a day with nothing scheduled.
+   */
+  async getFixedPointChart(): Promise<PublicChartRow[]> {
+    return unwrap(
+      supabase
+        .from('v_public_fixed_point_chart')
+        .select('*')
+        .order('start_time')
+        .order('end_time'),
     );
   },
 

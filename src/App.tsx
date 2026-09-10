@@ -60,6 +60,9 @@ function SetupRequired() {
         <p className="small">
           The CMS cannot reach Supabase because its environment variables are not set.
         </p>
+        <p className="small">
+          <strong>Running locally?</strong>
+        </p>
         <ol className="small">
           <li>
             Copy <code>.env.example</code> to <code>.env.local</code>
@@ -69,6 +72,18 @@ function SetupRequired() {
             your Supabase project (Settings &rarr; API)
           </li>
           <li>Restart the dev server</li>
+        </ol>
+        <p className="small">
+          <strong>Deployed to Vercel, Netlify or similar?</strong>
+        </p>
+        <ol className="small">
+          <li>
+            Add the same two variables in the host&rsquo;s environment settings
+          </li>
+          <li>
+            <strong>Redeploy.</strong> Vite bakes these in at build time, so an existing
+            build will not pick them up
+          </li>
         </ol>
         <p className="small muted">
           Use the anon key only. The service-role key must never be placed in frontend code.

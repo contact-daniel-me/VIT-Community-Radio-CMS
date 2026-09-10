@@ -372,3 +372,153 @@ describe('homepage Top 10 and raw audio expiry', () => {
     expect(days[0].d).toBe(30);
   });
 });
+
+/**
+ * Deleting an episode.
+ *
+ * The schema's default is that episodes are never deleted -- ARCHIVED exists so
+ * history survives. These cases are about the deliberate exception: a draft
+ * that should never have been a record, and everything that must refuse.
+ */
+describe('delete_episode', () => {
+  let db: TestDb;
+  let admin: string;
+  let producer: string;
+  let rj: string;
+  let qc: string;
+  let programId: string;
+
+  async function draft(title: string): Promise<string> {
+    const rows = await db.asUser<{ id: string }>(
+      rj,
+      `insert into public.episodes (program_id, title, created_by, assigned_rj)
+       values ($1, $2, $3, $3) returning id`,
+      [programId, title, rj],
+    );
+    return rows[0].id;
+  }
+
+  async function withAudio(episodeId: string): Promise<string> {
+    const rows = await db.sql<{ id: string }>(
+      `insert into public.audio_files
+         (episode_id, file_name, storage_path, mime_type, file_size, duration_seconds, uploaded_by)
+       values ($1, 'take.mp3', $2, 'audio/mpeg', 1048576, 600, $3) returning id`,
+      [episodeId, `episodes/${episodeId}/take.mp3`, rj],
+    );
+    await db.sql('update public.episodes set audio_file_id = $1 where id = $2', [
+      rows[0].id,
+      episodeId,
+    ]);
+    return rows[0].id;
+  }
+
+  beforeAll(async () => {
+    db = await createTestDb();
+    admin = await db.createUser({ email: 'del-a@vit.ac.in', fullName: 'Admin', role: 'ADMIN' });
+    producer = await db.createUser({ email: 'del-p@vit.ac.in', fullName: 'Prod', role: 'PRODUCER' });
+    rj = await db.createUser({ email: 'del-r@vit.ac.in', fullName: 'RJ', role: 'RJ' });
+    qc = await db.createUser({ email: 'del-q@vit.ac.in', fullName: 'QC', role: 'QC' });
+
+    const program = await db.asUser<{ id: string }>(
+      producer,
+      `insert into public.programs (name, created_by) values ('Delete Test Show', $1) returning id`,
+      [producer],
+    );
+    programId = program[0].id;
+  });
+
+  afterAll(async () => {
+    await db.close();
+  });
+
+  it('deletes a draft, and takes its audio row with it', async () => {
+    const id = await draft('A false start');
+    const audioId = await withAudio(id);
+
+    const result = await db.asUser<{ delete_episode: { title: string; audio: unknown[] } }>(
+      admin,
+      'select public.delete_episode($1) as delete_episode',
+      [id],
+    );
+    expect(result[0].delete_episode.title).toBe('A false start');
+    // The storage paths come back so the caller can check it cleared the bucket.
+    expect(result[0].delete_episode.audio).toHaveLength(1);
+
+    expect(await db.sql('select 1 from public.episodes where id = $1', [id])).toHaveLength(0);
+    expect(await db.sql('select 1 from public.audio_files where id = $1', [audioId])).toHaveLength(0);
+  });
+
+  it('deletes a rejected episode too', async () => {
+    const id = await draft('Sent back');
+    await withAudio(id);
+    await db.asUser(rj, 'select public.submit_episode_for_qc($1)', [id]);
+    await db.asUser(qc, 'select public.reject_episode($1, $2)', [id, 'Levels are wrong']);
+
+    // qc_reviews now references it, which is a refusal on purpose.
+    await expectFailure(
+      () => db.asUser(admin, 'select public.delete_episode($1)', [id]),
+      /QC has reviewed it/i,
+    );
+  });
+
+  it('refuses an approved episode and says to archive instead', async () => {
+    const id = await draft('Cleared for air');
+    await withAudio(id);
+    await db.asUser(rj, 'select public.submit_episode_for_qc($1)', [id]);
+    await db.asUser(qc, 'select public.approve_episode($1)', [id]);
+
+    const message = await expectFailure(
+      () => db.asUser(admin, 'select public.delete_episode($1)', [id]),
+      /cannot be deleted/i,
+    );
+    expect(message).toMatch(/archive it instead/i);
+    expect(await db.sql('select 1 from public.episodes where id = $1', [id])).toHaveLength(1);
+  });
+
+  it('refuses anyone who is not an administrator', async () => {
+    const id = await draft('Producer tries to delete');
+    await expectFailure(
+      () => db.asUser(producer, 'select public.delete_episode($1)', [id]),
+      /only an administrator/i,
+    );
+    await expectFailure(
+      () => db.asUser(rj, 'select public.delete_episode($1)', [id]),
+      /only an administrator/i,
+    );
+    expect(await db.sql('select 1 from public.episodes where id = $1', [id])).toHaveLength(1);
+  });
+
+  it('refuses an episode that does not exist', async () => {
+    await expectFailure(
+      () =>
+        db.asUser(admin, 'select public.delete_episode($1)', [
+          '00000000-0000-0000-0000-000000000000',
+        ]),
+      /episode not found/i,
+    );
+  });
+
+  it('records the deletion, with the title, after the row has gone', async () => {
+    const id = await draft('Worth remembering');
+    await db.asUser(admin, 'select public.delete_episode($1)', [id]);
+
+    const log = await db.asUser<{ metadata: { title: string } }>(
+      admin,
+      `select metadata from public.activity_logs
+        where action = 'EPISODE_DELETED' and entity_id = $1`,
+      [id],
+    );
+    expect(log).toHaveLength(1);
+    expect(log[0].metadata.title).toBe('Worth remembering');
+  });
+
+  it('is not executable by anonymous callers', async () => {
+    const grants = await db.sql<{ grantee: string }>(
+      `select grantee from information_schema.role_routine_grants
+        where routine_name = 'delete_episode' and privilege_type = 'EXECUTE'`,
+    );
+    const grantees = grants.map((g) => g.grantee);
+    expect(grantees).toContain('authenticated');
+    expect(grantees).not.toContain('anon');
+  });
+});

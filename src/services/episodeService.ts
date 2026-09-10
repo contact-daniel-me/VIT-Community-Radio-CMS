@@ -1,5 +1,5 @@
-import { supabase } from '@/lib/supabase';
-import { assertWritten } from '@/lib/errors';
+import { AUDIO_BUCKET, supabase } from '@/lib/supabase';
+import { AppError, assertWritten } from '@/lib/errors';
 import { unwrap } from '@/lib/query';
 import type { AudioFileRow, EpisodeRow, EpisodeStatus } from '@/types/database';
 
@@ -106,6 +106,41 @@ export const episodeService = {
 
   async archiveEpisode(id: string): Promise<EpisodeRow> {
     return unwrap(supabase.rpc('archive_episode', { p_episode_id: id }));
+  },
+
+  /**
+   * Permanently remove a draft or rejected episode.
+   *
+   * The bucket is cleared BEFORE the row, and the order is not interchangeable.
+   * Deleting the episode first strands its audio: the storage policy that
+   * authorises the delete matches on the episode, so once the episode is gone
+   * the object cannot be removed at all. That mistake has already been made
+   * once in this project and left orphaned files behind.
+   *
+   * A storage object that has already vanished is not an error -- the point is
+   * to end with the bucket clear, and it is.
+   */
+  async deleteEpisode(id: string): Promise<{ title: string; removedFiles: number }> {
+    const audio = await unwrap(
+      supabase.from('audio_files').select('storage_path').eq('episode_id', id),
+    );
+
+    const paths = audio.map((row) => row.storage_path).filter(Boolean);
+    if (paths.length > 0) {
+      const { error } = await supabase.storage.from(AUDIO_BUCKET).remove(paths);
+      // Storage refusing is worth stopping for: carrying on would delete the
+      // row and leave the audio behind with no way to reach it.
+      if (error && !/not found/i.test(error.message)) {
+        throw new AppError(
+          'CONFLICT',
+          'The audio could not be removed, so the episode was left alone.',
+          error,
+        );
+      }
+    }
+
+    const result = await unwrap(supabase.rpc('delete_episode', { p_episode_id: id }));
+    return { title: result.title, removedFiles: paths.length };
   },
 
   /** Episodes cleared by QC and therefore eligible for the schedule grid. */

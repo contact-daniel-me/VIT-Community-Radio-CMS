@@ -11,6 +11,7 @@ import {
   PageHeader,
 } from '@/components/ui';
 import { AudioPlayer } from '@/components/AudioPlayer';
+import { DeleteEpisodeDialog } from '@/components/DeleteEpisodeDialog';
 import { episodeService } from '@/services/episodeService';
 import { audioService } from '@/services/audioService';
 import { qcService } from '@/services/qcService';
@@ -23,6 +24,7 @@ export function EpisodeDetailPage() {
   const { episodeId = '' } = useParams();
   const profile = useCurrentUser();
   const navigate = useNavigate();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const episode = useAsync(() => episodeService.getEpisode(episodeId), [episodeId]);
@@ -50,6 +52,10 @@ export function EpisodeDetailPage() {
 
   const ep = episode.data;
   const editable = can.editEpisode(profile.role, ep, profile.id);
+  // Only an administrator, and only for something that never reached the air.
+  // The database refuses the rest regardless of what is drawn here.
+  const deletable =
+    profile.role === 'ADMIN' && (ep.status === 'DRAFT' || ep.status === 'REJECTED');
   const isReviewer = can.reviewQC(profile.role);
   const needsAudio = ep.program?.requires_audio ?? true;
 
@@ -415,6 +421,17 @@ export function EpisodeDetailPage() {
                   Archive
                 </ConfirmButton>
               )}
+
+              {deletable && (
+                <button
+                  type="button"
+                  className="small danger-action"
+                  disabled={busy}
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  Delete
+                </button>
+              )}
             </div>
 
             {needsAudio && !ep.audio_file_id && editable && (
@@ -463,6 +480,22 @@ export function EpisodeDetailPage() {
           )}
         </div>
       </div>
+
+      {confirmDelete && (
+        <DeleteEpisodeDialog
+          episode={ep}
+          onClose={() => setConfirmDelete(false)}
+          onDeleted={(title) => {
+            setConfirmDelete(false);
+            // The episode this page is about no longer exists, so there is
+            // nothing to reload -- go back to the list and say what happened.
+            navigate('/episodes', {
+              replace: true,
+              state: { notice: `"${title}" was deleted.` },
+            });
+          }}
+        />
+      )}
     </>
   );
 }

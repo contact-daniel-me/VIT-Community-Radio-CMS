@@ -40,7 +40,7 @@ const migrationsDir = join(repoRoot, 'supabase', 'migrations');
 const outDir = join(repoRoot, 'supabase', 'deploy');
 
 /** Migrations that make up the upgrade bundle, in dependency order. */
-const UPGRADE_RANGE = ['08', '09', '10', '11', '12', '13', '14', '15', '16', '17'];
+const UPGRADE_RANGE = ['08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18'];
 
 const banner = (source) =>
   [
@@ -85,7 +85,7 @@ if (upgradeSequences.join(',') !== UPGRADE_RANGE.join(',')) {
 const upgradeParts = [
   [
     '-- =============================================================================',
-    '-- VIT COMMUNITY RADIO CMS -- UPGRADE 08 to 17',
+    '-- VIT COMMUNITY RADIO CMS -- UPGRADE 08 to 18',
     '--',
     '-- GENERATED FILE. Do not edit by hand -- run `npm run build:bundle`.',
     '-- Migration SQL is copied verbatim; nothing here changes their logic.',
@@ -104,6 +104,7 @@ const upgradeParts = [
     '--   15  delete_user, for accounts with no station records (needs 01, 02, 11)',
     '--   16  clear the transcription notes from the chart      (needs 09, 10)',
     '--   17  homepage Top 10 + raw audio expiry               (needs 01, 02)',
+    '--   18  delete_episode, drafts and rejects only          (needs 01, 17)',
     '--',
     '-- Run once. Migration 10 is idempotent, but 09 and 11 create types and',
     '-- tables, so a second run reports duplicates.',

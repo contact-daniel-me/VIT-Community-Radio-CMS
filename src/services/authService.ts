@@ -19,11 +19,19 @@ export const authService = {
     if (error) {
       // GoTrue is deliberately vague here, and so are we: never reveal whether
       // an address exists.
+      // Being vague about credentials is deliberate. Being vague about a
+      // misconfigured project is not: "please try again" sent a locked-out
+      // administrator looking for a wrong password when the real cause was a
+      // switch in the Supabase dashboard, so that case names itself.
       const message = /invalid login/i.test(error.message)
         ? 'That email address and password do not match.'
         : /email not confirmed/i.test(error.message)
           ? 'This account has not been confirmed yet. Ask an administrator.'
-          : 'Could not sign you in. Please try again.';
+          : /provider.*disabled|logins are disabled/i.test(error.message)
+            ? 'Email sign-in is switched off for this station. An administrator needs to re-enable the Email provider in Supabase, under Authentication → Sign In / Providers.'
+            : /rate limit|too many requests/i.test(error.message)
+              ? 'Too many attempts. Wait a minute and try again.'
+              : 'Could not sign you in. Please try again.';
       throw new AppError('AUTH', message, error);
     }
 
@@ -55,9 +63,15 @@ export const authService = {
     });
 
     if (error) {
+      // Order matters here. The provider-disabled message is "Email signups are
+      // disabled", which contains "email" and would otherwise be reported as a
+      // malformed address -- pointing the person at their own typing when the
+      // fault is a project setting.
       const message = /already registered|already exists/i.test(error.message)
         ? 'An account with that email address already exists. Try signing in instead.'
-        : /signups not allowed|signup is disabled/i.test(error.message)
+        : /signups? (are |not )?(allowed|disabled)|signup is disabled|provider.*disabled/i.test(
+              error.message,
+            )
           ? 'Registration is currently closed. Please contact a station administrator.'
           : /password/i.test(error.message)
             ? 'That password is too weak. Use at least 8 characters.'

@@ -1,0 +1,50 @@
+# Supabase CLI configuration for local development.
+# Docs: https://supabase.com/docs/guides/local-development
+
+project_id = "vit-community-radio-cms"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.pooler]
+enabled = false
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+# Matches the CHECK constraint on audio_files.file_size and the bucket limit.
+file_size_limit = "200MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+# Self-registration is allowed, but it only creates a PENDING account: the
+# profile is inactive until an administrator activates it (migration 07).
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+# Off locally so development registration is one step. On a hosted project keep
+# Supabase's default (confirmation on): an unconfirmed account is pending twice
+# over, which is fine -- it still cannot reach anything until an admin activates it.
+enable_confirmations = false
+double_confirm_changes = true

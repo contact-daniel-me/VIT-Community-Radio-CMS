@@ -1,0 +1,131 @@
+/* =============================================================================
+   VIT Community Radio — design tokens
+   =============================================================================
+
+   One palette, two themes. Light is the default; dark is opt-in and is what the
+   station's own front page leans on for the hero.
+
+   The red is the brand red and it is rationed on purpose: it means ON AIR,
+   RECORDING, LIVE, or "this is the one action that matters". If red starts
+   showing up on ordinary surfaces, something has gone wrong.
+
+   Navy comes from the logo mark and does the quiet structural work — it is the
+   ink colour, not a second accent.
+   ============================================================================= */
+
+:root {
+  color-scheme: light;
+
+  /* Brand constants — identical in both themes. */
+  --brand-red: #d21e28;
+  --brand-red-deep: #a5161e;
+  --brand-navy: #2e3192; /* sampled from the logo mark */
+
+  /* Surfaces, from page backdrop upwards. */
+  --bg: #f7f6f4;          /* warm off-white, not clinical #fff */
+  --bg-sunk: #efedea;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --surface-invert: #12141a;
+
+  /* Ink. */
+  --ink: #14161c;
+  --ink-strong: #000000;
+  --ink-muted: #5a6068;
+  --ink-faint: #878d95;
+  --ink-invert: #f6f5f3;
+  --ink-invert-muted: #9aa1ab;
+
+  /* Lines. */
+  --line: #e2dfda;
+  --line-strong: #cdc8c1;
+  --line-invert: #262a33;
+
+  /* Accents in context. */
+  --accent: var(--brand-red);
+  --accent-hover: var(--brand-red-deep);
+  --accent-ink: #ffffff;
+  --accent-wash: #fdeceb;
+  --accent-line: #f3c9c7;
+
+  --ok: #17703a;
+  --ok-wash: #eaf6ee;
+  --warn: #8a5300;
+  --warn-wash: #fdf3e3;
+  --info: var(--brand-navy);
+  --info-wash: #ecedf8;
+
+  /* Geometry — restrained. Editorial layouts use edges, not pills. */
+  --r-sm: 3px;
+  --r-md: 5px;
+  --r-lg: 8px;
+  --r-pill: 999px;
+
+  /* Elevation — used sparingly. */
+  --shadow-sm: 0 1px 2px rgba(20, 22, 28, 0.06);
+  --shadow-md: 0 6px 20px -8px rgba(20, 22, 28, 0.18);
+
+  /* Motion. */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --t-fast: 150ms;
+  --t-base: 220ms;
+  --t-slow: 340ms;
+
+  /* Type. */
+  --font-sans: 'Inter var', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', sans-serif;
+  --font-mono: 'SFMono-Regular', ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  --measure: 62ch;
+  --shell: 1200px;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0c0e13;
+  --bg-sunk: #08090d;
+  --surface: #14171e;
+  --surface-raised: #1a1e26;
+  --surface-invert: #f6f5f3;
+
+  --ink: #f0efec;
+  --ink-strong: #ffffff;
+  --ink-muted: #a3aab4;
+  --ink-faint: #767d87;
+  --ink-invert: #14161c;
+  --ink-invert-muted: #5a6068;
+
+  --line: #242832;
+  --line-strong: #333846;
+  --line-invert: #e2dfda;
+
+  --accent: #ef3b40;
+  --accent-hover: #ff5257;
+  --accent-ink: #ffffff;
+  --accent-wash: #2a1315;
+  --accent-line: #4d1f22;
+
+  --ok: #4ecb7b;
+  --ok-wash: #10231a;
+  --warn: #e3a44a;
+  --warn-wash: #241a0c;
+  --info: #8b90ee;
+  --info-wash: #171a2e;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 10px 30px -12px rgba(0, 0, 0, 0.7);
+}
+
+/* Anyone who has asked their OS to reduce motion gets a still page: the
+   waveform stops, entrances stop, hovers still respond. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

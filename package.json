@@ -1,0 +1,41 @@
+{
+  "name": "vit-community-radio-cms",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Content Management System for VIT Community Radio 90.8 MHz, VIT Vellore",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "typecheck": "tsc -b --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:reset": "supabase db reset",
+    "db:push": "supabase db push",
+    "build:bundle": "node scripts/build-deploy-bundle.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.58.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.9.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.11",
+    "@eslint/js": "^9.36.0",
+    "@types/node": "^26.5.0",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.2",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.4.0",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.44.0",
+    "vite": "^7.1.5",
+    "vitest": "^3.2.4"
+  }
+}

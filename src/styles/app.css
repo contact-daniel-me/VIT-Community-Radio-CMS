@@ -1,0 +1,574 @@
+/* VIT Community Radio CMS -- one small stylesheet, no framework.
+   Priority order: readable, fast, works on a phone. */
+
+/* The CMS keeps its dense layout but reads the shared palette from tokens.css.
+   Only the legacy alias names live here. */
+:root {
+  --border: var(--line);
+  --text: var(--ink);
+  --muted: var(--ink-muted);
+  --accent-dark: var(--accent-hover);
+  --on-air: var(--accent);
+  --radius: var(--r-md);
+  --shadow: var(--shadow-sm);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0;
+}
+h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+}
+h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+}
+a {
+  color: var(--accent);
+}
+
+/* ---------- App shell ---------- */
+.app-header {
+  background: var(--surface-invert);
+  color: #fff;
+  padding: 0.6rem 1rem;
+}
+.app-header-inner,
+.app-main {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.app-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.app-brand strong {
+  font-size: 1rem;
+  letter-spacing: 0.02em;
+}
+.app-brand span {
+  color: #9aa4ae;
+  font-size: 0.78rem;
+}
+.app-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.app-user {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+  color: #c9d1d9;
+}
+
+.app-nav {
+  background: color-mix(in srgb, var(--surface-invert) 92%, var(--accent));
+  border-bottom: 1px solid #2c343c;
+  overflow-x: auto;
+}
+.app-nav-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0 0.5rem;
+}
+.app-nav a {
+  color: #c9d1d9;
+  text-decoration: none;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.87rem;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+.app-nav a:hover {
+  color: #fff;
+}
+.app-nav a.active {
+  color: #fff;
+  border-bottom-color: var(--on-air);
+}
+
+.app-main {
+  padding: 1.25rem 1rem 3rem;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.page-header p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.87rem;
+}
+
+/* ---------- Surfaces ---------- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+.card + .card {
+  margin-top: 1rem;
+}
+.card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.card-title h2 {
+  margin: 0;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+}
+@media (min-width: 860px) {
+  .grid-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .grid-main-side {
+    grid-template-columns: 2fr 1fr;
+  }
+}
+
+/* ---------- On air ---------- */
+.onair {
+  border-left: 4px solid var(--border);
+}
+.onair.live {
+  border-left-color: var(--on-air);
+}
+.onair-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.onair.live .onair-status {
+  color: var(--on-air);
+}
+.onair-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.onair.live .onair-dot {
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+.onair-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0.4rem 0 0.15rem;
+}
+.onair-meta {
+  color: var(--muted);
+  font-size: 0.87rem;
+}
+
+/* ---------- Badges ---------- */
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.badge-grey {
+  color: var(--muted);
+  border-color: var(--border);
+  background: #f2f4f6;
+}
+.badge-blue {
+  color: var(--info);
+  border-color: #c7d6fb;
+  background: #eef3fe;
+}
+.badge-green {
+  color: var(--ok);
+  border-color: #bfe3cc;
+  background: #eefaf1;
+}
+.badge-red {
+  color: var(--on-air);
+  border-color: #f2c4c4;
+  background: #fdeeee;
+}
+.badge-amber {
+  color: var(--warn);
+  border-color: #f0dcb4;
+  background: #fdf6e7;
+}
+
+/* ---------- Tables ---------- */
+.table-wrap {
+  overflow-x: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+th,
+td {
+  text-align: left;
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+th {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+tbody tr:hover {
+  background: #fafbfc;
+}
+td.actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* ---------- Forms ---------- */
+.form-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+@media (min-width: 700px) {
+  .form-grid.cols-2 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .form-grid .span-2 {
+    grid-column: 1 / -1;
+  }
+}
+label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+.hint {
+  font-weight: 400;
+  color: var(--muted);
+}
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fff;
+  font: inherit;
+  color: inherit;
+}
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.checkbox input {
+  width: auto;
+}
+
+.actions-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 0.9rem;
+}
+
+button {
+  font: inherit;
+  padding: 0.42rem 0.85rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+}
+button:hover:not(:disabled) {
+  background: #f2f4f6;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+button.primary:hover:not(:disabled) {
+  background: var(--accent-dark);
+}
+button.danger {
+  color: var(--on-air);
+  border-color: #e6bcbc;
+}
+button.danger:hover:not(:disabled) {
+  background: #fdeeee;
+}
+button.link {
+  border: none;
+  background: none;
+  color: var(--accent);
+  padding: 0.2rem 0.3rem;
+  text-decoration: underline;
+}
+button.small {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.82rem;
+}
+
+/* ---------- Feedback ---------- */
+.banner {
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  border: 1px solid;
+  font-size: 0.87rem;
+  margin-bottom: 0.9rem;
+}
+.banner-error {
+  color: #8a1c1c;
+  background: #fdeeee;
+  border-color: #f2c4c4;
+}
+.banner-success {
+  color: var(--ok);
+  background: #eefaf1;
+  border-color: #bfe3cc;
+}
+.banner-info {
+  color: var(--info);
+  background: #eef3fe;
+  border-color: #c7d6fb;
+}
+.empty {
+  color: var(--muted);
+  font-size: 0.88rem;
+  padding: 0.9rem 0;
+}
+.loading {
+  color: var(--muted);
+  font-size: 0.88rem;
+  padding: 0.9rem 0;
+}
+
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 0.82rem;
+}
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.spread {
+  justify-content: space-between;
+}
+.filters {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.9rem;
+}
+.filters input,
+.filters select {
+  width: auto;
+  min-width: 150px;
+}
+
+.list-item {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.list-item:last-child {
+  border-bottom: none;
+}
+
+audio {
+  width: 100%;
+  margin-top: 0.4rem;
+}
+
+/* ---------- Login ---------- */
+.login-wrap {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+.login-card {
+  width: 100%;
+  max-width: 380px;
+}
+.login-brand {
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+.login-brand strong {
+  display: block;
+  font-size: 1.15rem;
+}
+.login-brand span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.dev-hint {
+  margin-top: 1rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  border-top: 1px dashed var(--border);
+  padding-top: 0.7rem;
+}
+
+/* ---------- Public site (homepage) ---------- */
+.public {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.public-header {
+  background: var(--surface-invert);
+  color: #fff;
+  padding: 0.85rem 1rem;
+}
+.public-header-inner {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.public-main {
+  flex: 1;
+  max-width: 1000px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.75rem 1rem 3rem;
+}
+.public-hero {
+  margin-bottom: 1.5rem;
+}
+.public-hero h1 {
+  font-size: 1.9rem;
+  line-height: 1.2;
+  margin: 0 0 0.5rem;
+}
+.public-hero p {
+  margin: 0;
+  color: var(--muted);
+  max-width: 60ch;
+}
+.public-footer {
+  border-top: 1px solid var(--border);
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* A link that reads as a button. */
+.button-link {
+  display: inline-block;
+  padding: 0.42rem 0.85rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.button-link:hover {
+  background: #f2f4f6;
+}
+.button-link.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.button-link.primary:hover {
+  background: var(--accent-dark);
+}
+
+/* The brand is a link back to the public site; keep it looking like text. */
+a.app-brand {
+  text-decoration: none;
+  color: inherit;
+}
+a.app-brand:hover strong {
+  text-decoration: underline;
+}

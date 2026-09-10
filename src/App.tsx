@@ -20,6 +20,7 @@ import { LivePage } from '@/pages/LivePage';
 import { AudioLibraryPage } from '@/pages/AudioLibraryPage';
 import { UsersPage } from '@/pages/UsersPage';
 import { SettingsPage } from '@/pages/SettingsPage';
+import { YouTubeLivePage } from '@/pages/YouTubeLivePage';
 import { StudioPublicPage } from '@/pages/StudioPublicPage';
 import { StudioPage } from '@/pages/StudioPage';
 import { MyBookingsPage } from '@/pages/MyBookingsPage';
@@ -107,6 +108,7 @@ export default function App() {
           {/* Public: anyone can see studio availability. Booking inside it still
               requires a session, and the database still decides. */}
           <Route path="/studio" element={<StudioPublicPage />} />
+          <Route path="/youtube" element={<YouTubeLivePage />} />
 
           {/* Everything below requires a session AND an active profile. */}
           <Route

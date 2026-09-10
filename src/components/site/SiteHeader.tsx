@@ -7,6 +7,7 @@ import { Logo } from './Logo';
 const SECTIONS = [
   { label: 'Home', to: '/' },
   { label: 'Studio', to: '/studio' },
+  { label: 'Live', to: '/youtube' },
   { label: 'Schedule', to: '/#schedule' },
   { label: 'Episodes', to: '/#episodes' },
   { label: 'About', to: '/#about' },

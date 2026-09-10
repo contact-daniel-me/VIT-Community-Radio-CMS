@@ -1723,3 +1723,129 @@
     height: 232px;
   }
 }
+
+/* ---------- YouTube Live -------------------------------------------------- */
+.yt {
+  max-width: 900px;
+}
+/* 16:9 without magic padding numbers. */
+.yt-frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+.yt-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.yt-skeleton {
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: linear-gradient(
+    100deg,
+    var(--bg-sunk) 30%,
+    var(--surface) 50%,
+    var(--bg-sunk) 70%
+  );
+  background-size: 220% 100%;
+  animation: yt-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes yt-shimmer {
+  from {
+    background-position: 160% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .yt-skeleton {
+    animation: none;
+  }
+}
+.yt-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.6rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  color: var(--ink-faint);
+}
+.yt-badge-live {
+  border-color: var(--brand-red);
+  color: var(--brand-red);
+}
+.yt-badge-soon {
+  border-color: var(--brand-navy);
+  color: var(--brand-navy);
+}
+.yt-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand-red);
+  animation: yt-pulse 1.6s ease-in-out infinite;
+}
+@keyframes yt-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .yt-dot {
+    animation: none;
+  }
+}
+.yt-title {
+  margin: 0 0 1rem;
+  font-size: clamp(1.05rem, 2.4vw, 1.4rem);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+.yt-state {
+  padding: 2.2rem 1.6rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: center;
+}
+.yt-state-title {
+  margin: 0 0 0.4rem;
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+.yt-state-text {
+  margin: 0 auto;
+  max-width: 46ch;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+.yt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-top: 1.2rem;
+}
+.yt-frame + .yt-actions {
+  justify-content: flex-start;
+}
+.yt-foot {
+  margin-top: 1.4rem;
+}

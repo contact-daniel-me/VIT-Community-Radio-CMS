@@ -8,6 +8,7 @@ import { ScheduleTimeline } from '@/components/site/ScheduleTimeline';
 import { EpisodeCard } from '@/components/site/Cards';
 import { FixedPointChart } from '@/components/site/FixedPointChart';
 import { AboutStation } from '@/components/site/AboutStation';
+import { SpotifyShow } from '@/components/site/SpotifyShow';
 import { CommunityCTA, SiteFooter } from '@/components/site/CommunityCTA';
 import { RadioPlayer } from '@/components/site/RadioPlayer';
 
@@ -110,6 +111,16 @@ export function HomePage() {
               ))}
             </div>
           )}
+
+          <div className="section-subhead">
+            <div>
+              <p className="eyebrow">On demand</p>
+              <h3 className="section-subtitle">The official show on Spotify</h3>
+            </div>
+            <p className="section-note">Full episodes, listen any time</p>
+          </div>
+
+          <SpotifyShow />
         </section>
 
         <AboutStation

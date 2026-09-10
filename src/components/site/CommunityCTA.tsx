@@ -57,6 +57,13 @@ export function SiteFooter() {
             <h3>Listen</h3>
             <a href="#schedule">Today&rsquo;s schedule</a>
             <a href="#episodes">Recent episodes</a>
+            <a
+              href="https://open.spotify.com/show/6uOOkDQiomTEE0Re9TqQaA"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              On Spotify
+            </a>
           </div>
           <div>
             <h3>Station</h3>

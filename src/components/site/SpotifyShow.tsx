@@ -1,4 +1,5 @@
 import { useTheme } from '@/hooks/useTheme';
+import { SPOTIFY_SHOW_URL, spotifyEmbedSrc } from '@/lib/spotify';
 
 /**
  * The station's own Spotify show, embedded.
@@ -18,15 +19,9 @@ import { useTheme } from '@/hooks/useTheme';
  * deliberately toggles the theme, and `key` makes the swap a clean replace
  * rather than a mutated frame.
  */
-const SHOW_ID = '6uOOkDQiomTEE0Re9TqQaA';
-const SHOW_URL = `https://open.spotify.com/show/${SHOW_ID}`;
-
 export function SpotifyShow() {
   const { theme } = useTheme();
-  // theme=0 is Spotify's dark player; omitting it gives the light one.
-  const src = `https://open.spotify.com/embed/show/${SHOW_ID}?utm_source=generator${
-    theme === 'dark' ? '&theme=0' : ''
-  }`;
+  const src = spotifyEmbedSrc(theme);
 
   return (
     <div className="spotify">
@@ -49,7 +44,7 @@ export function SpotifyShow() {
 
       <p className="spotify-note">
         Trouble loading the player?{' '}
-        <a href={SHOW_URL} target="_blank" rel="noopener noreferrer">
+        <a href={SPOTIFY_SHOW_URL} target="_blank" rel="noopener noreferrer">
           Open VIT Community Radio on Spotify
           <span className="visually-hidden"> (opens in a new tab)</span>
         </a>

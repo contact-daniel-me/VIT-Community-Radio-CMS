@@ -169,7 +169,7 @@ describe('fresh-project bundle', () => {
  * The upgrade path: 01-07 already applied, then the 08-12 bundle on top.
  * This is the exact situation of the live project.
  */
-describe('upgrade bundle (08-15)', () => {
+describe('upgrade bundle (08-16)', () => {
   let pg: PGlite;
 
   beforeAll(async () => {
@@ -308,7 +308,7 @@ describe('upgrade bundle (08-15)', () => {
       .sort()
       .filter((f) => Number(f.slice(12, 14)) >= 8);
 
-    expect(upgrade).toHaveLength(8);
+    expect(upgrade).toHaveLength(9);
     for (const file of upgrade) {
       const body = readFileSync(join(migrationsDir, file), 'utf8');
       expect(bundle).toContain(body);

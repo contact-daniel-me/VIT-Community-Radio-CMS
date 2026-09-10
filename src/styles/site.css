@@ -1849,3 +1849,63 @@
 .yt-foot {
   margin-top: 1.4rem;
 }
+
+/* ---------- Spotify docked in the player bar ------------------------------ */
+.player-spotify {
+  max-width: var(--shell);
+  margin: 0 auto;
+  padding: 0.6rem 1.5rem 0;
+  animation: player-spotify-in var(--t-base) var(--ease);
+}
+@keyframes player-spotify-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .player-spotify {
+    animation: none;
+  }
+}
+.player-spotify-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.45rem;
+}
+.player-spotify-label {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-invert-muted);
+}
+.player-spotify-out {
+  font-size: 0.74rem;
+  color: var(--ink-invert-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.player-spotify-out:hover {
+  color: var(--ink-invert);
+}
+.player-spotify iframe {
+  display: block;
+  width: 100%;
+  height: 152px;
+  border: 0;
+  border-radius: 10px;
+}
+/* Spotify green, but only once the panel is open: closed, it is one more
+   quiet control rather than a second accent competing with ON AIR red. */
+.player-spotify-btn.is-open {
+  color: #1db954;
+}
+@media (max-width: 620px) {
+  .player-spotify {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}

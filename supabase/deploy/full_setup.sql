@@ -1,5 +1,5 @@
 -- =============================================================================
--- VIT COMMUNITY RADIO CMS -- UPGRADE 08 to 15
+-- VIT COMMUNITY RADIO CMS -- UPGRADE 08 to 16
 --
 -- GENERATED FILE. Do not edit by hand -- run `npm run build:bundle`.
 -- Migration SQL is copied verbatim; nothing here changes their logic.
@@ -16,6 +16,7 @@
 --   13  revoke anon grants on 09/11 tables       (needs 09, 11)
 --   14  a user can always read their own profile  (needs 01, 04)
 --   15  delete_user, for accounts with no station records (needs 01, 02, 11)
+--   16  clear the transcription notes from the chart      (needs 09, 10)
 --
 -- Run once. Migration 10 is idempotent, but 09 and 11 create types and
 -- tables, so a second run reports duplicates.
@@ -1138,6 +1139,40 @@ comment on function public.delete_user(uuid) is
 revoke execute on function public.delete_user(uuid) from public;
 revoke execute on function public.delete_user(uuid) from anon;
 grant  execute on function public.delete_user(uuid) to authenticated;
+
+
+-- ###########################################################################
+-- SOURCE: supabase/migrations/20250101000016_tidy_chart_notes.sql
+-- ###########################################################################
+
+
+-- =============================================================================
+-- 16. Take the production notes off the published chart
+--
+-- Three chart rows carried notes written for whoever was transcribing the
+-- printed Fixed Point Chart rather than for a listener reading the site:
+--
+--   "Alternating strands, as printed on the chart."          (two rows)
+--   "Sits inside Rebroadcast - II. Printed on the chart as
+--    \"1700 Hrs - The Campus Quiz, Can you answer this?\""
+--
+-- They explain how the chart was copied, which is of no interest to somebody
+-- checking what is on at five o'clock. The remaining notes stay, because they
+-- tell a listener something real -- which programmes fill the rotating block,
+-- and that the afternoon is a repeat of the morning.
+--
+-- Cleared here rather than edited into migration 10, which has already been
+-- applied: the seed still writes them and this removes them, so a fresh
+-- project and the live one end up in the same place.
+-- =============================================================================
+
+update public.station_slots
+   set notes = null
+ where notes is not null
+   and (
+     notes like 'Alternating strands%'
+     or notes like 'Sits inside Rebroadcast%'
+   );
 
 
 -- ###########################################################################

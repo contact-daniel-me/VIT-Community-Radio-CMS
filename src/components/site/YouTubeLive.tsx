@@ -1,6 +1,5 @@
-import { useEffect } from 'react';
-import { useAsync } from '@/hooks/useAsync';
-import { youtubeService, CHANNEL_URL, type LiveStatus } from '@/services/youtubeService';
+import { useYouTubeLive } from '@/hooks/useYouTubeLive';
+import { CHANNEL_URL } from '@/services/youtubeService';
 
 /**
  * The station's YouTube broadcast.
@@ -9,12 +8,9 @@ import { youtubeService, CHANNEL_URL, type LiveStatus } from '@/services/youtube
  * decides that from the channel's own uploads, so a new broadcast each morning
  * needs nobody to edit the site.
  *
- * It re-checks every minute, which matches the edge cache on the route: a
- * broadcast appears within about a minute of going live, and a page left open
- * all day does not need reloading. Polling stops while the tab is hidden --
- * a backgrounded tab has nobody to show the result to.
+ * The polling lives in useYouTubeLive, shared with the player bar so the two
+ * never disagree about whether the station is on air.
  */
-const POLL_MS = 60_000;
 
 function WatchLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -59,21 +55,7 @@ function formatWhen(iso: string | null): string | null {
 }
 
 export function YouTubeLive() {
-  const status = useAsync<LiveStatus>(() => youtubeService.getLiveStatus(), []);
-  const { reload } = status;
-
-  useEffect(() => {
-    const tick = () => {
-      if (document.visibilityState === 'visible') void reload();
-    };
-    const timer = window.setInterval(tick, POLL_MS);
-    document.addEventListener('visibilitychange', tick);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', tick);
-    };
-  }, [reload]);
-
+  const status = useYouTubeLive();
   const data = status.data;
   const channelUrl = data?.channelUrl ?? CHANNEL_URL;
 

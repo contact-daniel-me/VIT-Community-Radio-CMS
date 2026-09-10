@@ -2054,6 +2054,1124 @@
   }
 }
 
+/* =============================================================================
+   The station player
+   =============================================================================
+   Three sections: what is playing, the transport, and settings that are not
+   about a particular track. The middle one is centred on the page rather than
+   in the leftover space, so the play button stays put as titles change length.
+
+   Dark in both themes on purpose -- it is the one surface that never changes
+   with the page, the way a transport bar behaves in a real player.
+   ========================================================================== */
+.player-inner {
+  max-width: var(--shell);
+  margin: 0 auto;
+  padding: 0.6rem 1.5rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1.25rem;
+}
+
+/* ---- left: what is playing ---------------------------------------------- */
+.player-id {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.player-art {
+  position: relative;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  transition: transform var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
+}
+.player-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.player-art-fallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+/* Barely there: the artwork lifts a little while something is playing. */
+.player-art.is-active {
+  transform: scale(1.04);
+  box-shadow: 0 4px 18px rgba(210, 30, 40, 0.35);
+}
+.player-id-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.06rem;
+}
+.player-station {
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink-invert);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-theme='dark'] .player-station {
+  color: var(--ink);
+}
+.player-sub {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--ink-invert-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+[data-theme='dark'] .player-sub {
+  color: var(--ink-muted);
+}
+.player-live-dot,
+.player-source-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+}
+.player-live-dot {
+  background: var(--brand-red);
+  animation: player-pulse 1.8s var(--ease) infinite;
+}
+.player-source-dot {
+  background: #1db954;
+}
+@keyframes player-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+.player-listen {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  margin-top: 0.12rem;
+  font-size: 0.7rem;
+  color: var(--ink-invert-muted);
+  text-decoration: none;
+  width: fit-content;
+  transition: color var(--t-fast) var(--ease);
+}
+.player-listen:hover {
+  color: #1db954;
+}
+[data-theme='dark'] .player-listen {
+  color: var(--ink-muted);
+}
+
+/* ---- centre: transport --------------------------------------------------- */
+.player-transport {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+.player-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+.player-btn {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-invert-muted);
+  cursor: pointer;
+  transition:
+    background var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease);
+}
+[data-theme='dark'] .player-btn {
+  color: var(--ink-muted);
+}
+.player-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink-invert);
+}
+[data-theme='dark'] .player-btn:hover:not(:disabled) {
+  color: var(--ink);
+}
+.player-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.player-btn:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* The red button is the station's, not Spotify's, and stays red. */
+.player-play {
+  width: 44px;
+  height: 44px;
+  background: var(--brand-red);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(210, 30, 40, 0.3);
+}
+.player-play:hover:not(:disabled) {
+  background: var(--accent-hover);
+  color: #fff;
+  transform: scale(1.06);
+  box-shadow: 0 4px 18px rgba(210, 30, 40, 0.45);
+}
+.player-play:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.player-play:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+.player.is-playing .player-play {
+  box-shadow: 0 0 0 4px rgba(210, 30, 40, 0.2), 0 4px 18px rgba(210, 30, 40, 0.4);
+}
+
+/* Play and pause are stacked and cross-faded, so the swap is a transition
+   rather than one glyph vanishing and another appearing. */
+.player-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+}
+.player-icon svg {
+  position: absolute;
+  inset: 0;
+  transition: opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+.player-icon .player-icon-pause,
+.player-icon.is-pause .player-icon-play {
+  opacity: 0;
+  transform: scale(0.7);
+}
+.player-icon .player-icon-play,
+.player-icon.is-pause .player-icon-pause {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.player-meter {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 18px;
+}
+.player-wave {
+  width: 84px;
+  height: 16px;
+}
+.player-state {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  color: var(--ink-invert-muted);
+  white-space: nowrap;
+}
+[data-theme='dark'] .player-state {
+  color: var(--ink-muted);
+}
+.player-time {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-invert-muted);
+  white-space: nowrap;
+}
+[data-theme='dark'] .player-time {
+  color: var(--ink-muted);
+}
+/* The separator only appears when the bar it replaces is gone. */
+.player-time-sep {
+  display: none;
+  opacity: 0.6;
+}
+.player-track {
+  display: block;
+  width: 86px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+}
+.player-track-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--brand-red);
+  transform-origin: left;
+  transition: transform var(--t-base) linear;
+}
+
+/* Idle bars sit low and still; only playing animates. */
+.player .waveform-bar {
+  background: rgba(255, 255, 255, 0.22);
+  transform: scaleY(0.2);
+}
+[data-theme='dark'] .player .waveform-bar {
+  background: rgba(255, 255, 255, 0.18);
+}
+.player .waveform.is-active .waveform-bar {
+  background: var(--brand-red);
+  animation: player-wave 1.15s var(--ease) infinite alternate;
+}
+@keyframes player-wave {
+  from {
+    transform: scaleY(0.18);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* ---- right: settings ----------------------------------------------------- */
+.player-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  min-width: 0;
+}
+.player-volume {
+  width: 88px;
+  accent-color: var(--brand-red);
+  cursor: pointer;
+}
+.player-volume:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.player-volume:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+/*
+   The Spotify frame, out of sight but not hidden.
+
+   Hiding it properly does not work: with clip-path and opacity:0 the embed
+   mounts, the API loads, and `ready` never fires -- Spotify waits to be
+   visible before it will start, so the bar sat on CONNECTING forever.
+
+   So it is genuinely visible, and simply behind the bar. It sits at the
+   bottom of the player, underneath the controls, which carry an opaque
+   background of their own; .player clips whatever reaches past the top edge.
+   The browser considers it on screen, which is what Spotify is asking, and a
+   listener never sees it.
+*/
+.player-embed {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  width: 340px;
+  height: 152px;
+  pointer-events: none;
+}
+.player-embed iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+/*
+   A full-width lid over the frame.
+
+   .player-inner is capped at --shell and centred, so on a wide screen it does
+   not reach the edges and the embed showed through beside it. This covers the
+   whole bar regardless of how wide the content is.
+*/
+.player::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: inherit;
+}
+.player-inner,
+.player-note {
+  position: relative;
+  z-index: 2;
+}
+
+.player-spotify-btn:hover {
+  color: #1db954;
+}
+.player-spotify-btn.is-open {
+  color: #1db954;
+}
+.player-freq {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-invert-muted);
+  white-space: nowrap;
+}
+[data-theme='dark'] .player-freq {
+  color: var(--ink-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-art,
+  .player-icon svg,
+  .player-play,
+  .player-track-fill {
+    transition: none;
+  }
+  .player-play:hover:not(:disabled),
+  .player-art.is-active {
+    transform: none;
+  }
+  .player-live-dot {
+    animation: none;
+  }
+  .player .waveform.is-active .waveform-bar {
+    animation: none;
+    /* Static, but not flat: still reads as a level meter. */
+    transform: scaleY(0.6);
+  }
+}
+
+/* ---- narrower ------------------------------------------------------------ */
+@media (max-width: 1040px) {
+  .player-listen {
+    display: none;
+  }
+  .player-time .player-track {
+    display: none;
+  }
+  .player-time-sep {
+    display: inline;
+  }
+}
+@media (max-width: 860px) {
+  /* Settings step aside; identity and transport share the row. */
+  .player-inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.8rem;
+  }
+  .player-right {
+    display: none;
+  }
+  .player-wave {
+    display: none;
+  }
+}
+@media (max-width: 620px) {
+  .player-inner {
+    padding: 0.55rem 1rem;
+  }
+  .player-art {
+    width: 40px;
+    height: 40px;
+  }
+  .player-controls {
+    gap: 0.35rem;
+  }
+}
+@media (max-width: 430px) {
+  /* Play only. Skipping needs a target too small to hit reliably here, and
+     the elapsed time is the first thing that can go. */
+  .player-skip,
+  .player-time {
+    display: none;
+  }
+  .player-station {
+    font-size: 0.82rem;
+  }
+}
+
+.player-note {
+  max-width: var(--shell);
+  margin: 0 auto;
+  padding: 0 1.5rem 0.6rem;
+  font-size: 0.74rem;
+  color: var(--ink-invert-muted);
+}
+
+/* ---------- Auth screens ------------------------------------------------- */
+.auth-wrap {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  background: var(--bg);
+  color: var(--ink);
+}
+.auth-aside {
+  position: relative;
+  padding: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background:
+    radial-gradient(120% 120% at 20% 0%, #2a1013 0%, transparent 60%),
+    linear-gradient(150deg, #17181d 0%, #0d0e12 100%);
+  color: #fff;
+  overflow: hidden;
+}
+.auth-aside-title {
+  margin: 0;
+  font-size: clamp(2rem, 3.6vw, 3rem);
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+.auth-aside-title span {
+  color: var(--brand-red);
+}
+.auth-aside-copy {
+  margin: 1.1rem 0 0;
+  max-width: 38ch;
+  color: rgba(255, 255, 255, 0.68);
+  line-height: 1.6;
+}
+.auth-aside-foot {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.42);
+}
+.auth-main {
+  display: grid;
+  place-items: center;
+  padding: 2.5rem 1.5rem;
+}
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+}
+.auth-back {
+  display: inline-block;
+  margin-bottom: 1.6rem;
+  font-size: 0.82rem;
+  color: var(--ink-faint);
+  text-decoration: none;
+}
+.auth-back:hover {
+  color: var(--accent);
+}
+.auth-title {
+  margin: 0 0 0.4rem;
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.auth-sub {
+  margin: 0 0 1.6rem;
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+}
+.auth-card form {
+  display: grid;
+  gap: 0.9rem;
+}
+.auth-card label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+.auth-card input {
+  padding: 0.62rem 0.7rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.auth-card .btn {
+  width: 100%;
+  padding: 0.72rem;
+}
+.auth-alt {
+  margin: 1.2rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+  text-align: center;
+}
+.auth-alt a {
+  color: var(--accent);
+  font-weight: 550;
+  text-decoration: none;
+}
+.auth-alt a:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Entrance ------------------------------------------------------ */
+.hero-lede > *,
+.hero-live {
+  animation: rise var(--t-slow) var(--ease) both;
+}
+.hero-lede > *:nth-child(1) { animation-delay: 40ms; }
+.hero-lede > *:nth-child(2) { animation-delay: 90ms; }
+.hero-lede > *:nth-child(3) { animation-delay: 140ms; }
+.hero-lede > *:nth-child(4) { animation-delay: 190ms; }
+.hero-lede > *:nth-child(5) { animation-delay: 240ms; }
+.hero-live { animation-delay: 160ms; }
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* ---------- Responsive ---------------------------------------------------- */
+@media (max-width: 1040px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'lede'
+      'live';
+    gap: 1.5rem;
+  }
+  .hero-visual {
+    inset: auto;
+    position: absolute;
+    top: -1rem;
+    right: -2rem;
+    width: 240px;
+    height: 300px;
+    z-index: 0;
+  }
+  .studio-mic {
+    width: 190px;
+    opacity: 0.24;
+    transform: none;
+  }
+  .hero-onair-sign {
+    top: 0;
+    right: 0.5rem;
+  }
+  .site-footer-inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 860px) {
+  .site-nav,
+  .site-signin {
+    display: none;
+  }
+  .site-burger {
+    display: inline-flex;
+  }
+  .site-actions {
+    margin-left: auto;
+  }
+  .cta-inner {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 2.2rem 1.6rem;
+  }
+  .cta-side {
+    justify-content: flex-start;
+  }
+  .auth-wrap {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .auth-aside {
+    display: none;
+  }
+  .player-inner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.8rem;
+  }
+  .player-right {
+    display: none;
+  }
+  .player-wave,
+  .player-state {
+    display: none;
+  }
+}
+
+@media (max-width: 620px) {
+  /* The wordmark wrapped to three lines beside the burger; the mark plus the
+     station name is enough at this width. */
+  .site-header .logo-freq {
+    display: none;
+  }
+  .site-header .logo-name {
+    font-size: 0.78rem;
+    white-space: nowrap;
+    /* Nowrap text in a flex item cannot shrink below its own width, so if the
+       row ever runs short the name must be allowed to clip rather than push
+       the header wider than the screen. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* The header could not fit on a phone. Its contents needed 486px -- brand
+     183 + actions 231 + 48 padding + 24 gap -- so the page scrolled sideways
+     at every mobile width, with scrollWidth stuck at 462 whether the viewport
+     was 320px or 430px.
+
+     "Request access" is the single widest item at 142px, and it is already in
+     the menu sheet along with Sign in and Open the CMS, so nothing becomes
+     unreachable by taking it out of the bar. That leaves the brand, the theme
+     toggle and the burger, which fit with room to spare at 320px. */
+  .site-actions .btn {
+    display: none;
+  }
+  .site-header-inner {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    gap: 0.75rem;
+  }
+  /* A flex item defaults to min-width:auto and so refuses to shrink below its
+     content. Both of these hold nowrap text. */
+  .site-brand,
+  .site-header .logo {
+    min-width: 0;
+  }
+  /* Was clipping off the right edge. */
+  .hero-onair-sign {
+    display: none;
+  }
+  .hero-visual {
+    display: none;
+  }
+  .section {
+    padding-top: 3.2rem;
+  }
+  .hero {
+    padding-top: 2rem;
+  }
+  .hero-lede {
+    padding-bottom: 1.4rem;
+  }
+  .hero-actions .btn {
+    flex: 1 1 auto;
+  }
+  .timeline-row {
+    grid-template-columns: 16px minmax(0, 1fr);
+    grid-template-areas:
+      'marker time'
+      'marker body'
+      'marker state';
+    gap: 0.15rem 0.7rem;
+    padding: 1rem 0;
+  }
+  .timeline-time {
+    grid-area: time;
+    font-size: 0.73rem;
+  }
+  .timeline-marker {
+    grid-area: marker;
+  }
+  .timeline-body {
+    grid-area: body;
+  }
+  .timeline-state {
+    grid-area: state;
+    justify-self: start;
+    margin-top: 0.45rem;
+  }
+  .episode-row {
+    grid-template-columns: auto minmax(0, 1fr);
+    row-gap: 0.4rem;
+  }
+  .episode-side {
+    grid-column: 2;
+    gap: 0.8rem;
+  }
+  .site-footer-base {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .footer-links {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.6rem;
+  }
+}
+
+/* ---------- CMS header brand (shares the site Logo component) ------------- */
+.app-header .app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.app-header .logo-name {
+  color: #fff;
+}
+.app-header .logo-freq {
+  color: rgba(255, 255, 255, 0.55);
+}
+.app-brand-tag {
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  padding: 0.16rem 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: var(--r-sm);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* ---------- Logo mark colouring ------------------------------------------
+   The brand navy is the ink on light surfaces; on the near-black CMS header and
+   the player it flips to white so the mark stays legible. The real artwork,
+   being a bitmap, cannot adapt — which is why the drawn fallback carries these. */
+:root {
+  --logo-ink: var(--brand-navy);
+  --logo-paper: #ffffff;
+}
+[data-theme='dark'] {
+  --logo-ink: #ffffff;
+  --logo-paper: #14161c;
+}
+.logo-svg {
+  display: block;
+  flex: none;
+}
+/* Dark chrome inside a light page: header bar, player bar, auth panel. */
+.app-header .logo-svg,
+.player .logo-svg,
+.auth-aside .logo-svg {
+  --logo-ink: #ffffff;
+  --logo-paper: #14161c;
+}
+
+/* ---------- Brand artwork crop -------------------------------------------
+   The supplied PNG (2466x1667) is a vertical lockup. These fractions isolate
+   the mic mark so it can sit beside type in a compact header. Measured from the
+   artwork; adjust here if the file is ever replaced.
+
+     mark occupies  x 0.414 .. 0.575   (width  0.161 of the file)
+                    y 0.044 .. 0.746   (height 0.702 of the file)  */
+.logo-lockup {
+  --logo-crop-w: 0.161;
+  --logo-crop-h: 0.702;
+  --logo-crop-top: 0.044;
+
+  position: relative;
+  display: block;
+  flex: none;
+  overflow: hidden;
+  /* Box matches the mark's own aspect ratio, so nothing is squashed. */
+  aspect-ratio: calc(var(--logo-crop-w) * 2466) / calc(var(--logo-crop-h) * 1667);
+}
+.logo-lockup .logo-mark {
+  position: absolute;
+  left: 50%;
+  top: calc(-1 * var(--logo-crop-top) / var(--logo-crop-h) * 100%);
+  height: calc(100% / var(--logo-crop-h));
+  width: auto;
+  max-width: none;
+  transform: translateX(-50%);
+}
+
+/* The mark is brand navy. On the near-black header, player and auth panel that
+   is unreadable, so it is knocked out to white — a flat bitmap cannot follow
+   the theme on its own. */
+.app-header .logo-lockup .logo-mark,
+.player .logo-lockup .logo-mark,
+.auth-aside .logo-lockup .logo-mark,
+[data-theme='dark'] .logo-lockup .logo-mark {
+  filter: brightness(0) invert(1);
+}
+
+/* ---------- Screen-reader only ------------------------------------------- */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- A second heading inside a section ----------------------------- */
+.section-subhead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+  margin: 3.2rem 0 1.5rem;
+}
+.section-subtitle {
+  margin: 0;
+  font-size: clamp(1.15rem, 2.2vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+/* ---------- Fixed Point Chart -------------------------------------------- */
+.chart-caption {
+  margin: 0 0 1rem;
+  font-size: 0.84rem;
+  color: var(--ink-muted);
+}
+.chart-dot {
+  margin: 0 0.45rem;
+  color: var(--ink-faint);
+}
+/* The table is the one thing on the page allowed to scroll sideways. */
+.chart-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.chart-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.chart-table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 600;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg-sunk);
+  white-space: nowrap;
+}
+.chart-table td {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.chart-table tr:last-child td {
+  border-bottom: none;
+}
+.chart-time {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+  font-size: 0.84rem;
+}
+.chart-dash {
+  margin: 0 0.3rem;
+  color: var(--ink-faint);
+}
+.chart-days {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--ink-faint);
+}
+.chart-title {
+  display: block;
+  font-weight: 600;
+  color: var(--ink);
+}
+.chart-note {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+.chart-kind {
+  display: inline-block;
+  padding: 0.16rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+/* Rebroadcasts are structure rather than programming, so they sit back. */
+.chart-row.kind-rebroadcast,
+.chart-row.kind-announcement {
+  color: var(--ink-muted);
+}
+.chart-row.kind-rebroadcast .chart-title,
+.chart-row.kind-announcement .chart-title {
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+/* The one slot that is a fixed feature in its own right. */
+.chart-row.kind-feature .chart-kind {
+  border-color: var(--brand-red);
+  color: var(--brand-red);
+}
+
+/* ---------- About --------------------------------------------------------- */
+.about-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 2.4rem;
+  align-items: start;
+}
+.about-copy p {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--ink-muted);
+}
+.about-copy p:last-child {
+  margin-bottom: 0;
+}
+.about-copy strong {
+  color: var(--ink);
+}
+.about-facts {
+  margin: 0;
+  padding: 1.3rem 1.4rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.about-fact + .about-fact {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+.about-fact dt {
+  font-size: 0.7rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+.about-fact dd {
+  margin: 0.25rem 0 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.about-steps {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--line);
+}
+.about-steps-title {
+  margin: 0 0 1.4rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.about-step-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 1.5rem;
+}
+.about-step-list li {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+.about-step-n {
+  flex: none;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--brand-navy);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.about-step-list strong {
+  display: block;
+  font-size: 0.93rem;
+  margin-bottom: 0.2rem;
+}
+.about-step-list p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+@media (max-width: 780px) {
+  .about-grid {
+    grid-template-columns: 1fr;
+    gap: 1.6rem;
+  }
+}
+
+/* The header is sticky, so an anchored section must stop clear of it rather
+   than sliding underneath. */
+#schedule,
+#episodes,
+#about {
+  scroll-margin-top: 5.5rem;
+}
+
+/* ---------- Spotify show embed ------------------------------------------- */
+.spotify {
+  margin-top: 0.2rem;
+}
+/* The iframe brings its own rounded corners and background; the frame just
+   holds the shape so it sits on the page like the chart does. */
+.spotify-frame {
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+.spotify-frame iframe {
+  display: block;
+  width: 100%;
+  height: 352px;
+  border: 0;
+}
+.spotify-note {
+  margin: 0.7rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+}
+.spotify-note a {
+  color: var(--ink-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.spotify-note a:hover {
+  color: var(--brand-red);
+}
+/* Narrow screens: Spotify switches the embed to its compact layout well before
+   this, and 232px is the shortest height that still shows the episode list. */
+@media (max-width: 520px) {
+  .spotify-frame iframe {
+    height: 232px;
+  }
+}
+
 /* ---------- YouTube Live -------------------------------------------------- */
 .yt {
   max-width: 900px;

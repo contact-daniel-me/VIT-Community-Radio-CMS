@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useAsync } from '@/hooks/useAsync';
 import { useHashScroll } from '@/hooks/useHashScroll';
 import { publicService } from '@/services/publicService';
@@ -20,8 +19,6 @@ import { RadioPlayer } from '@/components/site/RadioPlayer';
  * the section says so rather than the page failing.
  */
 export function HomePage() {
-  const [playRequestedAt, setPlayRequestedAt] = useState(0);
-
   const station = useAsync(async () => {
     const [nowPlaying, schedule, episodes, chart, programmes] = await Promise.all([
       publicService.getNowPlaying(),
@@ -39,18 +36,13 @@ export function HomePage() {
   useHashScroll(!station.loading);
 
   const now = station.data?.nowPlaying ?? null;
-  const live = now?.broadcast_status === 'ON_AIR';
 
   return (
     <div className="site">
       <SiteHeader />
 
       <main id="main">
-        <Hero
-          now={now}
-          canListen={live}
-          onListen={() => setPlayRequestedAt(Date.now())}
-        />
+        <Hero now={now} />
 
         <section className="section" id="schedule">
           <div className="section-head">
@@ -132,7 +124,7 @@ export function HomePage() {
       </main>
 
       <SiteFooter />
-      <RadioPlayer now={now} playRequestedAt={playRequestedAt} />
+      <RadioPlayer now={now} />
     </div>
   );
 }

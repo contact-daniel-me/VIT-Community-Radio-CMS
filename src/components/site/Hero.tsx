@@ -11,15 +11,7 @@ import { LiveStatus } from './LiveStatus';
  * The layout is deliberately asymmetric: headline sits left and low, the live
  * panel breaks the grid on the right.
  */
-export function Hero({
-  now,
-  onListen,
-  canListen,
-}: {
-  now: PublicNowPlayingRow | null;
-  onListen: () => void;
-  canListen: boolean;
-}) {
+export function Hero({ now }: { now: PublicNowPlayingRow | null }) {
   return (
     <section className="hero" id="top">
       <div className="hero-grid">
@@ -44,18 +36,6 @@ export function Hero({
           </p>
 
           <div className="hero-actions">
-            <button
-              type="button"
-              className="btn btn-solid btn-lg"
-              onClick={onListen}
-              disabled={!canListen}
-              title={canListen ? undefined : 'The station is off air right now'}
-            >
-              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
-                <path fill="currentColor" d="M8 5.2v13.6a.6.6 0 0 0 .92.51l10.5-6.8a.6.6 0 0 0 0-1.02L8.92 4.69A.6.6 0 0 0 8 5.2Z" />
-              </svg>
-              Listen live
-            </button>
             <Link to="/studio" className="btn btn-outline btn-lg">
               Book the studio
             </Link>

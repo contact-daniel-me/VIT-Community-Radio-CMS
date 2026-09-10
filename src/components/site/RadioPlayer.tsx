@@ -36,14 +36,7 @@ function clock(ms: number): string {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
-export function RadioPlayer({
-  now,
-  playRequestedAt,
-}: {
-  now: PublicNowPlayingRow | null;
-  /** Bumped by the hero's Listen live button to request playback. */
-  playRequestedAt: number;
-}) {
+export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [volume, setVolume] = useState(0.8);
@@ -88,12 +81,6 @@ export function RadioPlayer({
     if (playing) stop();
     else void start();
   };
-
-  // The hero button asks the player to start.
-  useEffect(() => {
-    if (playRequestedAt > 0 && canPlay) void start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playRequestedAt]);
 
   // A live stream that goes off air should not leave the button showing "pause".
   useEffect(() => {

@@ -49,7 +49,6 @@ export function RadioPlayer({
   const [volume, setVolume] = useState(0.8);
   const [muted, setMuted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [panelOpen, setPanelOpen] = useState(true);
 
   const live = now?.broadcast_status === 'ON_AIR';
   const configured = STREAM_URL.length > 0;
@@ -83,7 +82,6 @@ export function RadioPlayer({
 
   const toggle = () => {
     if (spotifyDrives) {
-      if (!spotify.started || !spotify.playing) setPanelOpen(true);
       spotify.toggle();
       return;
     }
@@ -143,42 +141,23 @@ export function RadioPlayer({
     <div className={`player ${active ? 'is-playing' : ''}`}>
       {configured && <audio ref={audioRef} src={STREAM_URL} preload="none" />}
 
-      {/* Mounted only once someone asks for the show, and never unmounted
-          afterwards: removing the iframe would stop the audio. Collapsing hides
-          it with height rather than display:none for the same reason. */}
+      {/*
+        The embed, offstage.
+
+        Spotify's audio needs a real iframe on the page, but it does not need
+        to be seen: this bar is the interface, and a panel unfolding over the
+        page every time someone presses play is not what a transport does. So
+        the frame is kept at full size and painted nowhere -- clipped,
+        transparent, inert -- rather than display:none or zero-sized, either of
+        which risks the player never starting or the audio being torn down.
+
+        Attribution stays where a listener can see it: the green mark, "The
+        station show on Spotify", and a link straight to the show.
+      */}
       {spotify.started && (
-        <div
-          className={`player-spotify ${panelOpen ? '' : 'is-collapsed'}`}
-          id="player-spotify"
-          aria-hidden={!panelOpen}
-        >
-          <div className="player-spotify-head">
-            <span className="player-spotify-label">VIT Community Radio on Spotify</span>
-            <span className="player-spotify-actions">
-              <a
-                className="player-spotify-out"
-                href={SPOTIFY_SHOW_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open in Spotify
-                <span className="visually-hidden"> (opens in a new tab)</span>
-              </a>
-              <button
-                type="button"
-                className="player-spotify-collapse"
-                onClick={() => setPanelOpen(false)}
-                aria-controls="player-spotify"
-                aria-label="Hide the Spotify player"
-              >
-                <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
-                  <path fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M6 9l6 6 6-6" />
-                </svg>
-              </button>
-            </span>
-          </div>
+        <div className="player-embed" aria-hidden="true">
           {/* Spotify replaces this element with its iframe. */}
-          <div ref={spotify.hostRef} className="player-spotify-host" />
+          <div ref={spotify.hostRef} />
         </div>
       )}
 
@@ -348,30 +327,16 @@ export function RadioPlayer({
             title={spotifyDrives ? 'Volume is set in the Spotify player' : undefined}
           />
 
-          {spotify.started && !panelOpen ? (
-            <button
-              type="button"
-              className="player-btn player-spotify-btn is-open"
-              onClick={() => setPanelOpen(true)}
-              aria-controls="player-spotify"
-              aria-expanded={false}
-              aria-label="Show the Spotify player"
-              title="Show the Spotify player"
-            >
-              <SpotifyGlyph />
-            </button>
-          ) : (
-            <a
-              className={`player-btn player-spotify-btn ${spotifyPlaying ? 'is-open' : ''}`}
-              href={SPOTIFY_SHOW_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Open VIT Community Radio on Spotify"
-              title="Open the show on Spotify"
-            >
-              <SpotifyGlyph />
-            </a>
-          )}
+          <a
+            className={`player-btn player-spotify-btn ${spotifyPlaying ? 'is-open' : ''}`}
+            href={SPOTIFY_SHOW_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Open VIT Community Radio on Spotify"
+            title="Open the show on Spotify"
+          >
+            <SpotifyGlyph />
+          </a>
 
           <span className="player-freq">90.8&nbsp;MHz</span>
         </div>

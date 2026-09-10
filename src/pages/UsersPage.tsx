@@ -75,6 +75,26 @@ export function UsersPage() {
     }
   };
 
+  /**
+   * Permanent removal, for the accounts an open registration form collects by
+   * accident: typos, duplicates, people who never came back.
+   *
+   * No pre-check runs here. The database refuses an account that has station
+   * records and says exactly what is attached, so the refusal is shown as-is
+   * rather than second-guessed in the browser.
+   */
+  const removeUser = async (userId: string) => {
+    setError(null);
+    setNotice(null);
+    try {
+      const removed = await userService.deleteUser(userId);
+      setNotice(`${removed.full_name} (${removed.email}) has been permanently deleted.`);
+      await Promise.all([users.reload(), activity.reload()]);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    }
+  };
+
   // Never activated = still waiting. Activated then switched off = removed.
   const allUsers = users.data ?? [];
   const pending = allUsers.filter((u) => !u.active && !u.approved_at);
@@ -199,13 +219,26 @@ export function UsersPage() {
                       </td>
                       <td className="actions">
                         {!isSelf && (
-                          <ConfirmButton
-                            className="small"
-                            confirmLabel={user.active ? 'Deactivate?' : 'Activate?'}
-                            onConfirm={() => void toggleActive(user.id, !user.active)}
-                          >
-                            {user.active ? 'Deactivate' : user.approved_at ? 'Activate' : 'Approve'}
-                          </ConfirmButton>
+                          <>
+                            <ConfirmButton
+                              className="small"
+                              confirmLabel={user.active ? 'Deactivate?' : 'Activate?'}
+                              onConfirm={() => void toggleActive(user.id, !user.active)}
+                            >
+                              {user.active
+                                ? 'Deactivate'
+                                : user.approved_at
+                                  ? 'Activate'
+                                  : 'Approve'}
+                            </ConfirmButton>
+                            <ConfirmButton
+                              className="small danger-action"
+                              confirmLabel="Delete for good?"
+                              onConfirm={() => void removeUser(user.id)}
+                            >
+                              Delete
+                            </ConfirmButton>
+                          </>
                         )}
                       </td>
                     </tr>
@@ -216,8 +249,15 @@ export function UsersPage() {
           </div>
         )}
         <p className="small muted" style={{ marginTop: '0.6rem' }}>
-          You cannot change your own role or deactivate yourself &mdash; that rule is enforced by a
-          database trigger so the station can never be locked out.
+          You cannot change your own role, deactivate yourself or delete your own account &mdash;
+          those rules are enforced in the database, so the station can never be locked out.
+        </p>
+        <p className="small muted" style={{ marginTop: '0.35rem' }}>
+          <strong>Deactivate</strong> stops someone signing in but keeps them and their work on the
+          record &mdash; use it for anyone who has presented, recorded or booked the studio.{' '}
+          <strong>Delete</strong> removes the account for good and only works when nothing is
+          attached to it, which makes it the right tool for duplicate or mistaken registrations. The
+          deletion itself is kept in the activity log.
         </p>
       </section>
 

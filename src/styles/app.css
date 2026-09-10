@@ -275,6 +275,9 @@ td.actions {
   white-space: nowrap;
   text-align: right;
 }
+td.actions button + button {
+  margin-left: 0.4rem;
+}
 
 /* ---------- Forms ---------- */
 .form-grid {
@@ -370,6 +373,14 @@ button.danger {
 }
 button.danger:hover:not(:disabled) {
   background: #fdeeee;
+}
+/* Permanent by nature, so it reads as destructive before it is armed too. */
+button.danger-action {
+  color: var(--on-air);
+}
+button.danger-action:hover:not(:disabled) {
+  background: #fdeeee;
+  border-color: #e6bcbc;
 }
 button.link {
   border: none;

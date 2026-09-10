@@ -82,4 +82,20 @@ export const userService = {
     );
     return assertWritten(rows, 'user');
   },
+
+  /**
+   * Permanently remove an account.
+   *
+   * Deleting the auth user is not something the anon key may do, and the
+   * service-role key must never reach the browser, so this goes through the
+   * delete_user SECURITY DEFINER function (migration 15). Every rule -- admin
+   * only, never yourself, never the last administrator, and never an account
+   * with station records attached -- lives in there, not here.
+   *
+   * The message the database returns already names what is attached and says
+   * to deactivate instead, so it is passed straight through.
+   */
+  async deleteUser(userId: string): Promise<{ id: string; email: string; full_name: string }> {
+    return unwrap(supabase.rpc('delete_user', { p_user_id: userId }));
+  },
 };

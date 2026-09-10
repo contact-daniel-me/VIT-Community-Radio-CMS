@@ -538,6 +538,10 @@ export type Database = {
       start_broadcast: { Args: { p_schedule_id: string }; Returns: BroadcastStateRow };
       end_broadcast: { Args: Record<PropertyKey, never>; Returns: BroadcastStateRow };
       sync_broadcast_state: { Args: Record<PropertyKey, never>; Returns: BroadcastStateRow };
+      delete_user: {
+        Args: { p_user_id: string };
+        Returns: { id: string; email: string; full_name: string };
+      };
     };
     Enums: {
       user_role: UserRole;

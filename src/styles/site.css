@@ -1269,6 +1269,35 @@
   .site-header .logo-name {
     font-size: 0.78rem;
     white-space: nowrap;
+    /* Nowrap text in a flex item cannot shrink below its own width, so if the
+       row ever runs short the name must be allowed to clip rather than push
+       the header wider than the screen. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* The header could not fit on a phone. Its contents needed 486px -- brand
+     183 + actions 231 + 48 padding + 24 gap -- so the page scrolled sideways
+     at every mobile width, with scrollWidth stuck at 462 whether the viewport
+     was 320px or 430px.
+
+     "Request access" is the single widest item at 142px, and it is already in
+     the menu sheet along with Sign in and Open the CMS, so nothing becomes
+     unreachable by taking it out of the bar. That leaves the brand, the theme
+     toggle and the burger, which fit with room to spare at 320px. */
+  .site-actions .btn {
+    display: none;
+  }
+  .site-header-inner {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    gap: 0.75rem;
+  }
+  /* A flex item defaults to min-width:auto and so refuses to shrink below its
+     content. Both of these hold nowrap text. */
+  .site-brand,
+  .site-header .logo {
+    min-width: 0;
   }
   /* Was clipping off the right edge. */
   .hero-onair-sign {

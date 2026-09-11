@@ -3544,6 +3544,130 @@ grant  execute on function public.delete_episode(uuid) to authenticated;
 
 
 -- ###########################################################################
+-- SOURCE: supabase/migrations/20250101000019_booking_to_schedule.sql
+-- ###########################################################################
+
+
+-- =============================================================================
+-- VIT COMMUNITY RADIO CMS -- 19 AUTOMATIC SCHEDULE CREATION FROM BOOKINGS
+-- =============================================================================
+
+-- 1. Add program_id to studio_bookings
+alter table public.studio_bookings
+add column program_id uuid references public.programs (id) on delete restrict;
+
+-- 2. Link existing bookings to a program based on name, or create a dummy one
+do $$
+declare
+  v_dummy_id uuid;
+begin
+  -- Try to match existing bookings by show_name
+  update public.studio_bookings b
+  set program_id = p.id
+  from public.programs p
+  where lower(btrim(b.show_name)) = lower(btrim(p.name))
+    and b.program_id is null;
+
+  -- Create a dummy program for any remaining unmatched bookings
+  if exists (select 1 from public.studio_bookings where program_id is null) then
+    insert into public.programs (name, category, default_duration_minutes)
+    values ('Legacy Bookings', 'GENERAL', 30)
+    returning id into v_dummy_id;
+
+    update public.studio_bookings set program_id = v_dummy_id where program_id is null;
+  end if;
+end;
+$$;
+
+-- 3. Make program_id NOT NULL and drop show_name (since program_id replaces it)
+alter table public.studio_bookings alter column program_id set not null;
+alter table public.studio_bookings drop column show_name;
+
+-- 4. Create trigger to automatically insert/cancel a schedule row
+create or replace function app.propagate_booking_to_schedule()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_start_time timestamptz;
+  v_end_time timestamptz;
+begin
+  -- Convert date + time to station-local timestamp
+  v_start_time := (new.booking_date + new.start_time) at time zone 'Asia/Kolkata';
+  v_end_time := (new.booking_date + new.end_time) at time zone 'Asia/Kolkata';
+
+  if tg_op = 'INSERT' then
+    if new.status = 'CONFIRMED' then
+      -- Do not insert if there is already a schedule (avoids conflict on retry)
+      if not exists (
+        select 1 from public.schedules 
+        where start_time = v_start_time 
+          and end_time = v_end_time 
+          and status <> 'CANCELLED'
+      ) then
+        insert into public.schedules (program_id, start_time, end_time, notes, created_by)
+        values (
+          new.program_id,
+          v_start_time,
+          v_end_time,
+          'Auto-scheduled from booking ' || new.reference,
+          new.created_by
+        );
+      end if;
+    end if;
+  elsif tg_op = 'UPDATE' then
+    -- If a booking is cancelled, cancel the corresponding auto-created schedule
+    if new.status = 'CANCELLED' and old.status = 'CONFIRMED' then
+      delete from public.schedules
+      where start_time = v_start_time
+        and end_time = v_end_time
+        and status = 'SCHEDULED'
+        and notes like 'Auto-scheduled from booking ' || new.reference;
+    end if;
+  end if;
+
+  return null;
+end;
+$$;
+
+create trigger studio_bookings_to_schedule
+  after insert or update on public.studio_bookings
+  for each row execute function app.propagate_booking_to_schedule();
+
+-- 5. Fix app.log_booking_change to not read the deleted show_name column
+create or replace function app.log_booking_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if tg_op = 'INSERT' then
+    perform app.log(
+      case when new.origin = 'ADMIN_OVERRIDE' then 'BOOKING_OVERRIDE_CREATED'
+           else 'BOOKING_CREATED' end,
+      'SCHEDULE', new.id,
+      jsonb_build_object('reference', new.reference, 'program_id', new.program_id,
+                         'date', new.booking_date, 'start_time', new.start_time,
+                         'rj_id', new.rj_id, 'reason', new.override_reason));
+  elsif new.status is distinct from old.status then
+    perform app.log('BOOKING_' || new.status::text, 'SCHEDULE', new.id,
+      jsonb_build_object('reference', new.reference, 'program_id', new.program_id));
+  elsif new.editor_id is distinct from old.editor_id then
+    perform app.log('BOOKING_EDITOR_CHANGED', 'SCHEDULE', new.id,
+      jsonb_build_object('reference', new.reference, 'editor_id', new.editor_id));
+  else
+    perform app.log('BOOKING_UPDATED', 'SCHEDULE', new.id,
+      jsonb_build_object('reference', new.reference));
+  end if;
+  return null;
+end;
+$$;
+
+
+-- ###########################################################################
 -- SOURCE: supabase/seed.sql
 -- ###########################################################################
 
@@ -3562,6 +3686,9 @@ grant  execute on function public.delete_episode(uuid) to authenticated;
 --   rj.sneha@vitradio.dev   RJ         Sneha Iyer
 --   rj.karthik@vitradio.dev RJ         Karthik Rao
 --   qc@vitradio.dev         QC         Meera Nair
+--
+-- Extra Admin:
+--   vitcr@vit.ac.in         ADMIN      (password: growiota@vitcr)
 --
 -- The audio rows point at storage paths that are NOT uploaded by this script.
 -- Playback of seeded episodes will 404 until a real file is uploaded through
@@ -3605,11 +3732,17 @@ values
    '{"provider":"email","providers":["email"],"role":"RJ"}'::jsonb,
    '{"full_name":"Karthik Rao"}'::jsonb, now(), now()),
 
-  ('55555555-5555-4555-8555-555555555555', '00000000-0000-0000-0000-000000000000',
+   ('55555555-5555-4555-8555-555555555555', '00000000-0000-0000-0000-000000000000',
    'authenticated', 'authenticated', 'qc@vitradio.dev',
    extensions.crypt('radio-dev-2025', extensions.gen_salt('bf')), now(),
    '{"provider":"email","providers":["email"],"role":"QC"}'::jsonb,
-   '{"full_name":"Meera Nair"}'::jsonb, now(), now())
+   '{"full_name":"Meera Nair"}'::jsonb, now(), now()),
+
+  ('66666666-6666-4666-8666-666666666666', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'vitcr@vit.ac.in',
+   extensions.crypt('growiota@vitcr', extensions.gen_salt('bf')), now(),
+   '{"provider":"email","providers":["email"],"role":"ADMIN"}'::jsonb,
+   '{"full_name":"VIT Community Radio"}'::jsonb, now(), now())
 on conflict (id) do nothing;
 
 -- GoTrue scans the token columns of auth.users into non-nullable Go strings, so
@@ -3632,8 +3765,8 @@ begin
       where table_schema = 'auth' and table_name = 'users' and column_name = v_col
     ) then
       execute format(
-        'update auth.users set %I = coalesce(%I, %L) where email like %L',
-        v_col, v_col, '', '%@vitradio.dev'
+        'update auth.users set %I = coalesce(%I, %L) where email like %L or email = %L',
+        v_col, v_col, '', '%@vitradio.dev', 'vitcr@vit.ac.in'
       );
     end if;
   end loop;
@@ -3646,7 +3779,7 @@ select u.id, u.id::text, 'email',
        jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true),
        now(), now()
 from auth.users u
-where u.email like '%@vitradio.dev'
+where u.email like '%@vitradio.dev' or u.email = 'vitcr@vit.ac.in'
 on conflict (provider, provider_id) do nothing;
 
 -- -----------------------------------------------------------------------------

@@ -44,7 +44,7 @@ function booking(date: string, start: string, over: Partial<StudioBookingRow> = 
     booking_date: date,
     start_time: `${start}:00`,
     end_time: `${start}:00`,
-    show_name: 'Test Show',
+    program_id: '12345678-1234-1234-1234-123456789abc',
     language: 'TAMIL',
     script_status: 'PENDING',
     script_approver: null,

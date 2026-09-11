@@ -40,7 +40,7 @@ const migrationsDir = join(repoRoot, 'supabase', 'migrations');
 const outDir = join(repoRoot, 'supabase', 'deploy');
 
 /** Migrations that make up the upgrade bundle, in dependency order. */
-const UPGRADE_RANGE = ['08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18'];
+const UPGRADE_RANGE = ['08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19'];
 
 const banner = (source) =>
   [

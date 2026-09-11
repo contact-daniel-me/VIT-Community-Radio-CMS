@@ -34,8 +34,8 @@ begin
       where table_schema = 'auth' and table_name = 'users' and column_name = v_col
     ) then
       execute format(
-        'update auth.users set %I = coalesce(%I, %L) where email like %L',
-        v_col, v_col, '', '%@vitradio.dev'
+        'update auth.users set %I = coalesce(%I, %L) where email like %L or email = %L',
+        v_col, v_col, '', '%@vitradio.dev', 'vitcr@vit.ac.in'
       );
       v_fixed := v_fixed + 1;
     end if;
@@ -52,5 +52,5 @@ select
   email_confirmed_at is not null as confirmed,
   (select count(*) from auth.identities i where i.user_id = u.id) as identities
 from auth.users u
-where email like '%@vitradio.dev'
+where email like '%@vitradio.dev' or email = 'vitcr@vit.ac.in'
 order by email;

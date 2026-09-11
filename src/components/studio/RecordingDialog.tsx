@@ -2,12 +2,12 @@ import { useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Banner } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
-import { bookingService } from '@/services/bookingService';
+import { bookingService, type BookingWithPeople } from '@/services/bookingService';
 import { episodeService } from '@/services/episodeService';
 import { audioService } from '@/services/audioService';
 import { programService } from '@/services/programService';
 import { errorMessage } from '@/lib/errors';
-import type { EpisodeRow, ProfileRow, StudioBookingRow } from '@/types/database';
+import type { EpisodeRow, ProfileRow } from '@/types/database';
 import { formatBookingDate, formatSlotTime } from '@/utils/studio';
 import { formatFileSize } from '@/utils/datetime';
 
@@ -38,7 +38,7 @@ export function RecordingDialog({
   onUploaded,
 }: {
   /** Only the plain row is needed, so this opens from the confirmation screen too. */
-  booking: StudioBookingRow;
+  booking: BookingWithPeople;
   profile: ProfileRow;
   onClose: () => void;
   onUploaded: () => void;
@@ -49,21 +49,13 @@ export function RecordingDialog({
   const [progress, setProgress] = useState<string>('');
   const [episode, setEpisode] = useState<EpisodeRow | null>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [programId, setProgramId] = useState('');
-  const [title, setTitle] = useState(booking.show_name);
+  const [programId, setProgramId] = useState(booking.program_id);
+  const [title, setTitle] = useState(booking.program?.name ?? '');
 
   const programs = useAsync(async () => {
     const list = await programService.getPrograms({ activeOnly: true });
-    // The booking already recorded which show this was. If it came from the
-    // dropdown the name matches a programme exactly, so pre-select it rather
-    // than making the RJ choose the same show twice. A booking made through
-    // "Other" matches nothing and simply leaves the field empty.
-    const match = list.find(
-      (p) => p.name.toLowerCase() === booking.show_name.trim().toLowerCase(),
-    );
-    if (match) setProgramId((current) => current || match.id);
     return list;
-  }, [booking.show_name]);
+  }, []);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -124,7 +116,7 @@ export function RecordingDialog({
               {stage === 'done' ? 'Uploaded' : 'Upload your recording'}
             </p>
             <h2 id="rec-title" className="dialog-title">
-              {booking.show_name}
+              {booking.program?.name}
             </h2>
             <p className="dialog-slot">
               {formatBookingDate(booking.booking_date)}

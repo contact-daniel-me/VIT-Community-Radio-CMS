@@ -7,8 +7,8 @@ import { errorMessage } from '@/lib/errors';
 
 export function LoginPage() {
   const { session, profile, loading, error: authError, signIn } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(import.meta.env.DEV ? 'vitcr@vit.ac.in' : '');
+  const [password, setPassword] = useState(import.meta.env.DEV ? 'growiota@vitcr' : '');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 

@@ -4,6 +4,9 @@ import { unwrap } from '@/lib/query';
 import type { ScheduleDetailsRow, ScheduleRow, ScheduleStatus } from '@/types/database';
 import { stationDay, stationDayRange } from '@/utils/datetime';
 
+/** Mirrors the `schedules_sane_duration` CHECK: no slot may exceed six hours. */
+const MAX_SLOT_MS = 6 * 60 * 60 * 1000;
+
 export interface ScheduleInput {
   program_id: string;
   episode_id: string | null;
@@ -34,6 +37,19 @@ export const scheduleService = {
   async getTodaySchedule(day: string = stationDay()): Promise<ScheduleDetailsRow[]> {
     const { start, end } = stationDayRange(day);
     return this.getSchedules({ from: start, to: end });
+  },
+
+  /**
+   * Today's slots, plus any slot that began yesterday and could still be
+   * running. `getTodaySchedule` filters on start time, so a slot starting at
+   * 23:45 would vanish from the dashboard at midnight while still on air; the
+   * six-hour reach back matches the `schedules_sane_duration` constraint, which
+   * is the longest a slot is allowed to be.
+   */
+  async getStationDay(day: string = stationDay()): Promise<ScheduleDetailsRow[]> {
+    const { start, end } = stationDayRange(day);
+    const from = new Date(new Date(start).getTime() - MAX_SLOT_MS).toISOString();
+    return this.getSchedules({ from, to: end });
   },
 
   async getWeekSchedule(startDay: string = stationDay()): Promise<ScheduleDetailsRow[]> {

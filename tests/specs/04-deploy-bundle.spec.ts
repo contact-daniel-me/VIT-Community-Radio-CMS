@@ -311,7 +311,7 @@ describe('upgrade bundle (08-18)', () => {
       .sort()
       .filter((f) => Number(f.slice(12, 14)) >= 8);
 
-    expect(upgrade).toHaveLength(11);
+    expect(upgrade).toHaveLength(12);
     for (const file of upgrade) {
       const body = readFileSync(join(migrationsDir, file), 'utf8');
       expect(bundle).toContain(body);

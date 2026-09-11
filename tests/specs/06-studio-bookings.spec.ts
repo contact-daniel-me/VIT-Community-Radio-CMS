@@ -23,6 +23,7 @@ describe('studio bookings', () => {
   let otherRj: string;
   let editor: string;
   let qc: string;
+  let defaultProgram: string;
 
   const book = (
     user: string,
@@ -31,16 +32,16 @@ describe('studio bookings', () => {
     db.asUser(
       user,
       `insert into public.studio_bookings
-         (rj_id, booking_date, start_time, end_time, show_name, language,
+         (rj_id, booking_date, start_time, end_time, program_id, language,
           origin, override_reason, self_edit, editor_id, created_by)
        values ($1::uuid, $2::date, $3::time, ($3::time + interval '30 minutes'),
-               $4, $5::public.show_language, $6::public.booking_origin, $7, $8, $9::uuid, $10::uuid)
+               $4::uuid, $5::public.show_language, $6::public.booking_origin, $7, $8, $9::uuid, $10::uuid)
        returning id, reference`,
       [
         fields.rj ?? user,
         fields.date,
         fields.start,
-        fields.show ?? 'Test Show',
+        fields.program ?? defaultProgram,
         fields.language ?? 'TAMIL',
         fields.origin ?? 'RJ',
         fields.reason ?? null,
@@ -57,6 +58,8 @@ describe('studio bookings', () => {
     otherRj = await db.createUser({ email: 'brj2@vit.ac.in', fullName: 'RJ Two', role: 'RJ' });
     editor = await db.createUser({ email: 'bed@vit.ac.in', fullName: 'Editor', role: 'EDITOR' });
     qc = await db.createUser({ email: 'bqc@vit.ac.in', fullName: 'QC', role: 'QC' });
+    const progRows = await db.sql<{ id: string }>(`insert into public.programs (name, category) values ('Test Program', 'GENERAL') returning id`);
+    defaultProgram = progRows[0].id;
   });
 
   afterAll(async () => {
@@ -273,7 +276,7 @@ describe('studio bookings', () => {
 
     const changed = await db.asUser(
       otherRj,
-      `update public.studio_bookings set show_name = 'Hijacked' where id = $1 returning id`,
+      `update public.studio_bookings set override_reason = 'Hijacked' where id = $1 returning id`,
       [id],
     );
     expect(changed).toHaveLength(0);
@@ -349,12 +352,12 @@ describe('studio bookings', () => {
     const created = await book(rj, { date, start: '16:00' });
     const id = (created[0] as { id: string }).id;
 
-    const edited = await db.asUser<{ show_name: string }>(
+    const edited = await db.asUser<{ notes: string }>(
       rj,
-      `update public.studio_bookings set show_name = 'Renamed Show' where id = $1 returning show_name`,
+      `update public.studio_bookings set notes = 'Renamed Show' where id = $1 returning notes`,
       [id],
     );
-    expect(edited[0].show_name).toBe('Renamed Show');
+    expect(edited[0].notes).toBe('Renamed Show');
   });
 
   it('gives an anonymous visitor occupancy only — no identity, no show details', async () => {
@@ -366,7 +369,7 @@ describe('studio bookings', () => {
 
     // And the table itself stays closed.
     await expectFailure(
-      () => db.asAnon(`select show_name from public.studio_bookings`),
+      () => db.asAnon(`select program_id from public.studio_bookings`),
       /permission denied/i,
     );
   });

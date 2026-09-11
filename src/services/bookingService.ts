@@ -7,6 +7,7 @@ import type {
   ShowLanguage,
   StudioBookingRow,
 } from '@/types/database';
+import type { LineupBooking } from '@/utils/lineup';
 import {
   bookableSlots,
   deriveWeek,
@@ -30,18 +31,34 @@ export {
 export type BookingWithPeople = StudioBookingRow & {
   rj: Pick<ProfileRow, 'id' | 'full_name' | 'email'> | null;
   editor: Pick<ProfileRow, 'id' | 'full_name'> | null;
+  program: { id: string; name: string } | null;
 };
 
 const BOOKING_SELECT = `
   *,
   rj:profiles!studio_bookings_rj_id_fkey (id, full_name, email),
-  editor:profiles!studio_bookings_editor_id_fkey (id, full_name)
+  editor:profiles!studio_bookings_editor_id_fkey (id, full_name),
+  program:programs!studio_bookings_program_id_fkey (id, name)
 `;
+
+/**
+ * A booking as the on-air lineup needs it: who is presenting, what programme it
+ * is, and the recording if one has been attached. Kept separate from
+ * BOOKING_SELECT so the episode join only happens where it is used.
+ */
+const LINEUP_SELECT = `
+  id, reference, booking_date, start_time, end_time, status,
+  rj:profiles!studio_bookings_rj_id_fkey (full_name),
+  program:programs!studio_bookings_program_id_fkey (name),
+  episode:episodes!studio_bookings_episode_id_fkey (title)
+`;
+
+export type LineupBookingRow = LineupBooking;
 
 export interface BookingInput {
   booking_date: string;
   start_time: string;
-  show_name: string;
+  program_id: string;
   language: ShowLanguage;
   script_status: ScriptApproval;
   script_approver?: string | null;
@@ -103,6 +120,25 @@ export const bookingService = {
         .order('booking_date', { ascending: false })
         .order('start_time', { ascending: false })
         .returns<BookingWithPeople[]>(),
+    );
+  },
+
+  /**
+   * The confirmed sessions for one station day, for the on-air lineup.
+   *
+   * Every signed-in station member may read bookings (the
+   * `bookings_select_station_members` policy), which is what lets the dashboard
+   * name the jockey who is on air rather than only the programme.
+   */
+  async getBookingsForDay(day: string): Promise<LineupBooking[]> {
+    return unwrap(
+      supabase
+        .from('studio_bookings')
+        .select(LINEUP_SELECT)
+        .eq('booking_date', day)
+        .neq('status', 'CANCELLED')
+        .order('start_time')
+        .returns<LineupBooking[]>(),
     );
   },
 
@@ -187,7 +223,7 @@ export const bookingService = {
         booking_date: input.booking_date,
         start_time: startTime,
         end_time: endTime,
-        show_name: input.show_name.trim(),
+        program_id: input.program_id,
         language: input.language,
         script_status: input.script_status,
         script_approver: input.script_approver?.trim() || null,

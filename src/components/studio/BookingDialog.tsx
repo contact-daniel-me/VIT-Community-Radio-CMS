@@ -10,8 +10,7 @@ import { can } from '@/lib/permissions';
 import type { ProfileRow, ScriptApproval, ShowLanguage, StudioBookingRow } from '@/types/database';
 import { formatBookingDate, formatSlotTime, withinNoticeWindow } from '@/utils/studio';
 
-/** Sentinel for the free-text escape hatch. Cannot clash with a programme name. */
-const OTHER = '__other__';
+
 
 const LANGUAGES: ShowLanguage[] = ['TAMIL', 'ENGLISH', 'HINDI', 'TELUGU', 'MALAYALAM'];
 const LANGUAGE_LABEL: Record<ShowLanguage, string> = {
@@ -73,13 +72,10 @@ export function BookingDialog({
   // The station's own shows, straight from the Fixed Point Chart line-up.
   const programmes = useAsync(() => programService.getPrograms({ activeOnly: true }), []);
 
-  // Which entry the select is showing: a programme name, or the Other sentinel.
-  const [showChoice, setShowChoice] = useState('');
-
   const [form, setForm] = useState<BookingInput>({
     booking_date: slot.date,
     start_time: slot.start,
-    show_name: '',
+    program_id: '',
     language: 'TAMIL',
     script_status: 'PENDING',
     script_approver: '',
@@ -103,16 +99,8 @@ export function BookingDialog({
     event.preventDefault();
     setError(null);
 
-    if (!showChoice) {
+    if (!form.program_id) {
       setError('Choose which show you are recording.');
-      return;
-    }
-    if (form.show_name.trim().length < 2) {
-      setError(
-        showChoice === OTHER
-          ? 'Enter the name of the show.'
-          : 'Choose which show you are recording.',
-      );
       return;
     }
     if (!form.self_edit && !form.editor_id) {
@@ -155,6 +143,9 @@ export function BookingDialog({
   };
 
   const selectedEditor = (editors.data?.list ?? []).find((e) => e.id === form.editor_id);
+  const selectedProgram = (programmes.data ?? []).find(
+    (p) => p.id === (created?.program_id ?? form.program_id),
+  );
 
   return (
     <div className="dialog-backdrop" onMouseDown={(e) => e.target === e.currentTarget && step !== 'done' && onClose()}>
@@ -210,43 +201,22 @@ export function BookingDialog({
                   <label htmlFor="b-show">Show</label>
                   <select
                     id="b-show"
-                    value={showChoice}
+                    value={form.program_id}
                     onChange={(e) => {
-                      const value = e.target.value;
-                      setShowChoice(value);
-                      // Picking a listed show fills the name; Other clears it so
-                      // the RJ types their own.
-                      setForm({ ...form, show_name: value === OTHER ? '' : value });
+                      setForm({ ...form, program_id: e.target.value });
                     }}
                     required
                     autoFocus
                   >
                     <option value="">Choose a show</option>
                     {(programmes.data ?? []).map((p) => (
-                      <option key={p.id} value={p.name}>
+                      <option key={p.id} value={p.id}>
                         {p.name}
                       </option>
                     ))}
-                    <option value={OTHER}>Other &mdash; not listed</option>
                   </select>
                   {programmes.loading && <p className="small muted">Loading shows&hellip;</p>}
                 </div>
-
-                {showChoice === OTHER && (
-                  <div className="field">
-                    <label htmlFor="b-show-other">
-                      Show name <span className="hint">(not on the chart)</span>
-                    </label>
-                    <input
-                      id="b-show-other"
-                      value={form.show_name}
-                      onChange={(e) => setForm({ ...form, show_name: e.target.value })}
-                      maxLength={160}
-                      placeholder="e.g. Semester Special"
-                      required
-                    />
-                  </div>
-                )}
 
                 <div className="field-row">
                   <div className="field">
@@ -287,13 +257,16 @@ export function BookingDialog({
                 {form.script_status === 'YES' && (
                   <div className="field">
                     <label htmlFor="b-approver">Approved by</label>
-                    <input
+                    <select
                       id="b-approver"
                       value={form.script_approver ?? ''}
                       onChange={(e) => setForm({ ...form, script_approver: e.target.value })}
-                      placeholder="Section head or faculty name"
-                      maxLength={120}
-                    />
+                    >
+                      <option value="">Select an option</option>
+                      <option value="Section head">Section head</option>
+                      <option value="Faculty">Faculty</option>
+                      <option value="Waiting for Approval">Waiting for Approval</option>
+                    </select>
                   </div>
                 )}
 
@@ -402,7 +375,7 @@ export function BookingDialog({
           {step === 'review' && (
             <>
               <dl className="review">
-                <Row label="Show" value={form.show_name} />
+                <Row label="Show" value={(programmes.data ?? []).find(p => p.id === form.program_id)?.name ?? ''} />
                 <Row label="Language" value={LANGUAGE_LABEL[form.language]} />
                 <Row label="Date" value={formatBookingDate(slot.date)} />
                 <Row
@@ -466,7 +439,7 @@ export function BookingDialog({
               <p className="confirmed-ref">{created.reference}</p>
 
               <dl className="review">
-                <Row label="Show" value={created.show_name} />
+                <Row label="Show" value={(programmes.data ?? []).find(p => p.id === created.program_id)?.name ?? ''} />
                 <Row label="Date" value={formatBookingDate(created.booking_date)} />
                 <Row
                   label="Time"
@@ -507,7 +480,15 @@ export function BookingDialog({
 
       {uploading && created && (
         <RecordingDialog
-          booking={created}
+          // The recording dialog names the show it is uploading against, and
+          // `createBooking` returns the plain row -- so the programme chosen a
+          // moment ago is attached here rather than re-fetched.
+          booking={{
+            ...created,
+            rj: { id: profile.id, full_name: profile.full_name, email: profile.email },
+            editor: null,
+            program: selectedProgram ? { id: selectedProgram.id, name: selectedProgram.name } : null,
+          }}
           profile={profile}
           onClose={() => setUploading(false)}
           onUploaded={onBooked}

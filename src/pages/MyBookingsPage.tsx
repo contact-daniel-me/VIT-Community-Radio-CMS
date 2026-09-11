@@ -155,7 +155,7 @@ export function MyBookingsPage() {
                   </div>
 
                   <div className="booking-what">
-                    <h3 className="booking-show">{booking.show_name}</h3>
+                    <h3 className="booking-show">{booking.program?.name ?? 'Unknown Show'}</h3>
                     <p className="booking-meta">
                       <span className="booking-ref">{booking.reference}</span>
                       <span className="dot">&middot;</span>

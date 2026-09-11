@@ -76,4 +76,10 @@ export const activityService = {
         .returns<ActivityWithUser[]>(),
     );
   },
+
+  async deleteActivity(id: string): Promise<void> {
+    return unwrap(
+      supabase.from('activity_logs').delete().eq('id', id)
+    );
+  },
 };

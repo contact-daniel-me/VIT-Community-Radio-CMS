@@ -54,7 +54,7 @@ export type StudioBookingRow = {
   booking_date: string;
   start_time: string;
   end_time: string;
-  show_name: string;
+  program_id: string;
   language: ShowLanguage;
   script_status: ScriptApproval;
   script_approver: string | null;
@@ -458,7 +458,7 @@ export type Database = {
         Row: StudioBookingRow;
         Insert: Insertable<
           StudioBookingRow,
-          'rj_id' | 'booking_date' | 'start_time' | 'end_time' | 'show_name' | 'language'
+          'rj_id' | 'booking_date' | 'start_time' | 'end_time' | 'program_id' | 'language'
         >;
         Update: Partial<StudioBookingRow>;
         Relationships: [
@@ -481,6 +481,13 @@ export type Database = {
             columns: ['episode_id'];
             isOneToOne: false;
             referencedRelation: 'episodes';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'studio_bookings_program_id_fkey';
+            columns: ['program_id'];
+            isOneToOne: false;
+            referencedRelation: 'programs';
             referencedColumns: ['id'];
           },
         ];

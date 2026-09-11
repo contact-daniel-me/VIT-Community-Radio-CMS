@@ -143,15 +143,20 @@ describe('delete_user', () => {
 
   it('refuses when a studio booking is attached', async () => {
     const target = await newcomer('hasbooking');
+    const program = await db.asUser<{ id: string }>(
+      producer,
+      `insert into public.programs (name, created_by) values ('Delete Test Show 2', $1) returning id`,
+      [producer],
+    );
     await db.sql(
       // A real slot: half an hour, on the half hour, on a weekday, and far
       // enough ahead to clear the 24-hour rule.
       `insert into public.studio_bookings
-         (rj_id, show_name, language, booking_date, start_time, end_time, created_by)
-       values ($1, 'Delete Test Booking', 'TAMIL',
+         (rj_id, program_id, language, booking_date, start_time, end_time, created_by)
+       values ($1, $2, 'TAMIL',
                date_trunc('week', current_date + interval '10 days')::date,
                '10:00', '10:30', $1)`,
-      [target],
+      [target, program[0].id],
     );
 
     await expectFailure(
@@ -175,11 +180,11 @@ describe('delete_user', () => {
     await db.sql(
       // A different half hour: only one booking may hold a given slot.
       `insert into public.studio_bookings
-         (rj_id, show_name, language, booking_date, start_time, end_time, created_by)
-       values ($1, 'Delete Multi Booking', 'ENGLISH',
+         (rj_id, program_id, language, booking_date, start_time, end_time, created_by)
+       values ($1, $2, 'ENGLISH',
                date_trunc('week', current_date + interval '10 days')::date,
                '11:00', '11:30', $1)`,
-      [target],
+      [target, program[0].id],
     );
 
     const message = await expectFailure(

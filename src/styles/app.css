@@ -208,6 +208,60 @@ a {
   font-size: 0.87rem;
 }
 
+/* The live card carries a little more weight than the offline one: a wash of
+   the brand red down the left edge, and the jockey named in ink rather than in
+   the muted grey the rest of the metadata uses. */
+.onair.live {
+  background:
+    linear-gradient(
+      to right,
+      var(--accent-wash),
+      var(--surface) 45%
+    );
+}
+.onair-host {
+  margin: 0.35rem 0 0;
+  font-size: 0.92rem;
+}
+.onair-host strong {
+  font-weight: 600;
+}
+.onair-progress {
+  margin: 0.75rem 0 0.6rem;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+.onair-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--on-air);
+  transition: width var(--t-slow) linear;
+}
+.onair-times {
+  display: flex;
+  gap: 1.75rem;
+  margin: 0 0 0.35rem;
+}
+.onair-times dt {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.onair-times dd {
+  margin: 0.1rem 0 0;
+  font-size: 1.02rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+/* The row in Today's schedule that is on air right now. */
+.row-on-air > td {
+  background: var(--accent-wash);
+}
+
 /* ---------- Badges ---------- */
 .badge {
   display: inline-block;

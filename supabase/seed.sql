@@ -13,6 +13,9 @@
 --   rj.karthik@vitradio.dev RJ         Karthik Rao
 --   qc@vitradio.dev         QC         Meera Nair
 --
+-- Extra Admin:
+--   vitcr@vit.ac.in         ADMIN      (password: growiota@vitcr)
+--
 -- The audio rows point at storage paths that are NOT uploaded by this script.
 -- Playback of seeded episodes will 404 until a real file is uploaded through
 -- the app -- that is expected, and keeps the seed free of binary blobs.
@@ -57,11 +60,17 @@ values
    '{"provider":"email","providers":["email"],"role":"RJ"}'::jsonb,
    '{"full_name":"Karthik Rao"}'::jsonb, now(), now()),
 
-  ('55555555-5555-4555-8555-555555555555', '00000000-0000-0000-0000-000000000000',
+   ('55555555-5555-4555-8555-555555555555', '00000000-0000-0000-0000-000000000000',
    'authenticated', 'authenticated', 'qc@vitradio.dev',
    extensions.crypt('radio-dev-2025', extensions.gen_salt('bf')), now(),
    '{"provider":"email","providers":["email"],"role":"QC"}'::jsonb,
-   '{"full_name":"Meera Nair"}'::jsonb, now(), now())
+   '{"full_name":"Meera Nair"}'::jsonb, now(), now()),
+
+  ('66666666-6666-4666-8666-666666666666', '00000000-0000-0000-0000-000000000000',
+   'authenticated', 'authenticated', 'vitcr@vit.ac.in',
+   extensions.crypt('growiota@vitcr', extensions.gen_salt('bf')), now(),
+   '{"provider":"email","providers":["email"],"role":"ADMIN"}'::jsonb,
+   '{"full_name":"VIT Community Radio"}'::jsonb, now(), now())
 on conflict (id) do nothing;
 
 -- GoTrue scans the token columns of auth.users into non-nullable Go strings, so
@@ -84,8 +93,8 @@ begin
       where table_schema = 'auth' and table_name = 'users' and column_name = v_col
     ) then
       execute format(
-        'update auth.users set %I = coalesce(%I, %L) where email like %L',
-        v_col, v_col, '', '%@vitradio.dev'
+        'update auth.users set %I = coalesce(%I, %L) where email like %L or email = %L',
+        v_col, v_col, '', '%@vitradio.dev', 'vitcr@vit.ac.in'
       );
     end if;
   end loop;
@@ -98,7 +107,7 @@ select u.id, u.id::text, 'email',
        jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true),
        now(), now()
 from auth.users u
-where u.email like '%@vitradio.dev'
+where u.email like '%@vitradio.dev' or u.email = 'vitcr@vit.ac.in'
 on conflict (provider, provider_id) do nothing;
 
 -- -----------------------------------------------------------------------------

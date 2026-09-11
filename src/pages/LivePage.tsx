@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
+import { useStationStatus } from '@/hooks/useStationStatus';
 import { Banner, ConfirmButton, Empty, Loading, PageHeader } from '@/components/ui';
 import { NextUpCard, OnAirCard } from '@/components/OnAirCard';
 import { AudioPlayer } from '@/components/AudioPlayer';
@@ -19,6 +20,11 @@ export function LivePage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // The two cards read the station's own lineup -- schedules merged with the
+  // confirmed studio bookings -- and re-derive on a timer, so they flip to ON
+  // AIR when a slot starts whether or not anybody pressed "Go live".
+  const station = useStationStatus();
+
   const live = useAsync(async () => {
     await broadcastService.syncBroadcastState().catch(() => undefined);
     const [snapshot, today] = await Promise.all([
@@ -35,7 +41,7 @@ export function LivePage() {
     try {
       await action();
       setNotice(message);
-      await live.reload();
+      await Promise.all([live.reload(), station.reload()]);
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -67,8 +73,8 @@ export function LivePage() {
       <Banner kind="success">{notice}</Banner>
 
       <div className="grid grid-2">
-        <OnAirCard current={snapshot.current} />
-        <NextUpCard next={snapshot.next} />
+        <OnAirCard state={station.onAir} now={station.now} />
+        <NextUpCard next={station.next} />
       </div>
 
       {onAir && snapshot.current && (

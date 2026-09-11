@@ -169,9 +169,19 @@ export type AudioFileRow = {
   file_size: number;
   duration_seconds: number | null;
   uploaded_by: string | null;
+  deleted_at?: string | null;
   created_at: string;
   updated_at: string;
 }
+
+export type HomepageFeaturedAudioRow = {
+  id: string;
+  episode_id: string;
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
 
 export type QcReviewRow = {
   id: string;
@@ -257,6 +267,21 @@ export type PublicNowPlayingRow = {
   host_name: string | null;
   start_time: string | null;
   end_time: string | null;
+};
+
+export type PublicTopAudioRow = {
+  display_order: number;
+  episode_id: string;
+  title: string;
+  description: string | null;
+  host_name: string | null;
+  duration_seconds: number | null;
+  program_name: string;
+  program_category: string;
+  storage_path: string;
+  file_name: string;
+  audio_duration_seconds: number | null;
+  created_at: string;
 };
 
 export type PublicScheduleRow = {
@@ -507,12 +532,27 @@ export type Database = {
           },
         ];
       };
+      homepage_featured_audio: {
+        Row: HomepageFeaturedAudioRow;
+        Insert: Insertable<HomepageFeaturedAudioRow, 'episode_id' | 'display_order'>;
+        Update: Partial<HomepageFeaturedAudioRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'homepage_featured_audio_episode_id_fkey';
+            columns: ['episode_id'];
+            isOneToOne: true;
+            referencedRelation: 'episodes';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: {
       v_schedule_details: { Row: ScheduleDetailsRow; Relationships: [] };
       v_current_broadcast: { Row: CurrentBroadcastRow; Relationships: [] };
       v_next_broadcast: { Row: ScheduleDetailsRow; Relationships: [] };
       v_public_now_playing: { Row: PublicNowPlayingRow; Relationships: [] };
+      v_public_top_audio: { Row: PublicTopAudioRow; Relationships: [] };
       v_public_schedule_today: { Row: PublicScheduleRow; Relationships: [] };
       v_public_programs: { Row: PublicProgramRow; Relationships: [] };
       v_public_recent_episodes: { Row: PublicEpisodeRow; Relationships: [] };

@@ -6,6 +6,7 @@ import { Hero } from '@/components/site/Hero';
 import { ScheduleTimeline } from '@/components/site/ScheduleTimeline';
 import { EpisodeCard } from '@/components/site/Cards';
 import { FixedPointChart } from '@/components/site/FixedPointChart';
+import { TopAudioSection } from '@/components/site/TopAudioSection';
 import { AboutStation } from '@/components/site/AboutStation';
 import { SpotifyShow } from '@/components/site/SpotifyShow';
 import { CommunityCTA, SiteFooter } from '@/components/site/CommunityCTA';
@@ -20,7 +21,7 @@ import { RadioPlayer } from '@/components/site/RadioPlayer';
  */
 export function HomePage() {
   const station = useAsync(async () => {
-    const [nowPlaying, schedule, episodes, chart, programmes] = await Promise.all([
+    const [nowPlaying, schedule, episodes, chart, programmes, topAudio] = await Promise.all([
       publicService.getNowPlaying(),
       publicService.getTodaySchedule(),
       publicService.getRecentEpisodes(5).catch(() => []),
@@ -28,8 +29,9 @@ export function HomePage() {
       // on, and neither should take the page down if a view is unavailable.
       publicService.getFixedPointChart().catch(() => []),
       publicService.getShows(50).catch(() => []),
+      publicService.getTopAudio().catch(() => []),
     ]);
-    return { nowPlaying, schedule, episodes, chart, programmes };
+    return { nowPlaying, schedule, episodes, chart, programmes, topAudio };
   }, []);
 
   // The header tabs are links to /#schedule, /#episodes and /#about.
@@ -43,6 +45,10 @@ export function HomePage() {
 
       <main id="main">
         <Hero now={now} />
+        
+        {(!station.loading && !station.error && station.data?.topAudio) && (
+          <TopAudioSection items={station.data.topAudio} />
+        )}
 
         <section className="section" id="schedule">
           <div className="section-head">

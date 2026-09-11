@@ -52,6 +52,36 @@ alter table public.studio_bookings
 alter table public.studio_bookings
   alter column program_id set not null;
 
+-- FIX: Update app.log_booking_change to stop using the dropped show_name column
+create or replace function app.log_booking_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  if tg_op = 'INSERT' then
+    perform app.log(
+      case when new.origin = 'ADMIN_OVERRIDE' then 'BOOKING_OVERRIDE_CREATED'
+           else 'BOOKING_CREATED' end,
+      'SCHEDULE', new.id,
+      jsonb_build_object('reference', new.reference, 'program_id', new.program_id,
+                         'date', new.booking_date, 'start_time', new.start_time,
+                         'rj_id', new.rj_id, 'reason', new.override_reason));
+  elsif new.status is distinct from old.status then
+    perform app.log('BOOKING_' || new.status::text, 'SCHEDULE', new.id,
+      jsonb_build_object('reference', new.reference, 'program_id', new.program_id));
+  elsif new.editor_id is distinct from old.editor_id then
+    perform app.log('BOOKING_EDITOR_CHANGED', 'SCHEDULE', new.id,
+      jsonb_build_object('reference', new.reference, 'editor_id', new.editor_id));
+  else
+    perform app.log('BOOKING_UPDATED', 'SCHEDULE', new.id,
+      jsonb_build_object('reference', new.reference));
+  end if;
+  return null;
+end;
+$$;
+
 create or replace function public.app_propagate_booking_to_schedule()
 returns trigger
 language plpgsql
@@ -61,7 +91,8 @@ as $$
 declare
   v_episode_id uuid;
 begin
-  if tg_op = 'UPDATE' and new.status = 'CANCELLED' and old.status <> 'CANCELLED' then
+  if tg_op = 'UPDATE' and new.status = 'CANCELLED' and old.status <> 'CANCELLED' 
+  then
     delete from public.schedules
      where program_id = new.program_id
        and start_time = new.booking_date + new.start_time;
@@ -88,7 +119,7 @@ begin
        'SCHEDULED',
        'Auto-scheduled from Studio Booking ' || new.reference,
        new.created_by)
-    on conflict on constraint schedules_slot_key do nothing;
+    on conflict on constraint schedules_no_overlap do nothing;
   end if;
 
   return new;

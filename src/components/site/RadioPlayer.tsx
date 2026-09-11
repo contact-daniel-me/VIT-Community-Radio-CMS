@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PublicNowPlayingRow } from '@/types/database';
 import { useSpotifyEmbed } from '@/hooks/useSpotifyEmbed';
+import { useGlobalAudio } from '@/hooks/GlobalAudioContext';
 import { SPOTIFY_SHOW_URL } from '@/lib/spotify';
 import { Logo } from './Logo';
 import { Waveform } from './Waveform';
@@ -43,17 +44,27 @@ export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
   const [muted, setMuted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const globalAudio = useGlobalAudio();
+  const trackPlaying = globalAudio.isPlaying;
+  const trackDrives = globalAudio.currentTrack !== null;
+
   const live = now?.broadcast_status === 'ON_AIR';
   const configured = STREAM_URL.length > 0;
   const canPlay = configured && live;
 
   const spotify = useSpotifyEmbed();
   /** Spotify is the transport only when the live stream cannot be. */
-  const spotifyDrives = !canPlay;
+  const spotifyDrives = !canPlay && !trackDrives;
   const spotifyPlaying = spotifyDrives && spotify.playing;
-  const active = playing || spotifyPlaying;
-  const progress =
-    spotify.durationMs > 0 ? Math.min(1, spotify.positionMs / spotify.durationMs) : 0;
+  
+  const active = playing || spotifyPlaying || trackPlaying;
+  
+  let progress = 0;
+  if (trackDrives && globalAudio.duration > 0) {
+    progress = globalAudio.progress;
+  } else if (spotify.durationMs > 0) {
+    progress = Math.min(1, spotify.positionMs / spotify.durationMs);
+  }
 
   const start = async () => {
     const el = audioRef.current;
@@ -74,6 +85,11 @@ export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
   };
 
   const toggle = () => {
+    if (trackDrives) {
+      if (trackPlaying) globalAudio.pause();
+      else void globalAudio.resume();
+      return;
+    }
     if (spotifyDrives) {
       spotify.toggle();
       return;
@@ -96,33 +112,40 @@ export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
     }
   }, [volume, muted]);
 
-  const status = playing
-    ? 'ON AIR'
-    : spotifyPlaying
-      ? 'NOW PLAYING'
-      : spotify.loading && spotifyDrives
-        ? 'CONNECTING'
-        : live
-          ? 'LIVE — PRESS PLAY'
-          : // A paused show is paused, not off air: OFF AIR is about the
-            // transmitter, and saying it here would misdescribe both.
-            spotifyDrives && spotify.started
-            ? 'PAUSED'
-            : spotifyDrives
-              ? 'READY'
-              : 'OFF AIR';
+  const status = trackPlaying
+    ? 'PLAYING'
+    : trackDrives
+      ? 'PAUSED'
+      : playing
+        ? 'ON AIR'
+        : spotifyPlaying
+          ? 'NOW PLAYING'
+          : spotify.loading && spotifyDrives
+            ? 'CONNECTING'
+            : live
+              ? 'LIVE — PRESS PLAY'
+              : spotifyDrives && spotify.started
+                ? 'PAUSED'
+                : spotifyDrives
+                  ? 'READY'
+                  : 'OFF AIR';
 
-  /** What is on: the live programme, or the episode Spotify named. */
-  const title = live
-    ? (now?.program_name ?? 'VIT Community Radio')
-    : (spotify.meta?.title ?? 'VIT Community Radio');
-  const subtitle = live
-    ? (now?.episode_title ?? 'Live now')
-    : spotifyDrives && spotify.started
-      ? 'The station show on Spotify'
-      : '90.8 MHz · VIT Vellore';
+  /** What is on: the live programme, or the episode Spotify named, or the GlobalAudio track. */
+  const title = trackDrives
+    ? globalAudio.currentTrack?.title
+    : live
+      ? (now?.program_name ?? 'VIT Community Radio')
+      : (spotify.meta?.title ?? 'VIT Community Radio');
+      
+  const subtitle = trackDrives
+    ? globalAudio.currentTrack?.program_name
+    : live
+      ? (now?.episode_title ?? 'Live now')
+      : spotifyDrives && spotify.started
+        ? 'The station show on Spotify'
+        : '90.8 MHz · VIT Vellore';
 
-  const seekable = spotifyDrives && spotify.started;
+  const seekable = (spotifyDrives && spotify.started) || trackDrives;
 
   return (
     <div className={`player ${active ? 'is-playing' : ''}`}>
@@ -199,7 +222,10 @@ export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
             <button
               type="button"
               className="player-btn player-skip"
-              onClick={() => spotify.nudge(-SKIP_SECONDS)}
+              onClick={() => {
+                if (trackDrives) globalAudio.seek(Math.max(0, globalAudio.currentTime - SKIP_SECONDS));
+                else spotify.nudge(-SKIP_SECONDS);
+              }}
               disabled={!seekable}
               aria-label={`Back ${SKIP_SECONDS} seconds`}
               title={`Back ${SKIP_SECONDS} seconds`}
@@ -211,22 +237,26 @@ export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
               type="button"
               className="player-btn player-play"
               onClick={toggle}
-              disabled={!canPlay && !spotifyDrives}
+              disabled={!canPlay && !spotifyDrives && !trackDrives}
               aria-label={
                 active
                   ? 'Pause'
-                  : spotifyDrives
-                    ? 'Play the VIT Community Radio show on Spotify'
-                    : 'Play the live stream'
+                  : trackDrives
+                    ? 'Play the selected track'
+                    : spotifyDrives
+                      ? 'Play the VIT Community Radio show on Spotify'
+                      : 'Play the live stream'
               }
               title={
-                spotifyDrives
-                  ? 'Play the station show on Spotify'
-                  : !configured
-                    ? 'No live stream is configured yet'
-                    : !live
-                      ? 'The station is off air'
-                      : undefined
+                trackDrives
+                  ? 'Play the selected track'
+                  : spotifyDrives
+                    ? 'Play the station show on Spotify'
+                    : !configured
+                      ? 'No live stream is configured yet'
+                      : !live
+                        ? 'The station is off air'
+                        : undefined
               }
             >
               <span className={`player-icon ${active ? 'is-pause' : ''}`} aria-hidden="true">
@@ -242,7 +272,10 @@ export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
             <button
               type="button"
               className="player-btn player-skip"
-              onClick={() => spotify.nudge(SKIP_SECONDS)}
+              onClick={() => {
+                if (trackDrives) globalAudio.seek(Math.min(globalAudio.duration, globalAudio.currentTime + SKIP_SECONDS));
+                else spotify.nudge(SKIP_SECONDS);
+              }}
               disabled={!seekable}
               aria-label={`Forward ${SKIP_SECONDS} seconds`}
               title={`Forward ${SKIP_SECONDS} seconds`}
@@ -256,9 +289,11 @@ export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
             <span className="player-state" role="status">
               {status}
             </span>
-            {seekable && spotify.durationMs > 0 && (
+            {seekable && ((spotify.durationMs > 0) || (trackDrives && globalAudio.duration > 0)) && (
               <span className="player-time">
-                <span className="player-elapsed">{clock(spotify.positionMs)}</span>
+                <span className="player-elapsed">
+                  {trackDrives ? clock(globalAudio.currentTime * 1000) : clock(spotify.positionMs)}
+                </span>
                 <span className="player-track" aria-hidden="true">
                   <span className="player-track-fill" style={{ transform: `scaleX(${progress})` }} />
                 </span>
@@ -267,7 +302,9 @@ export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
                 <span className="player-time-sep" aria-hidden="true">
                   /
                 </span>
-                <span className="player-duration">{clock(spotify.durationMs)}</span>
+                <span className="player-duration">
+                  {trackDrives ? clock(globalAudio.duration * 1000) : clock(spotify.durationMs)}
+                </span>
               </span>
             )}
           </div>
@@ -309,10 +346,16 @@ export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
                 min={0}
                 max={1}
                 step={0.01}
-                value={muted ? 0 : volume}
+                value={trackDrives ? (globalAudio.muted ? 0 : globalAudio.volume) : (muted ? 0 : volume)}
                 onChange={(e) => {
-                  setVolume(Number(e.target.value));
-                  setMuted(false);
+                  const val = Number(e.target.value);
+                  if (trackDrives) {
+                    globalAudio.setVolume(val);
+                    globalAudio.setMuted(false);
+                  } else {
+                    setVolume(val);
+                    setMuted(false);
+                  }
                 }}
                 aria-label="Volume"
               />

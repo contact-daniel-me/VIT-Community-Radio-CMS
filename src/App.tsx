@@ -23,6 +23,8 @@ import { SettingsPage } from '@/pages/SettingsPage';
 import { StudioPublicPage } from '@/pages/StudioPublicPage';
 import { StudioPage } from '@/pages/StudioPage';
 import { MyBookingsPage } from '@/pages/MyBookingsPage';
+import { TopAudioPage } from '@/pages/TopAudioPage';
+import { GlobalAudioProvider } from '@/hooks/GlobalAudioContext';
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const { session, profile, loading } = useAuth();
@@ -97,57 +99,67 @@ export default function App() {
   if (!isSupabaseConfigured) return <SetupRequired />;
 
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public: anyone can reach these, signed in or not. */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          {/* Public: anyone can see studio availability. Booking inside it still
-              requires a session, and the database still decides. */}
-          <Route path="/studio" element={<StudioPublicPage />} />
+    <GlobalAudioProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public: anyone can reach these, signed in or not. */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            {/* Public: anyone can see studio availability. Booking inside it still
+                requires a session, and the database still decides. */}
+            <Route path="/studio" element={<StudioPublicPage />} />
 
-          {/* Everything below requires a session AND an active profile. */}
-          <Route
-            element={
-              <RequireAuth>
-                <AppLayout />
-              </RequireAuth>
-            }
-          >
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="live" element={<LivePage />} />
-            <Route path="programs" element={<ProgramsPage />} />
-            <Route path="episodes" element={<EpisodesPage />} />
-            <Route path="episodes/:episodeId" element={<EpisodeDetailPage />} />
-            <Route path="qc" element={<QcPage />} />
-            <Route path="schedule" element={<SchedulePage />} />
+            {/* Everything below requires a session AND an active profile. */}
             <Route
-              path="audio"
               element={
-                <RequireRole allow={can.viewAudioLibrary}>
-                  <AudioLibraryPage />
-                </RequireRole>
+                <RequireAuth>
+                  <AppLayout />
+                </RequireAuth>
               }
-            />
-            <Route
-              path="users"
-              element={
-                <RequireRole allow={can.manageUsers}>
-                  <UsersPage />
-                </RequireRole>
-              }
-            />
-            {/* Signed-in staff book from inside the portal. The public
-                /studio page stays public and renders the same calendar. */}
-            <Route path="studio/book" element={<StudioPage />} />
-            <Route path="bookings" element={<MyBookingsPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+            >
+              <Route path="dashboard" element={<DashboardPage />} />
+              <Route path="live" element={<LivePage />} />
+              <Route path="programs" element={<ProgramsPage />} />
+              <Route path="episodes" element={<EpisodesPage />} />
+              <Route path="episodes/:episodeId" element={<EpisodeDetailPage />} />
+              <Route path="qc" element={<QcPage />} />
+              <Route path="schedule" element={<SchedulePage />} />
+              <Route
+                path="audio"
+                element={
+                  <RequireRole allow={can.viewAudioLibrary}>
+                    <AudioLibraryPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="users"
+                element={
+                  <RequireRole allow={can.manageUsers}>
+                    <UsersPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="top-audio"
+                element={
+                  <RequireRole allow={(role) => role === 'ADMIN'}>
+                    <TopAudioPage />
+                  </RequireRole>
+                }
+              />
+              {/* Signed-in staff book from inside the portal. The public
+                  /studio page stays public and renders the same calendar. */}
+              <Route path="studio/book" element={<StudioPage />} />
+              <Route path="bookings" element={<MyBookingsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </GlobalAudioProvider>
   );
 }

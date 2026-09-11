@@ -6,6 +6,7 @@ import type {
   PublicNowPlayingRow,
   PublicProgramRow,
   PublicScheduleRow,
+  PublicTopAudioRow,
 } from '@/types/database';
 
 /**
@@ -19,6 +20,13 @@ import type {
 export const publicService = {
   async getNowPlaying(): Promise<PublicNowPlayingRow | null> {
     return unwrapMaybe(supabase.from('v_public_now_playing').select('*').maybeSingle());
+  },
+
+  /** The top 10 featured audio tracks for the homepage. */
+  async getTopAudio(): Promise<PublicTopAudioRow[]> {
+    return unwrap(
+      supabase.from('v_public_top_audio').select('*').order('display_order', { ascending: true })
+    );
   },
 
   async getTodaySchedule(): Promise<PublicScheduleRow[]> {

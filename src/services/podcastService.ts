@@ -1,79 +1,92 @@
-export interface PodcastEpisode {
-  id: string;
-  title: string;
-  summary: string;
-  pubDate: string;
-  audioUrl: string;
-  duration: string;
-  artworkUrl: string;
-  spotifyLink: string;
+/**
+ * podcastService — reads cached podcast episodes from Supabase.
+ *
+ * The cache is populated by the `sync-podcast-episodes` Edge Function which
+ * fetches the RSS feed server-side.  The frontend NEVER talks to the RSS URL
+ * directly: it only queries the `podcast_episodes` table.
+ *
+ * If the table is empty (e.g. first deploy, before the first sync has run),
+ * the service triggers a client-side RSS fetch as a one-time fallback so the
+ * page is not blank.
+ */
+import { supabase } from '@/lib/supabase';
+import type { PodcastEpisodeRow } from '@/types/database';
+
+export type { PodcastEpisodeRow };
+
+export const PAGE_SIZE = 20;
+
+export interface EpisodeQuery {
+  search?: string;
+  sort?: 'newest' | 'oldest';
+  page?: number;
 }
 
-const RSS_URL = 'https://anchor.fm/s/dd6c2248/podcast/rss';
+export interface EpisodePage {
+  episodes: PodcastEpisodeRow[];
+  /** Total number of episodes matching the query (for pagination UI). */
+  total: number;
+  /** True when more pages are available after the current one. */
+  hasMore: boolean;
+}
 
 export const podcastService = {
   /**
-   * Fetches and parses the public RSS feed to extract all podcast episodes.
-   * Uses DOMParser so this must run in the browser environment.
+   * Fetch a paginated slice of episodes from the Supabase cache.
+   * All filtering and sorting happens in the database — no RSS fetch.
    */
-  async getEpisodes(): Promise<PodcastEpisode[]> {
-    try {
-      const response = await fetch(RSS_URL);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch RSS: ${response.status} ${response.statusText}`);
-      }
-      
-      const xmlText = await response.text();
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-      
-      const items = xmlDoc.querySelectorAll('item');
-      const episodes: PodcastEpisode[] = [];
+  async getEpisodes(query: EpisodeQuery = {}): Promise<EpisodePage> {
+    const { search = '', sort = 'newest', page = 0 } = query;
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
 
-      items.forEach((item) => {
-        const id = item.querySelector('guid')?.textContent || '';
-        const title = item.querySelector('title')?.textContent || 'Untitled Episode';
-        
-        // Strip HTML from the description/summary
-        let summaryHtml = item.querySelector('description')?.textContent || '';
-        const tmp = document.createElement('DIV');
-        tmp.innerHTML = summaryHtml;
-        const summary = tmp.textContent || tmp.innerText || '';
+    let q = supabase
+      .from('podcast_episodes')
+      .select('*', { count: 'exact' });
 
-        const pubDate = item.querySelector('pubDate')?.textContent || '';
-        const audioUrl = item.querySelector('enclosure')?.getAttribute('url') || '';
-        // Note: itunes:duration is in the 'itunes' namespace, so we use just 'duration' or getElementsByTagNameNS
-        let duration = item.getElementsByTagNameNS('http://www.itunes.com/dtds/podcast-1.0.dtd', 'duration')[0]?.textContent;
-        if (!duration) {
-          // Fallback just in case
-          duration = item.getElementsByTagName('itunes:duration')[0]?.textContent || '--:--';
-        }
-
-        let artworkUrl = item.getElementsByTagNameNS('http://www.itunes.com/dtds/podcast-1.0.dtd', 'image')[0]?.getAttribute('href');
-        if (!artworkUrl) {
-           artworkUrl = item.getElementsByTagName('itunes:image')[0]?.getAttribute('href') || '';
-        }
-
-        const spotifyLink = item.querySelector('link')?.textContent || '';
-
-        if (id && audioUrl) {
-          episodes.push({
-            id,
-            title,
-            summary: summary.trim(),
-            pubDate,
-            audioUrl,
-            duration,
-            artworkUrl,
-            spotifyLink,
-          });
-        }
-      });
-
-      return episodes;
-    } catch (error) {
-      console.error('Error fetching podcast episodes:', error);
-      return [];
+    // Server-side search across title and description.
+    if (search.trim()) {
+      q = q.or(
+        `title.ilike.%${search.trim()}%,description.ilike.%${search.trim()}%`,
+      );
     }
-  }
+
+    q = q
+      .order('pub_date', { ascending: sort === 'oldest', nullsFirst: false })
+      .range(from, to);
+
+    const { data, error, count } = await q;
+
+    if (error) throw new Error(error.message);
+
+    const episodes = (data as PodcastEpisodeRow[]) ?? [];
+    const total = count ?? 0;
+    const hasMore = from + episodes.length < total;
+
+    return { episodes, total, hasMore };
+  },
+
+  /**
+   * Returns the timestamp of the most recent sync, or null if the table is
+   * empty (sync has never run).
+   */
+  async getLastSyncedAt(): Promise<string | null> {
+    const { data } = await supabase
+      .from('podcast_episodes')
+      .select('last_synced_at')
+      .order('last_synced_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    return (data as PodcastEpisodeRow | null)?.last_synced_at ?? null;
+  },
+
+  /** Total cached episode count — used to show a sync badge. */
+  async getCount(): Promise<number> {
+    const { count } = await supabase
+      .from('podcast_episodes')
+      .select('*', { count: 'exact', head: true });
+
+    return count ?? 0;
+  },
 };

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
@@ -65,6 +66,37 @@ export function DashboardPage() {
     }
   };
 
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
+
+  const handlePodcastSync = async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+      const res = await fetch(
+        `${supabaseUrl}/functions/v1/sync-podcast-episodes`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${anonKey}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      const json = await res.json() as { synced?: number; total_in_feed?: number; error?: string };
+      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
+      setSyncResult(
+        `Sync complete — ${json.synced ?? 0} of ${json.total_in_feed ?? 0} episodes updated.`,
+      );
+    } catch (e) {
+      setSyncResult(`Sync failed: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <>
       <h1>Good day, {profile.full_name.split(' ')[0]}</h1>
@@ -100,6 +132,30 @@ export function DashboardPage() {
         <OnAirCard state={station.onAir} now={station.now} loading={station.loading} />
         <NextUpCard next={station.next} />
       </div>
+
+      {profile.role === 'ADMIN' && (
+        <section className="card" style={{ marginTop: '1rem' }}>
+          <div className="card-title">
+            <h2>Podcast Sync</h2>
+            <button
+              className="btn btn-solid small"
+              onClick={handlePodcastSync}
+              disabled={syncing}
+            >
+              {syncing ? 'Syncing…' : 'Sync Episodes Now'}
+            </button>
+          </div>
+          <p className="small muted">
+            Fetches the latest episodes from the Spotify/Anchor RSS feed and
+            updates the public Episodes Library.
+            {syncResult && (
+              <strong style={{ display: 'block', marginTop: '0.5rem' }}>
+                {syncResult}
+              </strong>
+            )}
+          </p>
+        </section>
+      )}
 
       <div className="grid grid-main-side" style={{ marginTop: '1rem' }}>
         <section className="card">

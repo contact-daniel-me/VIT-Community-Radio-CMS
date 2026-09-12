@@ -298,6 +298,23 @@ export type PublicApprovedEpisodeRow = {
   created_at: string;
 };
 
+/** A cached podcast episode from the Spotify/Anchor RSS feed. */
+export type PodcastEpisodeRow = {
+  id: string;
+  rss_guid: string;
+  title: string;
+  description: string | null;
+  audio_url: string;
+  spotify_url: string | null;
+  artwork_url: string | null;
+  duration: string | null;
+  pub_date: string | null;
+  episode_number: number | null;
+  last_synced_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type PublicScheduleRow = {
   id: string;
   program_name: string;
@@ -559,6 +576,12 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      podcast_episodes: {
+        Row: PodcastEpisodeRow;
+        Insert: Insertable<PodcastEpisodeRow, 'rss_guid' | 'title' | 'audio_url'>;
+        Update: Partial<PodcastEpisodeRow>;
+        Relationships: [];
       };
     };
     Views: {

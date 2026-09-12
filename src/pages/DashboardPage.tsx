@@ -164,7 +164,7 @@ export function DashboardPage() {
               <div className="stack">
                 {pendingQc.slice(0, 5).map((episode) => (
                   <div key={episode.id} className="list-item">
-                    <Link to={`/episodes/${episode.id}`}>{episode.title}</Link>
+                    <Link to={`/admin/episodes/${episode.id}`}>{episode.title}</Link>
                     <p className="small muted" style={{ margin: 0 }}>
                       {episode.program?.name} &middot; submitted{' '}
                       {formatRelative(episode.submitted_at)}
@@ -181,7 +181,7 @@ export function DashboardPage() {
           <section className="card">
             <div className="card-title">
               <h2>{profile.role === 'RJ' ? 'My recent episodes' : 'Recent episodes'}</h2>
-              <Link className="small" to="/episodes">
+              <Link className="small" to="/admin/episodes">
                 All
               </Link>
             </div>
@@ -191,7 +191,7 @@ export function DashboardPage() {
               <div className="stack">
                 {recentEpisodes.map((episode) => (
                   <div key={episode.id} className="list-item row spread">
-                    <Link to={`/episodes/${episode.id}`}>{episode.title}</Link>
+                    <Link to={`/admin/episodes/${episode.id}`}>{episode.title}</Link>
                     <EpisodeStatusBadge status={episode.status} />
                   </div>
                 ))}

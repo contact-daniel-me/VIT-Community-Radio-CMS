@@ -7,6 +7,7 @@ import type {
   PublicProgramRow,
   PublicScheduleRow,
   PublicTopAudioRow,
+  PublicApprovedEpisodeRow,
 } from '@/types/database';
 
 /**
@@ -71,6 +72,17 @@ export const publicService = {
         .from('v_public_recent_episodes')
         .select('*')
         .order('aired_at', { ascending: false })
+        .limit(limit),
+    );
+  },
+
+  /** All approved episodes with audio, regardless of broadcast status. */
+  async getApprovedEpisodes(limit = 10): Promise<PublicApprovedEpisodeRow[]> {
+    return unwrap(
+      supabase
+        .from('v_public_approved_episodes')
+        .select('*')
+        .order('created_at', { ascending: false })
         .limit(limit),
     );
   },

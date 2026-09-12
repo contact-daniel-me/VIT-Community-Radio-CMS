@@ -34,7 +34,7 @@ export function CommunityCTA() {
           <div className="cta-badge">
             <span className="cta-badge-top">STUDENT RUN</span>
             <span className="cta-badge-freq">90.8</span>
-            <span className="cta-badge-unit">MHz</span>
+            <span className="cta-badge-unit">FM</span>
             <span className="cta-badge-bottom">VIT VELLORE</span>
           </div>
         </div>
@@ -81,7 +81,7 @@ export function SiteFooter() {
       </div>
 
       <div className="site-footer-base">
-        <span>&copy; {new Date().getFullYear()} VIT Community Radio &middot; 90.8 MHz</span>
+        <span>&copy; {new Date().getFullYear()} VIT Community Radio &middot; 90.8 FM</span>
         <span className="footer-made">MADE BY STUDENTS, FOR THE COMMUNITY</span>
       </div>
     </footer>

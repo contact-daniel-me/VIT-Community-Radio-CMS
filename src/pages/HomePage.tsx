@@ -3,11 +3,7 @@ import { useHashScroll } from '@/hooks/useHashScroll';
 import { publicService } from '@/services/publicService';
 import { SiteHeader } from '@/components/site/SiteHeader';
 import { Hero } from '@/components/site/Hero';
-import { ScheduleTimeline } from '@/components/site/ScheduleTimeline';
 import { EpisodeCard } from '@/components/site/Cards';
-import { FixedPointChart } from '@/components/site/FixedPointChart';
-import { TopAudioSection } from '@/components/site/TopAudioSection';
-import { AboutStation } from '@/components/site/AboutStation';
 import { SpotifyShow } from '@/components/site/SpotifyShow';
 import { CommunityCTA, SiteFooter } from '@/components/site/CommunityCTA';
 import { RadioPlayer } from '@/components/site/RadioPlayer';
@@ -21,7 +17,7 @@ import { RadioPlayer } from '@/components/site/RadioPlayer';
  */
 export function HomePage() {
   const station = useAsync(async () => {
-    const [nowPlaying, schedule, episodes, chart, programmes, topAudio] = await Promise.all([
+    const [nowPlaying, schedule, episodes, chart, programmes] = await Promise.all([
       publicService.getNowPlaying(),
       publicService.getTodaySchedule(),
       publicService.getRecentEpisodes(5).catch(() => []),
@@ -29,9 +25,8 @@ export function HomePage() {
       // on, and neither should take the page down if a view is unavailable.
       publicService.getFixedPointChart().catch(() => []),
       publicService.getShows(50).catch(() => []),
-      publicService.getTopAudio().catch(() => []),
     ]);
-    return { nowPlaying, schedule, episodes, chart, programmes, topAudio };
+    return { nowPlaying, schedule, episodes, chart, programmes };
   }, []);
 
   // The header tabs are links to /#schedule, /#episodes and /#about.
@@ -45,42 +40,6 @@ export function HomePage() {
 
       <main id="main">
         <Hero now={now} />
-        
-        {(!station.loading && !station.error && station.data?.topAudio) && (
-          <TopAudioSection items={station.data.topAudio} />
-        )}
-
-        <section className="section" id="schedule">
-          <div className="section-head">
-            <div>
-              <p className="eyebrow">Today on 90.8</p>
-              <h2 className="section-title">The day&rsquo;s line-up</h2>
-            </div>
-            <p className="section-note">All times in station time (IST)</p>
-          </div>
-
-          {station.loading ? (
-            <p className="section-empty">Loading the schedule&hellip;</p>
-          ) : station.error ? (
-            <p className="section-empty">The schedule is unavailable right now.</p>
-          ) : (
-            <ScheduleTimeline slots={station.data?.schedule ?? []} />
-          )}
-
-          <div className="section-subhead">
-            <div>
-              <p className="eyebrow">Every week</p>
-              <h3 className="section-subtitle">The Fixed Point Chart</h3>
-            </div>
-            <p className="section-note">The same programmes at the same times, Monday to Friday</p>
-          </div>
-
-          {station.loading ? (
-            <p className="section-empty">Loading the weekly chart&hellip;</p>
-          ) : (
-            <FixedPointChart slots={station.data?.chart ?? []} />
-          )}
-        </section>
 
         <section className="section" id="episodes">
           <div className="section-head">
@@ -121,10 +80,6 @@ export function HomePage() {
           <SpotifyShow />
         </section>
 
-        <AboutStation
-          chart={station.data?.chart ?? []}
-          programmeCount={station.data?.programmes?.length ?? null}
-        />
 
         <CommunityCTA />
       </main>

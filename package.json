@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Content Management System for VIT Community Radio 90.8 MHz, VIT Vellore",
+  "description": "Content Management System for VIT Community Radio 90.8 FM, VIT Vellore",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

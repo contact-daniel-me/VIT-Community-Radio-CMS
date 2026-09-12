@@ -284,6 +284,20 @@ export type PublicTopAudioRow = {
   created_at: string;
 };
 
+export type PublicApprovedEpisodeRow = {
+  episode_id: string;
+  title: string;
+  description: string | null;
+  host_name: string | null;
+  duration_seconds: number | null;
+  program_name: string;
+  program_category: string;
+  storage_path: string;
+  file_name: string;
+  audio_duration_seconds: number | null;
+  created_at: string;
+};
+
 export type PublicScheduleRow = {
   id: string;
   program_name: string;
@@ -558,6 +572,7 @@ export type Database = {
       v_public_recent_episodes: { Row: PublicEpisodeRow; Relationships: [] };
       v_public_fixed_point_chart: { Row: PublicChartRow; Relationships: [] };
       v_public_studio_calendar: { Row: PublicStudioSlotRow; Relationships: [] };
+      v_public_approved_episodes: { Row: PublicApprovedEpisodeRow; Relationships: [] };
     };
     Functions: {
       submit_episode_for_qc: { Args: { p_episode_id: string }; Returns: EpisodeRow };

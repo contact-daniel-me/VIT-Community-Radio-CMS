@@ -232,6 +232,10 @@ export const audioService = {
 
   /** The bucket is private, so playback always goes through a short-lived URL. */
   async getPlaybackUrl(storagePath: string, expiresInSeconds = 3600): Promise<string> {
+    if (storagePath.startsWith('http://') || storagePath.startsWith('https://')) {
+      return storagePath;
+    }
+
     const { data, error } = await supabase.storage
       .from(AUDIO_BUCKET)
       .createSignedUrl(storagePath, expiresInSeconds);

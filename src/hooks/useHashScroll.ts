@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigationType } from 'react-router-dom';
 
 /**
  * Scroll to the section named in the URL hash.
@@ -20,9 +20,25 @@ import { useLocation } from 'react-router-dom';
  */
 export function useHashScroll(ready = true): void {
   const { hash, key } = useLocation();
+  const navType = useNavigationType();
 
   useEffect(() => {
-    if (!hash || !ready) return;
+    if (!ready) return;
+
+    if (!hash) {
+      if (navType !== 'POP') {
+        const raf = requestAnimationFrame(() => {
+          window.scrollTo({
+            top: 0,
+            behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+              ? 'auto'
+              : 'smooth',
+          });
+        });
+        return () => cancelAnimationFrame(raf);
+      }
+      return;
+    }
 
     const id = decodeURIComponent(hash.slice(1));
     const target = document.getElementById(id);

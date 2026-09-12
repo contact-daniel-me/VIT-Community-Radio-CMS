@@ -17,7 +17,7 @@ export function Hero({ now }: { now: PublicNowPlayingRow | null }) {
       <div className="hero-grid">
         <div className="hero-lede">
           <p className="eyebrow">
-            <span>90.8 MHz</span>
+            <span>90.8 FM</span>
             <span className="eyebrow-rule" />
             <span>VIT Vellore</span>
             <span className="eyebrow-rule" />
@@ -46,13 +46,13 @@ export function Hero({ now }: { now: PublicNowPlayingRow | null }) {
 
         <div className="hero-visual" aria-hidden="true">
           <StudioMic />
+        </div>
+
+        <div className="hero-live">
           <div className="hero-onair-sign">
             <span>ON</span>
             <span>AIR</span>
           </div>
-        </div>
-
-        <div className="hero-live">
           <LiveStatus now={now} />
         </div>
       </div>
@@ -62,7 +62,7 @@ export function Hero({ now }: { now: PublicNowPlayingRow | null }) {
         <span>&middot;</span>
         <span>COMMUNITY RADIO</span>
         <span>&middot;</span>
-        <span>90.8 MHz</span>
+        <span>90.8 FM</span>
         <span>&middot;</span>
         <span>VIT VELLORE</span>
         <span>&middot;</span>

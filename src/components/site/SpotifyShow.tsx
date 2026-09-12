@@ -28,13 +28,13 @@ export function SpotifyShow() {
       {/* The title is read aloud in place of the frame's contents, so it says
           whose show this is. Entities are not decoded inside a JSX attribute,
           so it stays plain text. */}
-      <div className="spotify-frame">
+      <div className="spotify-frame compact-spotify">
         <iframe
           key={theme}
           src={src}
           title="VIT Community Radio: the official show on Spotify"
           width="100%"
-          height="352"
+          height="152"
           style={{ border: 0 }}
           loading="lazy"
           allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"

@@ -277,7 +277,7 @@ export function EpisodesPage() {
                 {(episodes.data ?? []).map((episode) => (
                   <tr key={episode.id}>
                     <td>
-                      <Link to={`/episodes/${episode.id}`}>{episode.title}</Link>
+                      <Link to={`/admin/episodes/${episode.id}`}>{episode.title}</Link>
                       {episode.episode_number && (
                         <span className="muted small"> #{episode.episode_number}</span>
                       )}

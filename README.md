@@ -1,6 +1,6 @@
 # VIT Community Radio CMS
 
-Internal content management system for **VIT Community Radio, 90.8 MHz, VIT Vellore**.
+Internal content management system for **VIT Community Radio, 90.8 FM, VIT Vellore**.
 
 The station team uses it to manage programmes and episodes, upload audio, run a
 QC review workflow, build the broadcast schedule, and record what is on air.

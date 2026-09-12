@@ -12,7 +12,7 @@ import { STATION_TIMEZONE } from '@/utils/datetime';
  */
 const STATION = [
   ['Station', 'VIT Community Radio'],
-  ['Frequency', '90.8 MHz'],
+  ['Frequency', '90.8 FM'],
   ['Campus', 'VIT Vellore'],
   ['Timezone', STATION_TIMEZONE],
 ];

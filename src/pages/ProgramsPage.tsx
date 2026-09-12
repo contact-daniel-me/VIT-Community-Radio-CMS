@@ -232,7 +232,7 @@ export function ProgramsPage() {
                 {visible.map((program) => (
                   <tr key={program.id}>
                     <td>
-                      <Link to={`/episodes?program=${program.id}`}>{program.name}</Link>
+                      <Link to={`/admin/episodes?program=${program.id}`}>{program.name}</Link>
                       {program.description && (
                         <p className="small muted" style={{ margin: '0.15rem 0 0' }}>
                           {program.description.slice(0, 90)}

@@ -316,7 +316,7 @@ export function SchedulePage() {
                     <td>{slot.program_name}</td>
                     <td>
                       {slot.episode_id ? (
-                        <Link to={`/episodes/${slot.episode_id}`}>{slot.episode_title}</Link>
+                        <Link to={`/admin/episodes/${slot.episode_id}`}>{slot.episode_title}</Link>
                       ) : (
                         <span className="muted">Live show</span>
                       )}

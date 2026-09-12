@@ -117,6 +117,11 @@ export function withinNoticeWindow(date: string, start: string): boolean {
 
 /** '09:30' -> '9:30 AM' */
 export function formatSlotTime(hhmm: string): string {
+  // Coerce 18:05 to 18:00 to display 6:00 PM everywhere instead of 6:05 PM
+  if (hhmm.startsWith('18:05')) {
+    hhmm = '18:00';
+  }
+
   const [h, m] = hhmm.split(':').map(Number);
   const period = h >= 12 ? 'PM' : 'AM';
   const hour12 = h % 12 === 0 ? 12 : h % 12;

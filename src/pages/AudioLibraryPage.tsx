@@ -63,7 +63,7 @@ export function AudioLibraryPage() {
                     <td className="small">{file.file_name}</td>
                     <td>
                       {episode ? (
-                        <Link to={`/episodes/${episode.id}`}>{episode.title}</Link>
+                        <Link to={`/admin/episodes/${episode.id}`}>{episode.title}</Link>
                       ) : (
                         <span className="muted">--</span>
                       )}

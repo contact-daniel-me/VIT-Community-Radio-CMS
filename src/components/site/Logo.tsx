@@ -46,8 +46,8 @@ export function Logo({
 
       {withWordmark && (
         <span className="logo-text">
-          <span className="logo-name">VIT COMMUNITY RADIO</span>
-          <span className="logo-freq">90.8 MHz &middot; VIT Vellore</span>
+          <span className="logo-name">VIT COMMUNITY RADIO 90.8 FM</span>
+          <span className="logo-freq">VIT Vellore</span>
         </span>
       )}
     </span>

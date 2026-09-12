@@ -182,7 +182,7 @@
   line-height: 1.15;
 }
 .logo-name {
-  font-size: 0.845rem;
+  font-size: 0.95rem; /* Increased size to match 90.8 FM prominence */
   font-weight: 700;
   letter-spacing: 0.045em;
   color: var(--ink);
@@ -440,13 +440,15 @@
 
 .hero-onair-sign {
   position: absolute;
-  top: 6%;
-  right: 4%;
+  top: -42px; /* Position it above the panel */
+  right: 1.5rem;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.05rem;
   padding: 0.45rem 0.85rem;
+  background: var(--surface);
   border: 1.5px solid var(--accent);
   border-radius: var(--r-sm);
   color: var(--accent);
@@ -455,8 +457,35 @@
   font-weight: 700;
   letter-spacing: 0.2em;
   line-height: 1.25;
-  opacity: 0.85;
-  transform: rotate(3deg);
+  transform: rotate(-3deg);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.hero-onair-sign::before,
+.hero-onair-sign::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 28px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+.hero-onair-sign::before {
+  left: -24px;
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  border-top-color: transparent;
+}
+
+.hero-onair-sign::after {
+  right: -24px;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  border-top-color: transparent;
 }
 
 .hero-live {
@@ -1951,6 +1980,27 @@
   color: var(--ink);
 }
 
+.about-vision-mission {
+  margin-top: 2rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  padding: 1.5rem 0;
+}
+.about-vm-block p {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+.about-vm-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
 .about-steps {
   margin-top: 3rem;
   padding-top: 2rem;
@@ -4014,7 +4064,9 @@
 
 /* ---------- Spotify show embed ------------------------------------------- */
 .spotify {
-  margin-top: 0.2rem;
+  margin: 1.5rem auto;
+  max-width: 600px;
+  width: 100%;
 }
 /* The iframe brings its own rounded corners and background; the frame just
    holds the shape so it sits on the page like the chart does. */
@@ -4024,17 +4076,23 @@
   background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.spotify-frame:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 .spotify-frame iframe {
   display: block;
   width: 100%;
-  height: 352px;
+  height: 152px;
   border: 0;
 }
 .spotify-note {
   margin: 0.7rem 0 0;
   font-size: 0.8rem;
   color: var(--ink-faint);
+  text-align: center;
 }
 .spotify-note a {
   color: var(--ink-muted);
@@ -4043,13 +4101,6 @@
 }
 .spotify-note a:hover {
   color: var(--brand-red);
-}
-/* Narrow screens: Spotify switches the embed to its compact layout well before
-   this, and 232px is the shortest height that still shows the episode list. */
-@media (max-width: 520px) {
-  .spotify-frame iframe {
-    height: 232px;
-  }
 }
 
 /* ---------- YouTube Live -------------------------------------------------- */
@@ -4537,4 +4588,238 @@
     margin-left: auto;
     order: 2;
   }
+}
+
+/* ---------- What's New Panel (Off Air replacement) ------------------------ */
+.whats-new-panel {
+  position: relative;
+  padding: 1.5rem 0 1rem 0; /* 24px top, 16px bottom padding */
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.whats-new-header-container {
+  padding: 0 1.5rem;
+  margin-bottom: 1.25rem; /* ~20px below heading */
+}
+
+.whats-new-head {
+  margin: 0 0 0.5rem 0; /* ~8px gap below red text */
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.whats-new-subtitle {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.whats-new-carousel-viewport {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.whats-new-carousel-track {
+  display: flex;
+  transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whats-new-carousel-track {
+    transition: none;
+  }
+}
+
+.whats-new-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 0.8rem 0; /* Prevents NEW badge and box-shadow from being clipped */
+}
+
+.whats-new-controls {
+  margin-top: 1.25rem; /* ~20px gap above controls */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem; /* ~12px gap between nav and dots */
+}
+
+.whats-new-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.whats-new-nav-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1.5px solid var(--line);
+  color: var(--ink-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.whats-new-nav-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.whats-new-nav-btn:active {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.whats-new-counter {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--ink);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  min-width: 3rem;
+  text-align: center;
+}
+
+.whats-new-pagination {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.whats-new-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.whats-new-dot.active {
+  background: var(--accent);
+}
+
+.whats-new-dot:hover:not(.active) {
+  background: color-mix(in srgb, var(--line) 50%, var(--ink));
+}
+
+.whats-new-card {
+  width: 82%;
+  max-width: 620px;
+  min-height: 160px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 1.5rem;
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.whats-new-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+.whats-new-card-badge {
+  position: absolute;
+  top: -8px;
+  right: 12px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.whats-new-card-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.whats-new-rj {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.4rem;
+}
+
+.whats-new-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 1.2rem;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.whats-new-bottom {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.whats-new-date {
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+  font-weight: 500;
+}
+
+.whats-new-play-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.whats-new-card:hover .whats-new-play-btn {
+  transform: scale(1.1);
+}
+
+.whats-new-play-btn:hover {
+  background: color-mix(in srgb, var(--accent) 80%, black);
 }

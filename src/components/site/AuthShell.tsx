@@ -35,7 +35,7 @@ export function AuthShell({
           </h2>
           <p className="auth-aside-copy">
             Programmes, episodes, QC and the broadcast schedule &mdash; the studio behind
-            90.8 MHz, run by students for the community around VIT Vellore.
+            90.8 FM, run by students for the community around VIT Vellore.
           </p>
         </div>
 

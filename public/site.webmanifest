@@ -1,7 +1,7 @@
 {
-  "name": "VIT Community Radio 90.8 MHz",
+  "name": "VIT Community Radio 90.8 FM",
   "short_name": "VIT CR 90.8",
-  "description": "VIT Community Radio, 90.8 MHz, VIT Vellore.",
+  "description": "VIT Community Radio, 90.8 FM, VIT Vellore.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

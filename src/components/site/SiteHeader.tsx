@@ -7,9 +7,9 @@ import { Logo } from './Logo';
 const SECTIONS = [
   { label: 'Home', to: '/' },
   { label: 'Studio', to: '/studio' },
-  { label: 'Schedule', to: '/#schedule' },
+  { label: 'Schedule', to: '/schedule' },
   { label: 'Episodes', to: '/#episodes' },
-  { label: 'About', to: '/#about' },
+  { label: 'About', to: '/about' },
 ];
 
 export function SiteHeader() {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { PublicNowPlayingRow } from '@/types/database';
 import { formatTime } from '@/utils/datetime';
 import { Waveform } from './Waveform';
+import { WhatsNew } from './WhatsNew';
 
 /** "38 min left" — recomputed each minute while a broadcast is running. */
 function useRemaining(endTime: string | null | undefined): string | null {
@@ -37,56 +38,45 @@ export function LiveStatus({ now }: { now: PublicNowPlayingRow | null }) {
   const live = now?.broadcast_status === 'ON_AIR';
   const remaining = useRemaining(live ? now?.end_time : null);
 
+  if (!live || !now) {
+    return <WhatsNew />;
+  }
+
   return (
-    <section className={`live-panel ${live ? 'is-live' : ''}`} aria-live="polite">
+    <section className="live-panel is-live" aria-live="polite">
       <div className="live-panel-head">
         <span className="status-chip">
           <span className="status-dot" />
-          {live ? 'Live now' : 'Off air'}
+          Live now
         </span>
         <span className="freq-tag">90.8 FM</span>
       </div>
 
-      {live && now ? (
-        <>
-          <p className="live-show">{now.program_name}</p>
-          {now.episode_title && <p className="live-episode">{now.episode_title}</p>}
+      <p className="live-show">{now.program_name}</p>
+      {now.episode_title && <p className="live-episode">{now.episode_title}</p>}
 
-          <Waveform active bars={22} className="live-wave" label="Broadcast audio level" />
+      <Waveform active bars={22} className="live-wave" label="Broadcast audio level" />
 
-          <dl className="live-meta">
-            {now.host_name && (
-              <div>
-                <dt>Host</dt>
-                <dd>{now.host_name}</dd>
-              </div>
-            )}
-            <div>
-              <dt>On air</dt>
-              <dd>
-                {formatTime(now.start_time)} &ndash; {formatTime(now.end_time)}
-              </dd>
-            </div>
-            {remaining && (
-              <div>
-                <dt>Remaining</dt>
-                <dd>{remaining}</dd>
-              </div>
-            )}
-          </dl>
-        </>
-      ) : (
-        <>
-          <p className="live-show">We are off air</p>
-          <p className="live-episode">
-            Nothing is going out right now. Today&rsquo;s line-up is just below.
-          </p>
-          <Waveform bars={22} className="live-wave" />
-          <p className="live-idle">
-            <a href="#schedule">See what&rsquo;s next &rarr;</a>
-          </p>
-        </>
-      )}
+      <dl className="live-meta">
+        {now.host_name && (
+          <div>
+            <dt>Host</dt>
+            <dd>{now.host_name}</dd>
+          </div>
+        )}
+        <div>
+          <dt>On air</dt>
+          <dd>
+            {formatTime(now.start_time)} &ndash; {formatTime(now.end_time)}
+          </dd>
+        </div>
+        {remaining && (
+          <div>
+            <dt>Remaining</dt>
+            <dd>{remaining}</dd>
+          </div>
+        )}
+      </dl>
     </section>
   );
 }

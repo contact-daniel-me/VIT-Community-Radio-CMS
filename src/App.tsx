@@ -16,14 +16,15 @@ import { EpisodesPage } from '@/pages/EpisodesPage';
 import { EpisodeDetailPage } from '@/pages/EpisodeDetailPage';
 import { QcPage } from '@/pages/QcPage';
 import { SchedulePage } from '@/pages/SchedulePage';
-import { LivePage } from '@/pages/LivePage';
 import { AudioLibraryPage } from '@/pages/AudioLibraryPage';
 import { UsersPage } from '@/pages/UsersPage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { StudioPublicPage } from '@/pages/StudioPublicPage';
+import { SchedulePublicPage } from '@/pages/SchedulePublicPage';
+import { AboutPublicPage } from '@/pages/AboutPublicPage';
+import { EpisodesPublicPage } from '@/pages/EpisodesPublicPage';
 import { StudioPage } from '@/pages/StudioPage';
 import { MyBookingsPage } from '@/pages/MyBookingsPage';
-import { TopAudioPage } from '@/pages/TopAudioPage';
 import { GlobalAudioProvider } from '@/hooks/GlobalAudioContext';
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
@@ -110,6 +111,9 @@ export default function App() {
             {/* Public: anyone can see studio availability. Booking inside it still
                 requires a session, and the database still decides. */}
             <Route path="/studio" element={<StudioPublicPage />} />
+            <Route path="/schedule" element={<SchedulePublicPage />} />
+            <Route path="/about" element={<AboutPublicPage />} />
+            <Route path="/episodes" element={<EpisodesPublicPage />} />
 
             {/* Everything below requires a session AND an active profile. */}
             <Route
@@ -120,12 +124,11 @@ export default function App() {
               }
             >
               <Route path="dashboard" element={<DashboardPage />} />
-              <Route path="live" element={<LivePage />} />
               <Route path="programs" element={<ProgramsPage />} />
-              <Route path="episodes" element={<EpisodesPage />} />
-              <Route path="episodes/:episodeId" element={<EpisodeDetailPage />} />
+              <Route path="admin/episodes" element={<EpisodesPage />} />
+              <Route path="admin/episodes/:episodeId" element={<EpisodeDetailPage />} />
               <Route path="qc" element={<QcPage />} />
-              <Route path="schedule" element={<SchedulePage />} />
+              <Route path="schedule/edit" element={<SchedulePage />} />
               <Route
                 path="audio"
                 element={
@@ -142,14 +145,7 @@ export default function App() {
                   </RequireRole>
                 }
               />
-              <Route
-                path="top-audio"
-                element={
-                  <RequireRole allow={(role) => role === 'ADMIN'}>
-                    <TopAudioPage />
-                  </RequireRole>
-                }
-              />
+
               {/* Signed-in staff book from inside the portal. The public
                   /studio page stays public and renders the same calendar. */}
               <Route path="studio/book" element={<StudioPage />} />

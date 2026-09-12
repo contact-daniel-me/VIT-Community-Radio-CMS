@@ -24,16 +24,18 @@ export function AboutStation({
   const closes = chart.length
     ? chart.reduce((a, s) => (s.end_time > a ? s.end_time : a), chart[0].end_time)
     : null;
-  const repeats = chart.filter((s) => s.kind === 'REBROADCAST').length;
 
   const facts: { label: string; value: string }[] = [
-    { label: 'Frequency', value: '90.8 MHz FM' },
+    { label: 'Frequency', value: '90.8 FM' },
     { label: 'Broadcasting from', value: 'VIT Vellore' },
   ];
   if (opens && closes) {
+    let closeTimeStr = formatSlotTime(closes.slice(0, 5));
+    if (closeTimeStr === '6:05 PM') closeTimeStr = '6:00 PM';
+    
     facts.push({
       label: 'On air',
-      value: `${formatSlotTime(opens.slice(0, 5))} to ${formatSlotTime(closes.slice(0, 5))}, Monday to Friday`,
+      value: `${formatSlotTime(opens.slice(0, 5))} to ${closeTimeStr}, Monday to Friday`,
     });
   }
   if (programmeCount) {
@@ -51,30 +53,21 @@ export function AboutStation({
 
       <div className="about-grid">
         <div className="about-copy">
-          <p>
-            VIT Community Radio broadcasts on <strong>90.8 MHz</strong> from VIT Vellore. It is a
-            community radio station rather than a campus station: the programming is made by
-            students, but it is made for everyone within listening distance &mdash; the campus,
-            the neighbourhood and the wider Vellore community.
-          </p>
-          <p>
-            The broadcast day follows a Fixed Point Chart, so listeners can find the same
-            programmes at the same times each week. The morning band carries the day&rsquo;s new
-            programming
-            {repeats > 0 && (
-              <>
-                {' '}
-                and is then repeated{' '}
-                {repeats === 1 ? 'once' : repeats === 2 ? 'twice' : `${repeats} times`} through the
-                afternoon and evening, so anyone who missed it still catches it
-              </>
-            )}
-            . You can see the full chart under Schedule.
-          </p>
-          <p>
-            Programmes run in Tamil and English across news, culture, knowledge, technology,
-            campus life and music, and the roster grows as new voices join.
-          </p>
+          <div className="about-vm-block" style={{ marginBottom: '2rem' }}>
+            <h3 className="about-vm-title">Vision</h3>
+            <p>
+              Our vision is to provide an opportunity for the community and our students, to help them
+              get to know their basic rights, duties and responsibilities as citizens in order to be
+              successful in life through our programmes, interactions, events and activities.
+            </p>
+          </div>
+          <div className="about-vm-block">
+            <h3 className="about-vm-title">Mission</h3>
+            <p>
+              Our mission is to build an effective, vibrant and sustainable community, to support
+              development in health, education, environment, agriculture, rural and all other aspects.
+            </p>
+          </div>
         </div>
 
         <dl className="about-facts">
@@ -134,7 +127,7 @@ export function AboutStation({
             <span className="about-step-n">5</span>
             <div>
               <strong>Broadcast</strong>
-              <p>Approved episodes are scheduled into the chart and go out on 90.8 MHz.</p>
+              <p>Approved episodes are scheduled into the chart and go out on 90.8 FM.</p>
             </div>
           </li>
         </ol>

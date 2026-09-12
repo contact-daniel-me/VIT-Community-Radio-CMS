@@ -11,7 +11,7 @@ import { Waveform } from './Waveform';
  *
  * Two sources live here and they are never conflated:
  *
- *   A. the live 90.8 MHz stream -- VITE_STREAM_URL, played by the <audio>
+ *   A. the live 90.8 FM stream -- VITE_STREAM_URL, played by the <audio>
  *      element below, and only when the station is actually on air
  *   B. the station's Spotify show -- on demand, played by Spotify's own embed
  *
@@ -104,6 +104,13 @@ export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live]);
 
+  // Stop the live stream if a specific episode track starts playing
+  useEffect(() => {
+    if (trackPlaying && playing) {
+      stop();
+    }
+  }, [trackPlaying, playing]);
+
   useEffect(() => {
     const el = audioRef.current;
     if (el) {
@@ -143,7 +150,7 @@ export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
       ? (now?.episode_title ?? 'Live now')
       : spotifyDrives && spotify.started
         ? 'The station show on Spotify'
-        : '90.8 MHz · VIT Vellore';
+        : '90.8 FM · VIT Vellore';
 
   const seekable = (spotifyDrives && spotify.started) || trackDrives;
 
@@ -373,7 +380,7 @@ export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
             <SpotifyGlyph />
           </a>
 
-          <span className="player-freq">90.8&nbsp;MHz</span>
+          <span className="player-freq">90.8&nbsp;FM</span>
         </div>
       </div>
 

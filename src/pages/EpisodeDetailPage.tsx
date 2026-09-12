@@ -135,7 +135,7 @@ export function EpisodeDetailPage() {
         actions={
           <>
             <EpisodeStatusBadge status={ep.status} />
-            <button type="button" className="small" onClick={() => navigate('/episodes')}>
+            <button type="button" className="small" onClick={() => navigate('/admin/episodes')}>
               Back to episodes
             </button>
           </>
@@ -489,7 +489,7 @@ export function EpisodeDetailPage() {
             setConfirmDelete(false);
             // The episode this page is about no longer exists, so there is
             // nothing to reload -- go back to the list and say what happened.
-            navigate('/episodes', {
+            navigate('/admin/episodes', {
               replace: true,
               state: { notice: `"${title}" was deleted.` },
             });

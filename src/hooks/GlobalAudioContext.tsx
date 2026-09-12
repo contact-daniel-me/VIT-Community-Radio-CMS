@@ -10,6 +10,7 @@ interface GlobalAudioState {
   currentTime: number;
   duration: number;
   playTrack: (track: PublicTopAudioRow) => void;
+  setTrack: (track: PublicTopAudioRow) => void;
   pause: () => void;
   resume: () => void;
   seek: (time: number) => void;
@@ -54,6 +55,8 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('play', onPlay);
       audio.removeEventListener('pause', onPause);
+      audio.pause();
+      audio.src = '';
     };
   }, []);
 
@@ -65,6 +68,40 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
   }, [volume, muted]);
 
   const playTrack = async (track: PublicTopAudioRow) => {
+    // Stop any currently playing audio first
+    if (audioRef.current && !audioRef.current.paused) {
+      audioRef.current.pause();
+    }
+
+    // Synchronously unlock the audio element for Safari/mobile before the async fetch
+    if (audioRef.current && audioRef.current.src === '') {
+      audioRef.current.play().catch(() => {});
+      audioRef.current.pause();
+    }
+
+    setCurrentTrack(track);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(track.audio_duration_seconds || 0);
+
+    try {
+      const url = await audioService.getPlaybackUrl(track.storage_path);
+      console.debug('[GlobalAudio] playTrack url:', url);
+      if (audioRef.current) {
+        audioRef.current.src = url;
+        audioRef.current.load(); // ensure browser re-reads the new src
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+        }
+      }
+    } catch (e) {
+      console.error('[GlobalAudio] Failed to play track:', e);
+      setIsPlaying(false);
+    }
+  };
+
+  const setTrack = async (track: PublicTopAudioRow) => {
     setCurrentTrack(track);
     setIsPlaying(false);
     setCurrentTime(0);
@@ -74,10 +111,9 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
       const url = await audioService.getPlaybackUrl(track.storage_path);
       if (audioRef.current) {
         audioRef.current.src = url;
-        await audioRef.current.play();
       }
     } catch (e) {
-      console.error('Failed to play track', e);
+      console.error('Failed to set track', e);
     }
   };
 
@@ -87,7 +123,32 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
 
   const resume = async () => {
     if (currentTrack && audioRef.current) {
-      await audioRef.current.play().catch(console.error);
+      try {
+        // If src is empty or not a real URL, re-fetch it
+        const currentSrc = audioRef.current.src;
+        const hasValidSrc =
+          currentSrc &&
+          currentSrc !== '' &&
+          !currentSrc.endsWith(window.location.origin + '/') &&
+          currentSrc !== window.location.origin;
+        if (!hasValidSrc) {
+          const url = await audioService.getPlaybackUrl(currentTrack.storage_path);
+          console.debug('[GlobalAudio] resume: re-fetching url', url);
+          audioRef.current.src = url;
+          audioRef.current.load();
+        }
+        console.debug(
+          '[GlobalAudio] resume: paused=', audioRef.current.paused,
+          'src=', audioRef.current.src,
+          'readyState=', audioRef.current.readyState,
+        );
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+        }
+      } catch (e) {
+        console.error('[GlobalAudio] Failed to resume track:', e);
+      }
     }
   };
 
@@ -109,6 +170,7 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
         currentTime,
         duration,
         playTrack,
+        setTrack,
         pause,
         resume,
         seek,

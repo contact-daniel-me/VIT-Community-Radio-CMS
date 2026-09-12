@@ -79,7 +79,7 @@ export function QcPage() {
                   {(mine.data ?? []).map((episode) => (
                     <tr key={episode.id}>
                       <td>
-                        <Link to={`/episodes/${episode.id}`}>{episode.title}</Link>
+                        <Link to={`/admin/episodes/${episode.id}`}>{episode.title}</Link>
                       </td>
                       <td>{episode.program?.name}</td>
                       <td className="small muted">{formatDateTime(episode.submitted_at)}</td>
@@ -123,7 +123,7 @@ export function QcPage() {
               <div className="card-title">
                 <div>
                   <h2 style={{ marginBottom: '0.15rem' }}>
-                    <Link to={`/episodes/${episode.id}`}>{episode.title}</Link>
+                    <Link to={`/admin/episodes/${episode.id}`}>{episode.title}</Link>
                   </h2>
                   <p className="small muted" style={{ margin: 0 }}>
                     {episode.program?.name} &middot; Host{' '}

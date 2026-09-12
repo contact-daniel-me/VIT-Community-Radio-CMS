@@ -71,7 +71,7 @@ export function FixedPointChart({ slots }: { slots: PublicChartRow[] }) {
       <div className="chart-scroll">
         <table className="chart-table">
           <caption className="visually-hidden">
-            The Fixed Point Chart for VIT Community Radio 90.8 MHz
+            The Fixed Point Chart for VIT Community Radio 90.8 FM
           </caption>
           <thead>
             <tr>

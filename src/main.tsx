@@ -8,6 +8,7 @@ import './styles/tokens.css';
 import './styles/app.css';
 import './styles/site.css';
 import './styles/studio.css';
+import './styles/episodes.css';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Root element not found');

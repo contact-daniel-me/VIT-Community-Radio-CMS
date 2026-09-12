@@ -182,7 +182,7 @@ export function MyBookingsPage() {
                     {canUpload && booking.rj_id === profile.id && (
                       booking.episode_id ? (
                         <Link
-                          to={`/episodes/${booking.episode_id}`}
+                          to={`/admin/episodes/${booking.episode_id}`}
                           className="btn btn-outline small"
                         >
                           Open recording

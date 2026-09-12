@@ -162,7 +162,7 @@ export function RecordingDialog({
                 happy.
               </p>
               <div className="dialog-actions">
-                <Link to={`/episodes/${episode.id}`} className="btn btn-solid">
+                <Link to={`/admin/episodes/${episode.id}`} className="btn btn-solid">
                   Open the episode
                 </Link>
                 <button type="button" className="btn btn-ghost" onClick={onClose}>

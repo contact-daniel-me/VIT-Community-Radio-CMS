@@ -17,6 +17,8 @@ export function EpisodesPublicPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -32,7 +34,7 @@ export function EpisodesPublicPage() {
     }, DEBOUNCE_MS);
   };
 
-  // Reset and reload when search/sort changes.
+  // Reset and reload when search/sort/dates change.
   const loadFirst = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -42,6 +44,8 @@ export function EpisodesPublicPage() {
         search: debouncedSearch,
         sort: sortOrder,
         page: 0,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
       });
       setEpisodes(result.episodes);
       setTotal(result.total);
@@ -51,7 +55,7 @@ export function EpisodesPublicPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, sortOrder]);
+  }, [debouncedSearch, sortOrder, fromDate, toDate]);
 
   useEffect(() => {
     void loadFirst();
@@ -66,6 +70,8 @@ export function EpisodesPublicPage() {
         search: debouncedSearch,
         sort: sortOrder,
         page: nextPage,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
       });
       setEpisodes((prev) => {
         // Deduplicate by id in case of race conditions.
@@ -99,26 +105,66 @@ export function EpisodesPublicPage() {
             </p>
           </div>
 
-          <div className="episodes-controls">
-            <input
-              type="search"
-              placeholder="Search by title or description…"
-              value={search}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="episodes-search-input"
-              aria-label="Search episodes"
-            />
-            <select
-              value={sortOrder}
-              onChange={(e) => {
-                setSortOrder(e.target.value as 'newest' | 'oldest');
-              }}
-              className="episodes-sort-select"
-              aria-label="Sort order"
-            >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-            </select>
+          <div className="episodes-controls-wrapper">
+            <div className="episodes-controls">
+              <input
+                type="search"
+                placeholder="Search episodes..."
+                value={search}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="episodes-search-input"
+                aria-label="Search episodes"
+              />
+              <div className="episodes-date-filters">
+                <label className="episodes-date-label">
+                  <span className="sr-only">From Date</span>
+                  <input
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    aria-label="From Date"
+                    className="episodes-date-input"
+                  />
+                </label>
+                <span className="episodes-date-separator">to</span>
+                <label className="episodes-date-label">
+                  <span className="sr-only">To Date</span>
+                  <input
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    aria-label="To Date"
+                    className="episodes-date-input"
+                  />
+                </label>
+              </div>
+              <select
+                value={sortOrder}
+                onChange={(e) => {
+                  setSortOrder(e.target.value as 'newest' | 'oldest');
+                }}
+                className="episodes-sort-select"
+                aria-label="Sort order"
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+              </select>
+              {(search || fromDate || toDate) && (
+                <button
+                  type="button"
+                  className="btn btn-ghost episodes-clear-btn"
+                  onClick={() => {
+                    setSearch('');
+                    setDebouncedSearch('');
+                    setFromDate('');
+                    setToDate('');
+                    setSortOrder('newest');
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
 
           {error && (

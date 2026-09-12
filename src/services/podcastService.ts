@@ -14,12 +14,14 @@ import type { PodcastEpisodeRow } from '@/types/database';
 
 export type { PodcastEpisodeRow };
 
-export const PAGE_SIZE = 20;
+export const PAGE_SIZE = 10;
 
 export interface EpisodeQuery {
   search?: string;
   sort?: 'newest' | 'oldest';
   page?: number;
+  fromDate?: string;
+  toDate?: string;
 }
 
 export interface EpisodePage {
@@ -36,7 +38,7 @@ export const podcastService = {
    * All filtering and sorting happens in the database — no RSS fetch.
    */
   async getEpisodes(query: EpisodeQuery = {}): Promise<EpisodePage> {
-    const { search = '', sort = 'newest', page = 0 } = query;
+    const { search = '', sort = 'newest', page = 0, fromDate, toDate } = query;
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
@@ -49,6 +51,14 @@ export const podcastService = {
       q = q.or(
         `title.ilike.%${search.trim()}%,description.ilike.%${search.trim()}%`,
       );
+    }
+    
+    // Server-side date filtering
+    if (fromDate) {
+      q = q.gte('pub_date', `${fromDate}T00:00:00.000Z`);
+    }
+    if (toDate) {
+      q = q.lte('pub_date', `${toDate}T23:59:59.999Z`);
     }
 
     q = q

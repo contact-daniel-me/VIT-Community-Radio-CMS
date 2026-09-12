@@ -8,7 +8,7 @@ const SECTIONS = [
   { label: 'Home', to: '/' },
   { label: 'Studio', to: '/studio' },
   { label: 'Schedule', to: '/schedule' },
-  { label: 'Episodes', to: '/#episodes' },
+  { label: 'Episodes', to: '/episodes' },
   { label: 'About', to: '/about' },
 ];
 

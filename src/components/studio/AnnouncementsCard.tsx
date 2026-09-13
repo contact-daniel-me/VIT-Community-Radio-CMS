@@ -4,8 +4,9 @@ import { useAsync } from '@/hooks/useAsync';
 import { announcementService } from '@/services/announcementService';
 import { AnnouncementDialog } from './AnnouncementDialog';
 import { Empty, Loading } from '@/components/ui';
+import type { AnnouncementRow } from '@/types/database';
 
-function getStatusBadge(ann: any) {
+function getStatusBadge(ann: AnnouncementRow) {
   const now = new Date();
   
   if (ann.status === 'DRAFT') {

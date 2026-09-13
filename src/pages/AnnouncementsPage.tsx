@@ -5,12 +5,14 @@ import { AnnouncementDialog } from '@/components/studio/AnnouncementDialog';
 import { Banner, Empty, Loading, PageHeader, ConfirmButton } from '@/components/ui';
 import { errorMessage } from '@/lib/errors';
 
+import type { AnnouncementRow } from '@/types/database';
+
 type Tab = 'all' | 'published' | 'scheduled' | 'draft' | 'expired';
 
 export function AnnouncementsPage() {
   const [tab, setTab] = useState<Tab>('all');
   const [showCreate, setShowCreate] = useState(false);
-  const [editing, setEditing] = useState<any>(null);
+  const [editing, setEditing] = useState<AnnouncementRow | null>(null);
   
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);

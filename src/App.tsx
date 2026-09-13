@@ -27,6 +27,7 @@ import { StudioPage } from '@/pages/StudioPage';
 import { MyBookingsPage } from '@/pages/MyBookingsPage';
 import { AnnouncementsPage } from '@/pages/AnnouncementsPage';
 import { GlobalAudioProvider } from '@/hooks/GlobalAudioContext';
+import { BadgesPage } from '@/pages/BadgesPage';
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const { session, profile, loading } = useAuth();
@@ -153,6 +154,7 @@ export default function App() {
               <Route path="bookings" element={<MyBookingsPage />} />
               <Route path="announcements" element={<AnnouncementsPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="badges" element={<BadgesPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Routes>

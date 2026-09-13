@@ -25,6 +25,7 @@ const NAV: NavItem[] = [
   { to: '/schedule/edit', label: 'Schedule', visible: () => true },
   { to: '/audio', label: 'Audio Library', visible: (role) => can.viewAudioLibrary(role) },
   { to: '/users', label: 'Users', visible: (role) => can.manageUsers(role) },
+  { to: '/badges', label: 'Badges 🏆', visible: () => true },
   { to: '/settings', label: 'Settings', visible: () => true },
 ];
 

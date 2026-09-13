@@ -198,22 +198,24 @@ export function BookingDialog({
 
               <form onSubmit={goReview} className="booking-form">
                 <div className="field">
-                  <div className="row spread align-center" style={{ marginBottom: '0.4rem' }}>
-                    <label htmlFor="b-show" style={{ margin: 0 }}>Show</label>
-                    <a href="mailto:radio@vit.ac.in?subject=Other%20Show%20and%20Special" className="small" style={{ color: '#3b82f6', fontWeight: 600, textDecoration: 'underline' }}>
-                      Other Show and Special
-                    </a>
-                  </div>
+                  <label htmlFor="b-show">Show</label>
                   <select
                     id="b-show"
                     value={form.program_id}
                     onChange={(e) => {
-                      setForm({ ...form, program_id: e.target.value });
+                      const val = e.target.value;
+                      if (val === 'other_show' || val === 'special_link') {
+                        window.location.href = "mailto:radio@vit.ac.in?subject=Other%20Show%20and%20Special";
+                        return;
+                      }
+                      setForm({ ...form, program_id: val });
                     }}
                     required
                     autoFocus
                   >
                     <option value="">Choose a show</option>
+                    <option value="other_show" style={{ color: '#ef3b40', fontWeight: 'bold' }}>Other Show</option>
+                    <option value="special_link" style={{ color: '#3b82f6', fontWeight: 'bold' }}>Special Link</option>
                     {(programmes.data ?? []).map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}

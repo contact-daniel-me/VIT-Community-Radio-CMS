@@ -72,35 +72,13 @@ export function DashboardPage() {
     };
   }, [profile.id, profile.role]);
 
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ status: 'success'|'error', message: string } | null>(null);
+
 
   if (dashboard.loading) return <Loading />;
   if (dashboard.error) return <Banner>{dashboard.error}</Banner>;
   if (!dashboard.data) return null;
 
   const { pendingQc, recentEpisodes, awaitingUpload, metrics, expiringAudio, upcomingBookings, todaysSchedule, totalEpisodes } = dashboard.data;
-
-
-  const handlePodcastSync = async () => {
-    setSyncing(true);
-    setSyncResult(null);
-    try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-      const res = await fetch(`${supabaseUrl}/functions/v1/sync-podcast-episodes`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${anonKey}`, 'Content-Type': 'application/json' },
-      });
-      const json = await res.json() as { synced?: number; total_in_feed?: number; error?: string };
-      if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`);
-      setSyncResult({ status: 'success', message: `Last synced successfully\n${formatDate(new Date().toISOString())} - ${formatTime(new Date().toISOString())}` });
-    } catch (e) {
-      setSyncResult({ status: 'error', message: `Sync failed: ${e instanceof Error ? e.message : String(e)}` });
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const todayStr = new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date());
 
@@ -170,37 +148,6 @@ export function DashboardPage() {
           <PipelineVisual metrics={metrics.pipeline} />
         </div>
 
-        {/* RIGHT COLUMN */}
-        {(profile.role === 'ADMIN' || profile.role === 'PRODUCER') && (
-          <div className="dash-col">
-            <section className="card fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="row spread align-center">
-                <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Podcast Sync</h3>
-                <button type="button" onClick={handlePodcastSync} disabled={syncing} className="primary small metric-red" style={{ borderRadius: '6px', fontWeight: 600 }}>
-                  {syncing ? 'Syncing...' : 'Sync Episodes Now'}
-                </button>
-              </div>
-
-              <div className="card metric-green row align-center" style={{ padding: '1rem', gap: '1rem', border: 'none', background: 'var(--ok-wash)' }}>
-                <div className="icon-box" style={{ background: '#dcfce7', color: '#15803d', boxShadow: 'none' }}><CheckCircleIcon /></div>
-                <div>
-                  <strong style={{ display: 'block', color: '#15803d' }}>Last synced successfully</strong>
-                  <span className="small" style={{ color: '#15803d', opacity: 0.8 }}>
-                    {syncResult && syncResult.status === 'success' ? syncResult.message.split('\n')[1] : '13 Sept 2026 - 08:35 PM'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="card metric-purple row align-center" style={{ padding: '1rem', gap: '1rem', border: 'none', background: '#f3e8ff' }}>
-                <div className="icon-box" style={{ background: '#e9d5ff', color: '#7e22ce', boxShadow: 'none' }}><PodcastIcon /></div>
-                <div>
-                  <strong style={{ display: 'block', color: '#7e22ce' }}>{totalEpisodes} episodes</strong>
-                  <span className="small" style={{ color: '#7e22ce', opacity: 0.8 }}>Updated from Spotify/Anchor RSS</span>
-                </div>
-              </div>
-            </section>
-          </div>
-        )}
       </div>
 
       {/* 3. BOTTOM GRID (Schedule | Bookings | QC & Episodes) */}

@@ -198,7 +198,12 @@ export function BookingDialog({
 
               <form onSubmit={goReview} className="booking-form">
                 <div className="field">
-                  <label htmlFor="b-show">Show</label>
+                  <div className="row spread align-center" style={{ marginBottom: '0.4rem' }}>
+                    <label htmlFor="b-show" style={{ margin: 0 }}>Show</label>
+                    <a href="mailto:radio@vit.ac.in?subject=Other%20Show%20and%20Special" className="small" style={{ color: '#3b82f6', fontWeight: 600, textDecoration: 'underline' }}>
+                      Other Show and Special
+                    </a>
+                  </div>
                   <select
                     id="b-show"
                     value={form.program_id}

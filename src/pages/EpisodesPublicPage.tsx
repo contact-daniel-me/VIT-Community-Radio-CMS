@@ -93,7 +93,10 @@ export function EpisodesPublicPage() {
     <div className="site">
       <SiteHeader />
 
-      <main id="main">
+      <main id="main" className="episodes-page-wrapper">
+        <div className="episodes-bg-glow" />
+        <div className="episodes-bg-glow-2" />
+
         <section className="section">
           <div className="section-head">
             <div>
@@ -183,8 +186,8 @@ export function EpisodesPublicPage() {
                   : 'No episodes available yet. Check back soon!'}
               </p>
             ) : (
-              episodes.map((ep) => (
-                <SpotifyEpisodeCard key={ep.id} episode={ep} />
+              episodes.map((ep, idx) => (
+                <SpotifyEpisodeCard key={ep.id} episode={{ ...ep, index: idx } as any} />
               ))
             )}
 

@@ -86,7 +86,7 @@ async function fetchFallbackRSS(): Promise<PodcastEpisodeRow[]> {
   }
 }
 
-export const PAGE_SIZE = 10;
+export const PAGE_SIZE = 9;
 
 export interface EpisodeQuery {
   search?: string;

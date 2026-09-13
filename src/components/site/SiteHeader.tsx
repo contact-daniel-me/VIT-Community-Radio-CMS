@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
@@ -56,6 +57,7 @@ export function SiteHeader() {
   }, [menuOpen]);
 
   return (
+    <>
     <header className={`site-header ${condensed ? 'is-condensed' : ''}`}>
       <div className="site-header-inner">
         <Link to="/" className="site-brand" aria-label="VIT Community Radio, home">
@@ -129,56 +131,62 @@ export function SiteHeader() {
           </button>
         </div>
       </div>
-
-      {menuOpen && (
-        <div className="site-sheet" role="dialog" aria-modal="true" aria-label="Menu">
-          <div className="site-sheet-top">
-            <Logo size={34} />
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Close menu"
-              onClick={() => setMenuOpen(false)}
-            >
-              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                <path
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  d="M6 6l12 12M18 6L6 18"
-                />
-              </svg>
-            </button>
-          </div>
-
-          <nav className="site-sheet-nav" aria-label="Sections">
-            {SECTIONS.map((item) => (
-              <Link key={item.label} to={item.to} onClick={() => setMenuOpen(false)}>
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="site-sheet-actions">
-            {session && profile ? (
-              <Link to="/dashboard" className="btn btn-solid" onClick={() => setMenuOpen(false)}>
-                Open the CMS
-              </Link>
-            ) : (
-              <>
-                <Link to="/login" className="btn btn-ghost" onClick={() => setMenuOpen(false)}>
-                  Sign in
-                </Link>
-                <Link to="/register" className="btn btn-solid" onClick={() => setMenuOpen(false)}>
-                  Request access
-                </Link>
-              </>
-            )}
-          </div>
-
-          <p className="site-sheet-foot">MADE BY STUDENTS &middot; FOR THE COMMUNITY</p>
-        </div>
-      )}
     </header>
+
+    {menuOpen && createPortal(
+      <div className="site-sheet" role="dialog" aria-modal="true" aria-label="Menu">
+        <div className="site-sheet-top">
+          <Logo size={34} />
+          <button
+            type="button"
+            className="icon-button"
+            aria-label="Close menu"
+            onClick={() => setMenuOpen(false)}
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                d="M6 6l12 12M18 6L6 18"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <nav className="site-sheet-nav" aria-label="Sections">
+          {SECTIONS.map((item) => (
+            <Link key={item.label} to={item.to} onClick={() => setMenuOpen(false)}>
+              {item.label}
+            </Link>
+          ))}
+          {/* Add 'Book the studio' link specifically as requested */}
+          <Link to="/studio" onClick={() => setMenuOpen(false)}>
+            Book the studio
+          </Link>
+        </nav>
+
+        <div className="site-sheet-actions">
+          {session && profile ? (
+            <Link to="/dashboard" className="btn btn-solid" onClick={() => setMenuOpen(false)}>
+              Open the CMS
+            </Link>
+          ) : (
+            <>
+              <Link to="/login" className="btn btn-ghost" onClick={() => setMenuOpen(false)}>
+                Sign in
+              </Link>
+              <Link to="/register" className="btn btn-solid" onClick={() => setMenuOpen(false)}>
+                Request access
+              </Link>
+            </>
+          )}
+        </div>
+
+        <p className="site-sheet-foot">MADE BY STUDENTS &middot; FOR THE COMMUNITY</p>
+      </div>,
+      document.body
+    )}
+    </>
   );
 }

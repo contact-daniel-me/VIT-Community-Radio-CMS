@@ -98,6 +98,6 @@ export const announcementService = {
       .delete()
       .eq('id', id);
 
-    if (error) throw new AppError('DATABASE', error.message);
+    if (error) throw new AppError('UNKNOWN', error.message);
   }
 };

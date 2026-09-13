@@ -23,7 +23,6 @@ export function AboutPublicPage() {
         ) : (
           <AboutStation
             chart={station.data?.chart ?? []}
-            programmeCount={station.data?.programmes?.length ?? null}
           />
         )}
       </main>

@@ -13,10 +13,8 @@ import { formatSlotTime } from '@/utils/studio';
  */
 export function AboutStation({
   chart,
-  programmeCount,
 }: {
   chart: PublicChartRow[];
-  programmeCount: number | null;
 }) {
   const opens = chart.length
     ? chart.reduce((a, s) => (s.start_time < a ? s.start_time : a), chart[0].start_time)

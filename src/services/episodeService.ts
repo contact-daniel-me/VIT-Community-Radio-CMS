@@ -7,6 +7,7 @@ import type { AudioFileRow, EpisodeRow, EpisodeStatus } from '@/types/database';
 export interface EpisodeWithRelations extends EpisodeRow {
   program: { id: string; name: string; requires_audio: boolean; active: boolean } | null;
   audio_file: AudioFileRow | null;
+  final_audio_file: AudioFileRow | null;
   author: { id: string; full_name: string } | null;
   assignee: { id: string; full_name: string } | null;
 }
@@ -15,6 +16,7 @@ const EPISODE_SELECT = `
   *,
   program:programs!episodes_program_id_fkey (id, name, requires_audio, active),
   audio_file:audio_files!episodes_audio_file_id_fkey (*),
+  final_audio_file:audio_files!episodes_final_audio_file_id_fkey (*),
   author:profiles!episodes_created_by_fkey (id, full_name),
   assignee:profiles!episodes_assigned_rj_fkey (id, full_name)
 `;
@@ -106,6 +108,10 @@ export const episodeService = {
 
   async archiveEpisode(id: string): Promise<EpisodeRow> {
     return unwrap(supabase.rpc('archive_episode', { p_episode_id: id }));
+  },
+
+  async activateEpisode(id: string): Promise<EpisodeRow> {
+    return unwrap(supabase.rpc('activate_episode', { p_episode_id: id }));
   },
 
   /**

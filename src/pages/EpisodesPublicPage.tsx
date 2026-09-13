@@ -187,7 +187,7 @@ export function EpisodesPublicPage() {
               </p>
             ) : (
               episodes.map((ep, idx) => (
-                <SpotifyEpisodeCard key={ep.id} episode={{ ...ep, index: idx } as any} />
+                <SpotifyEpisodeCard key={ep.id} episode={{ ...ep, index: idx }} />
               ))
             )}
 

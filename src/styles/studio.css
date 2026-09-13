@@ -582,10 +582,65 @@
 }
 .booking-card {
   border: 1px solid var(--border);
-  border-left: 3px solid var(--border);
+  border-left: 4px solid var(--border);
   border-radius: var(--r-md);
   background: var(--surface);
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.booking-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+/* Status-based backgrounds and accents for booking cards */
+.booking-card.status-booked {
+  background: var(--status-booked-bg);
+  border-left-color: var(--status-booked-border);
+}
+.booking-card.status-booked:hover {
+  background: var(--status-booked-bg-hover);
+}
+
+.booking-card.status-approved {
+  background: var(--status-approved-bg);
+  border-left-color: var(--status-approved-border);
+}
+.booking-card.status-approved:hover {
+  background: var(--status-approved-bg-hover);
+}
+
+.booking-card.status-audio-upload {
+  background: var(--status-audio-upload-bg);
+  border-left-color: var(--status-audio-upload-border);
+}
+.booking-card.status-audio-upload:hover {
+  background: var(--status-audio-upload-bg-hover);
+}
+
+.booking-card.status-final-upload {
+  background: var(--status-final-upload-bg);
+  border-left-color: var(--status-final-upload-border);
+}
+.booking-card.status-final-upload:hover {
+  background: var(--status-final-upload-bg-hover);
+}
+
+.booking-card.status-qc-done {
+  background: var(--status-qc-done-bg);
+  border-left-color: var(--status-qc-done-border);
+}
+.booking-card.status-qc-done:hover {
+  background: var(--status-qc-done-bg-hover);
+}
+
+.booking-card.status-archived {
+  background: var(--status-archived-bg);
+  border-left-color: var(--status-archived-border);
+}
+.booking-card.status-archived:hover {
+  background: var(--status-archived-bg-hover);
 }
 .booking-main {
   display: grid;

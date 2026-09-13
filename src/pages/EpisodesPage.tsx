@@ -2,13 +2,14 @@ import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
-import { Banner, Empty, EpisodeStatusBadge, Loading, PageHeader } from '@/components/ui';
+import { Banner, Empty, UnifiedStatusBadge, Loading, PageHeader } from '@/components/ui';
 import { episodeService, type EpisodeInput } from '@/services/episodeService';
 import { programService } from '@/services/programService';
 import { userService } from '@/services/userService';
 import { can } from '@/lib/permissions';
 import { errorMessage } from '@/lib/errors';
 import { formatDate, formatDuration } from '@/utils/datetime';
+import { downloadBulkZip } from '@/utils/download';
 import type { EpisodeStatus } from '@/types/database';
 
 const STATUSES: EpisodeStatus[] = ['DRAFT', 'PENDING_QC', 'APPROVED', 'REJECTED', 'ARCHIVED'];
@@ -45,7 +46,9 @@ export function EpisodesPage() {
 
   const [form, setForm] = useState<EpisodeInput | null>(null);
   const [saving, setSaving] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const activePrograms = (programs.data ?? []).filter((p) => p.active);
 
@@ -265,6 +268,22 @@ export function EpisodesPage() {
             <table>
               <thead>
                 <tr>
+                  {profile.role === 'ADMIN' && (
+                    <th style={{ width: '40px' }}>
+                      <input 
+                        type="checkbox" 
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelected(new Set((episodes.data ?? []).map((ep) => ep.id)));
+                          } else {
+                            setSelected(new Set());
+                          }
+                        }}
+                        checked={selected.size > 0 && selected.size === (episodes.data ?? []).length}
+                        aria-label="Select all episodes"
+                      />
+                    </th>
+                  )}
                   <th>Episode</th>
                   <th>Program</th>
                   <th>Host</th>
@@ -276,6 +295,21 @@ export function EpisodesPage() {
               <tbody>
                 {(episodes.data ?? []).map((episode) => (
                   <tr key={episode.id}>
+                    {profile.role === 'ADMIN' && (
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(episode.id)}
+                          onChange={(e) => {
+                            const next = new Set(selected);
+                            if (e.target.checked) next.add(episode.id);
+                            else next.delete(episode.id);
+                            setSelected(next);
+                          }}
+                          aria-label={`Select ${episode.title}`}
+                        />
+                      </td>
+                    )}
                     <td>
                       <Link to={`/admin/episodes/${episode.id}`}>{episode.title}</Link>
                       {episode.episode_number && (
@@ -292,13 +326,72 @@ export function EpisodesPage() {
                         : <span className="muted">None</span>}
                     </td>
                     <td>
-                      <EpisodeStatusBadge status={episode.status} />
+                      <UnifiedStatusBadge episode={episode} />
                     </td>
                     <td className="small muted">{formatDate(episode.updated_at)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {profile.role === 'ADMIN' && selected.size > 0 && (
+          <div className="actions-row" style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--surface-sunken)', borderRadius: '8px' }}>
+            <span className="small muted" style={{ alignSelf: 'center' }}>{selected.size} selected</span>
+            <button
+              type="button"
+              className="small primary"
+              disabled={busy}
+              onClick={async () => {
+                const eps = (episodes.data ?? []).filter(ep => selected.has(ep.id) && ep.audio_file && !ep.audio_file.deleted_at);
+                const files = eps.map(ep => ({
+                  storagePath: ep.audio_file!.storage_path,
+                  filename: `RAW_${ep.id}_${ep.audio_file!.file_name}`
+                }));
+                if (files.length === 0) {
+                  setError('No valid raw audio files selected.');
+                  return;
+                }
+                setBusy(true);
+                try {
+                  await downloadBulkZip(files, 'vit_raw_audio.zip');
+                  setSelected(new Set());
+                } catch(e) {
+                  setError(errorMessage(e));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Download Selected Raw
+            </button>
+            <button
+              type="button"
+              className="small primary"
+              disabled={busy}
+              onClick={async () => {
+                const eps = (episodes.data ?? []).filter(ep => selected.has(ep.id) && ep.final_audio_file);
+                const files = eps.map(ep => ({
+                  storagePath: ep.final_audio_file!.storage_path,
+                  filename: `FINAL_${ep.id}_${ep.final_audio_file!.file_name}`
+                }));
+                if (files.length === 0) {
+                  setError('No valid final audio files selected.');
+                  return;
+                }
+                setBusy(true);
+                try {
+                  await downloadBulkZip(files, 'vit_final_audio.zip');
+                  setSelected(new Set());
+                } catch(e) {
+                  setError(errorMessage(e));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              Download Selected Final
+            </button>
           </div>
         )}
       </section>

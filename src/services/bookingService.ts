@@ -32,13 +32,15 @@ export type BookingWithPeople = StudioBookingRow & {
   rj: Pick<ProfileRow, 'id' | 'full_name' | 'email'> | null;
   editor: Pick<ProfileRow, 'id' | 'full_name'> | null;
   program: { id: string; name: string } | null;
+  episode: { id: string; status: string; audio_file_id: string | null; final_audio_file_id: string | null } | null;
 };
 
 const BOOKING_SELECT = `
   *,
   rj:profiles!studio_bookings_rj_id_fkey (id, full_name, email),
   editor:profiles!studio_bookings_editor_id_fkey (id, full_name),
-  program:programs!studio_bookings_program_id_fkey (id, name)
+  program:programs!studio_bookings_program_id_fkey (id, name),
+  episode:episodes!studio_bookings_episode_id_fkey (id, status, audio_file_id, final_audio_file_id)
 `;
 
 /**
@@ -143,6 +145,19 @@ export const bookingService = {
   },
 
   /** Every booking, for the admin view. RLS still decides what comes back. */
+  async getUpcomingBookings(limit = 5): Promise<BookingWithPeople[]> {
+    return unwrap(
+      supabase
+        .from('studio_bookings')
+        .select(BOOKING_SELECT)
+        .gte('booking_date', new Date().toISOString().split('T')[0])
+        .order('booking_date', { ascending: true })
+        .order('start_time', { ascending: true })
+        .limit(limit)
+        .returns<BookingWithPeople[]>()
+    );
+  },
+
   async getAllBookings(limit = 200): Promise<BookingWithPeople[]> {
     return unwrap(
       supabase

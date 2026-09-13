@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
-import { Banner, ConfirmButton, Empty, Loading, PageHeader } from '@/components/ui';
+import { Banner, ConfirmButton, Empty, Loading, PageHeader, UnifiedStatusBadge, getUnifiedStatusClass } from '@/components/ui';
 import { bookingService, type BookingWithPeople } from '@/services/bookingService';
 import { RecordingDialog } from '@/components/studio/RecordingDialog';
 import { errorMessage } from '@/lib/errors';
@@ -13,19 +13,7 @@ import type { BookingStatus } from '@/types/database';
 
 type Tab = 'upcoming' | 'past' | 'cancelled';
 
-const STATUS_TONE: Record<BookingStatus, string> = {
-  CONFIRMED: 'badge-green',
-  CANCELLED: 'badge-grey',
-  COMPLETED: 'badge-blue',
-  NO_SHOW: 'badge-amber',
-};
 
-const STATUS_LABEL: Record<BookingStatus, string> = {
-  CONFIRMED: 'Confirmed',
-  CANCELLED: 'Cancelled',
-  COMPLETED: 'Completed',
-  NO_SHOW: 'No show',
-};
 
 export function MyBookingsPage() {
   const profile = useCurrentUser();
@@ -142,7 +130,7 @@ export function MyBookingsPage() {
               (booking.rj_id === profile.id || oversees);
 
             return (
-              <article key={booking.id} className="booking-card">
+              <article key={booking.id} className={`booking-card ${getUnifiedStatusClass({ booking, episode: booking.episode })}`}>
                 <div className="booking-main">
                   <div className="booking-when">
                     <span className="booking-date">
@@ -170,9 +158,7 @@ export function MyBookingsPage() {
                   </div>
 
                   <div className="booking-side">
-                    <span className={`badge ${STATUS_TONE[booking.status]}`}>
-                      {STATUS_LABEL[booking.status]}
-                    </span>
+                    <UnifiedStatusBadge booking={booking} episode={booking.episode} />
                     {booking.origin === 'ADMIN_OVERRIDE' && (
                       <span className="badge badge-amber">Override</span>
                     )}
@@ -220,7 +206,10 @@ export function MyBookingsPage() {
                           booking.end_time.slice(0, 5),
                         )} (30 min)`}
                       />
-                      <Detail label="Status" value={STATUS_LABEL[booking.status]} />
+                      <div className="review-row">
+                        <dt>Status</dt>
+                        <dd><UnifiedStatusBadge booking={booking} episode={booking.episode} /></dd>
+                      </div>
                       <Detail
                         label="Editor"
                         value={

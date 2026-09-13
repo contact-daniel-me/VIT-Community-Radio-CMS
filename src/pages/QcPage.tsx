@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
-import { Banner, Empty, EpisodeStatusBadge, Loading, PageHeader } from '@/components/ui';
+import { Banner, Empty, UnifiedStatusBadge, Loading, PageHeader } from '@/components/ui';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { qcService } from '@/services/qcService';
 import { episodeService } from '@/services/episodeService';
@@ -84,7 +84,7 @@ export function QcPage() {
                       <td>{episode.program?.name}</td>
                       <td className="small muted">{formatDateTime(episode.submitted_at)}</td>
                       <td>
-                        <EpisodeStatusBadge status={episode.status} />
+                        <UnifiedStatusBadge episode={episode} />
                       </td>
                     </tr>
                   ))}

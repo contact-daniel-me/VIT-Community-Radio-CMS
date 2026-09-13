@@ -111,7 +111,7 @@ export const audioService = {
    * failure, so a failed upload never leaves a database row pointing at a file
    * that does not exist (or an orphaned file nobody can see).
    */
-  async uploadAudio(episodeId: string, file: File, uploadedBy: string): Promise<AudioFileRow> {
+  async uploadAudio(episodeId: string, file: File, uploadedBy: string, targetField: 'audio_file_id' | 'final_audio_file_id' = 'audio_file_id'): Promise<AudioFileRow> {
     const { mimeType } = validateAudioFile(file);
     const durationSeconds = await readDurationSeconds(file);
     const storagePath = storagePathFor(episodeId, file.name);
@@ -156,7 +156,7 @@ export const audioService = {
       await unwrap(
         supabase
           .from('episodes')
-          .update({ audio_file_id: audioRow.id, duration_seconds: durationSeconds })
+          .update({ [targetField]: audioRow.id, duration_seconds: durationSeconds })
           .eq('id', episodeId)
           .select('id'),
       );
@@ -175,8 +175,9 @@ export const audioService = {
     file: File,
     uploadedBy: string,
     previousAudioId?: string | null,
+    targetField: 'audio_file_id' | 'final_audio_file_id' = 'audio_file_id'
   ): Promise<AudioFileRow> {
-    const created = await this.uploadAudio(episodeId, file, uploadedBy);
+    const created = await this.uploadAudio(episodeId, file, uploadedBy, targetField);
 
     if (previousAudioId && previousAudioId !== created.id) {
       const previous = await unwrap(
@@ -192,7 +193,7 @@ export const audioService = {
     return created;
   },
 
-  async deleteAudio(audioId: string): Promise<void> {
+  async deleteAudio(audioId: string, targetField: 'audio_file_id' | 'final_audio_file_id' = 'audio_file_id'): Promise<void> {
     const audio = await unwrap(
       supabase.from('audio_files').select('*').eq('id', audioId).single(),
     );
@@ -201,8 +202,8 @@ export const audioService = {
     // silently and we would lose the chance to report a permission failure.
     await supabase
       .from('episodes')
-      .update({ audio_file_id: null })
-      .eq('audio_file_id', audioId);
+      .update({ [targetField]: null })
+      .eq(targetField, audioId);
 
     const { error } = await supabase.from('audio_files').delete().eq('id', audioId);
     if (error) throw toAppError(error);

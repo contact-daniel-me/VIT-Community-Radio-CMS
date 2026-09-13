@@ -82,4 +82,12 @@ export const activityService = {
       supabase.from('activity_logs').delete().eq('id', id)
     );
   },
+
+  async clearAllActivity(): Promise<void> {
+    return unwrap(
+      // We use neq('id', '00000000-0000-0000-0000-000000000000') as a dummy condition 
+      // because Supabase delete() requires at least one filter by default.
+      supabase.from('activity_logs').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+    );
+  },
 };

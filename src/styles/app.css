@@ -45,8 +45,8 @@ a {
 
 /* ---------- App shell ---------- */
 .app-header {
-  background: var(--surface-invert);
-  color: #fff;
+  background: var(--admin-header-bg);
+  color: var(--admin-header-text);
   padding: 0.6rem 1rem;
 }
 .app-header-inner,
@@ -59,14 +59,79 @@ a {
   align-items: baseline;
   gap: 0.6rem;
   flex-wrap: wrap;
+  text-decoration: none;
+  color: var(--admin-header-text);
 }
-.app-brand strong {
+
+/* ---------- Dashboard Overhaul Animations & Utilities ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .fade-in {
+    animation: fadeIn 0.4s var(--ease) forwards;
+  }
+  .hover-raise {
+    transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  }
+  .hover-raise:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Status backgrounds for metric cards */
+.bg-surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.bg-booked {
+  background: var(--status-booked-bg);
+  border: 1px solid var(--status-booked-border);
+  color: var(--status-booked-badge-text);
+}
+.bg-approved {
+  background: var(--status-approved-bg);
+  border: 1px solid var(--status-approved-border);
+  color: var(--status-approved-badge-text);
+}
+.bg-audio {
+  background: var(--status-audio-upload-bg);
+  border: 1px solid var(--status-audio-upload-border);
+  color: var(--status-audio-upload-badge-text);
+}
+.bg-final {
+  background: var(--status-final-upload-bg);
+  border: 1px solid var(--status-final-upload-border);
+  color: var(--status-final-upload-badge-text);
+}
+.bg-qc {
+  background: var(--status-qc-done-bg);
+  border: 1px solid var(--status-qc-done-border);
+  color: var(--status-qc-done-badge-text);
+}
+
+.app-brand strong,
+.app-brand .logo-name {
   font-size: 1rem;
+  font-weight: 700;
   letter-spacing: 0.02em;
+  color: var(--admin-header-text);
 }
-.app-brand span {
-  color: #9aa4ae;
+.app-brand .logo-freq {
+  color: var(--admin-header-muted);
   font-size: 0.78rem;
+}
+.app-brand-tag {
+  background: var(--bg-sunk);
+  color: var(--admin-header-text);
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--r-sm);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 .app-header-row {
   display: flex;
@@ -80,12 +145,20 @@ a {
   align-items: center;
   gap: 0.6rem;
   font-size: 0.82rem;
-  color: #c9d1d9;
+  color: var(--admin-header-muted);
+}
+.app-user button {
+  background: transparent;
+  color: var(--admin-header-text);
+  border: 1px solid color-mix(in srgb, var(--admin-header-text) 20%, transparent);
+}
+.app-user button:hover {
+  background: color-mix(in srgb, var(--admin-header-text) 8%, transparent);
 }
 
 .app-nav {
-  background: color-mix(in srgb, var(--surface-invert) 92%, var(--accent));
-  border-bottom: 1px solid #2c343c;
+  background: var(--admin-nav-bg);
+  border-bottom: 1px solid var(--admin-nav-border);
   overflow-x: auto;
 }
 .app-nav-inner {
@@ -96,7 +169,7 @@ a {
   padding: 0 0.5rem;
 }
 .app-nav a {
-  color: #c9d1d9;
+  color: var(--admin-nav-text);
   text-decoration: none;
   padding: 0.6rem 0.8rem;
   font-size: 0.87rem;
@@ -104,11 +177,11 @@ a {
   border-bottom: 2px solid transparent;
 }
 .app-nav a:hover {
-  color: #fff;
+  color: var(--admin-nav-text-hover);
 }
 .app-nav a.active {
-  color: #fff;
-  border-bottom-color: var(--on-air);
+  color: var(--admin-nav-text-hover);
+  border-bottom-color: var(--admin-nav-active);
 }
 
 .app-main {
@@ -274,29 +347,44 @@ a {
   white-space: nowrap;
 }
 .badge-grey {
-  color: var(--muted);
-  border-color: var(--border);
-  background: #f2f4f6;
+  color: var(--status-archived-badge-text);
+  border-color: var(--status-archived-badge-border);
+  background: var(--status-archived-badge-bg);
 }
 .badge-blue {
-  color: var(--info);
-  border-color: #c7d6fb;
-  background: #eef3fe;
+  color: var(--status-approved-badge-text);
+  border-color: var(--status-approved-badge-border);
+  background: var(--status-approved-badge-bg);
 }
 .badge-green {
-  color: var(--ok);
-  border-color: #bfe3cc;
-  background: #eefaf1;
+  color: var(--status-qc-done-badge-text);
+  border-color: var(--status-qc-done-badge-border);
+  background: var(--status-qc-done-badge-bg);
 }
 .badge-red {
-  color: var(--on-air);
-  border-color: #f2c4c4;
-  background: #fdeeee;
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: var(--accent-wash);
 }
 .badge-amber {
   color: var(--warn);
-  border-color: #f0dcb4;
-  background: #fdf6e7;
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+  background: var(--warn-wash);
+}
+.badge-yellow {
+  color: var(--status-booked-badge-text);
+  border-color: var(--status-booked-badge-border);
+  background: var(--status-booked-badge-bg);
+}
+.badge-orange {
+  color: var(--status-audio-upload-badge-text);
+  border-color: var(--status-audio-upload-badge-border);
+  background: var(--status-audio-upload-badge-bg);
+}
+.badge-pink {
+  color: var(--status-final-upload-badge-text);
+  border-color: var(--status-final-upload-badge-border);
+  background: var(--status-final-upload-badge-bg);
 }
 
 /* ---------- Tables ---------- */
@@ -323,7 +411,7 @@ th {
   white-space: nowrap;
 }
 tbody tr:hover {
-  background: #fafbfc;
+  background: var(--bg-sunk);
 }
 td.actions {
   white-space: nowrap;
@@ -363,9 +451,13 @@ textarea {
   padding: 0.45rem 0.55rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #fff;
+  background: var(--surface);
   font: inherit;
   color: inherit;
+}
+[data-theme='dark'] input[type="date"]::-webkit-calendar-picker-indicator,
+[data-theme='dark'] input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
 }
 input:focus,
 select:focus,
@@ -402,12 +494,12 @@ button {
   padding: 0.42rem 0.85rem;
   border-radius: var(--radius);
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   color: var(--text);
   cursor: pointer;
 }
 button:hover:not(:disabled) {
-  background: #f2f4f6;
+  background: var(--bg-sunk);
 }
 button:disabled {
   opacity: 0.55;
@@ -416,25 +508,25 @@ button:disabled {
 button.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
 }
 button.primary:hover:not(:disabled) {
   background: var(--accent-dark);
 }
 button.danger {
   color: var(--on-air);
-  border-color: #e6bcbc;
+  border-color: var(--accent-line);
 }
 button.danger:hover:not(:disabled) {
-  background: #fdeeee;
+  background: var(--accent-wash);
 }
 /* Permanent by nature, so it reads as destructive before it is armed too. */
 button.danger-action {
   color: var(--on-air);
 }
 button.danger-action:hover:not(:disabled) {
-  background: #fdeeee;
-  border-color: #e6bcbc;
+  background: var(--accent-wash);
+  border-color: var(--accent-line);
 }
 button.link {
   border: none;
@@ -457,19 +549,19 @@ button.small {
   margin-bottom: 0.9rem;
 }
 .banner-error {
-  color: #8a1c1c;
-  background: #fdeeee;
-  border-color: #f2c4c4;
+  color: var(--on-air);
+  background: var(--accent-wash);
+  border-color: var(--accent-line);
 }
 .banner-success {
   color: var(--ok);
-  background: #eefaf1;
-  border-color: #bfe3cc;
+  background: var(--ok-wash);
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
 }
 .banner-info {
   color: var(--info);
-  background: #eef3fe;
-  border-color: #c7d6fb;
+  background: var(--info-wash);
+  border-color: color-mix(in srgb, var(--info) 40%, transparent);
 }
 .empty {
   color: var(--muted);
@@ -566,7 +658,7 @@ audio {
 }
 .public-header {
   background: var(--surface-invert);
-  color: #fff;
+  color: var(--ink-invert);
   padding: 0.85rem 1rem;
 }
 .public-header-inner {
@@ -606,24 +698,23 @@ audio {
   color: var(--muted);
 }
 
-/* A link that reads as a button. */
 .button-link {
   display: inline-block;
   padding: 0.42rem 0.85rem;
   border-radius: var(--radius);
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface);
   color: var(--text);
   text-decoration: none;
   font-size: 0.9rem;
 }
 .button-link:hover {
-  background: #f2f4f6;
+  background: var(--bg-sunk);
 }
 .button-link.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--accent-ink);
 }
 .button-link.primary:hover {
   background: var(--accent-dark);

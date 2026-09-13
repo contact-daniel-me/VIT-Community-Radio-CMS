@@ -151,10 +151,13 @@ export type EpisodeRow = {
   host_name: string | null;
   assigned_rj: string | null;
   audio_file_id: string | null;
+  final_audio_file_id: string | null;
   duration_seconds: number | null;
   status: EpisodeStatus;
   submitted_at: string | null;
   reviewed_at: string | null;
+  raw_file_delete_at: string | null;
+  archived_at: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -399,6 +402,13 @@ export type Database = {
             referencedColumns: ['id'];
           },
           {
+            foreignKeyName: 'episodes_final_audio_file_id_fkey';
+            columns: ['final_audio_file_id'];
+            isOneToOne: false;
+            referencedRelation: 'audio_files';
+            referencedColumns: ['id'];
+          },
+          {
             foreignKeyName: 'episodes_created_by_fkey';
             columns: ['created_by'];
             isOneToOne: false;
@@ -606,6 +616,7 @@ export type Database = {
       reject_episode: { Args: { p_episode_id: string; p_comment: string }; Returns: EpisodeRow };
       reopen_episode: { Args: { p_episode_id: string }; Returns: EpisodeRow };
       archive_episode: { Args: { p_episode_id: string }; Returns: EpisodeRow };
+      activate_episode: { Args: { p_episode_id: string }; Returns: EpisodeRow };
       schedule_episode: {
         Args: {
           p_program_id: string;

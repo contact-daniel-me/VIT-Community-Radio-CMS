@@ -2,7 +2,7 @@ import type { PodcastEpisodeRow } from '@/services/podcastService';
 import { useGlobalAudio } from '@/hooks/GlobalAudioContext';
 
 interface Props {
-  episode: PodcastEpisodeRow;
+  episode: PodcastEpisodeRow & { index?: number };
 }
 
 function formatDuration(dur: string | null): string {
@@ -51,7 +51,7 @@ export function SpotifyEpisodeCard({ episode }: Props) {
   };
 
   return (
-    <div className={`spotify-episode-card${isCurrentTrack ? ' is-active' : ''}`} style={ { '--animation-order': (episode as any).index || 0 } as React.CSSProperties }>
+    <div className={`spotify-episode-card${isCurrentTrack ? ' is-active' : ''}`} style={ { '--animation-order': episode.index || 0 } as React.CSSProperties }>
       <div className="spotify-episode-artwork">
         {episode.artwork_url ? (
           <img className="spotify-episode-artwork-img" src={episode.artwork_url} alt="" loading="lazy" width="300" height="300" />

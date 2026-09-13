@@ -6,7 +6,7 @@ import {
   Banner,
   ConfirmButton,
   Empty,
-  EpisodeStatusBadge,
+  UnifiedStatusBadge,
   Loading,
   PageHeader,
 } from '@/components/ui';
@@ -19,6 +19,7 @@ import { userService } from '@/services/userService';
 import { can } from '@/lib/permissions';
 import { errorMessage } from '@/lib/errors';
 import { formatDateTime, formatDuration, formatFileSize } from '@/utils/datetime';
+import { downloadSingleFile } from '@/utils/download';
 
 export function EpisodeDetailPage() {
   const { episodeId = '' } = useParams();
@@ -52,10 +53,8 @@ export function EpisodeDetailPage() {
 
   const ep = episode.data;
   const editable = can.editEpisode(profile.role, ep, profile.id);
-  // Only an administrator, and only for something that never reached the air.
-  // The database refuses the rest regardless of what is drawn here.
-  const deletable =
-    profile.role === 'ADMIN' && (ep.status === 'DRAFT' || ep.status === 'REJECTED');
+  // Administrators can delete any episode, regardless of status.
+  const deletable = profile.role === 'ADMIN';
   const isReviewer = can.reviewQC(profile.role);
   const needsAudio = ep.program?.requires_audio ?? true;
 
@@ -113,13 +112,30 @@ export function EpisodeDetailPage() {
     setNotice(null);
     try {
       await audioService.replaceAudio(ep.id, file, profile.id, ep.audio_file_id);
-      setNotice(`Uploaded ${file.name}.`);
+      setNotice(`Uploaded raw audio ${file.name}.`);
       await refresh();
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
       setUploading(false);
       if (fileInput.current) fileInput.current.value = '';
+    }
+  };
+
+  const onFinalUpload = async (file: File | undefined, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!file) return;
+    setUploading(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await audioService.replaceAudio(ep.id, file, profile.id, ep.final_audio_file_id, 'final_audio_file_id');
+      setNotice(`Uploaded final audio ${file.name}.`);
+      await refresh();
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setUploading(false);
+      e.target.value = ''; // clear input
     }
   };
 
@@ -134,7 +150,7 @@ export function EpisodeDetailPage() {
         }`}
         actions={
           <>
-            <EpisodeStatusBadge status={ep.status} />
+            <UnifiedStatusBadge episode={ep} />
             <button type="button" className="small" onClick={() => navigate('/admin/episodes')}>
               Back to episodes
             </button>
@@ -255,58 +271,144 @@ export function EpisodeDetailPage() {
 
           <section className="card">
             <div className="card-title">
-              <h2>Audio</h2>
-              {ep.audio_file && (
-                <span className="small muted">
-                  {formatDuration(ep.audio_file.duration_seconds)} &middot;{' '}
-                  {formatFileSize(ep.audio_file.file_size)}
-                </span>
-              )}
+              <h2>Audio Files</h2>
             </div>
 
-            {ep.audio_file ? (
-              <>
-                <p className="small" style={{ margin: 0 }}>
-                  {ep.audio_file.file_name}
-                </p>
-                <AudioPlayer storagePath={ep.audio_file.storage_path} />
-              </>
-            ) : (
-              <Empty>
-                {needsAudio
-                  ? 'No audio yet. This program requires audio before QC.'
-                  : 'No audio. This program allows live slots without a file.'}
-              </Empty>
-            )}
-
-            {editable && (
-              <div className="actions-row">
-                <input
-                  ref={fileInput}
-                  type="file"
-                  accept="audio/mpeg,.mp3"
-                  disabled={uploading}
-                  onChange={(e) => void onUpload(e.target.files?.[0])}
-                  aria-label="Upload audio file"
-                />
-                {uploading && <span className="small muted">Uploading...</span>}
-                {ep.audio_file && !uploading && (
-                  <ConfirmButton
-                    className="small"
-                    confirmLabel="Delete audio?"
-                    onConfirm={() =>
-                      void run(
-                        () => audioService.deleteAudio(ep.audio_file!.id),
-                        'Audio removed.',
-                      )
-                    }
-                  >
-                    Remove audio
-                  </ConfirmButton>
+            <div className="stack" style={{ gap: '1.5rem' }}>
+              <div>
+                <h3 className="row" style={{ gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <span className="badge badge-orange">🟠 Raw Audio</span>
+                  {ep.audio_file && !ep.audio_file.deleted_at && (
+                    <span className="small muted font-normal">
+                      {formatDuration(ep.audio_file.duration_seconds)} &middot; {formatFileSize(ep.audio_file.file_size)}
+                    </span>
+                  )}
+                  {ep.raw_file_delete_at && (!ep.audio_file || !ep.audio_file.deleted_at) && (
+                    <span className="badge badge-amber" style={{ marginLeft: 'auto' }}>
+                      ⚠️ {(() => {
+                        const days = Math.ceil((new Date(ep.raw_file_delete_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                        return days > 0 ? `${days} days remaining` : 'Scheduled for deletion today';
+                      })()}
+                    </span>
+                  )}
+                </h3>
+                {ep.audio_file?.deleted_at ? (
+                  <Empty>RAW audio has been automatically deleted.</Empty>
+                ) : ep.audio_file ? (
+                  <>
+                    <p className="small" style={{ margin: '0 0 0.5rem' }}>{ep.audio_file.file_name}</p>
+                    <AudioPlayer storagePath={ep.audio_file.storage_path} />
+                  </>
+                ) : (
+                  <Empty>
+                    {needsAudio
+                      ? 'No raw audio yet. Upload the recording.'
+                      : 'No audio. This program allows live slots without a file.'}
+                  </Empty>
+                )}
+                {(editable || ep.audio_file) && (
+                  <div className="actions-row">
+                    {editable && (
+                      <>
+                        <input
+                          ref={fileInput}
+                          type="file"
+                          accept="audio/mpeg,.mp3"
+                          disabled={uploading}
+                          onChange={(e) => void onUpload(e.target.files?.[0])}
+                          aria-label="Upload raw audio file"
+                        />
+                        {uploading && <span className="small muted">Uploading...</span>}
+                      </>
+                    )}
+                    {ep.audio_file && !ep.audio_file.deleted_at && (
+                      <button
+                        type="button"
+                        className="small"
+                        onClick={() => void downloadSingleFile(ep.audio_file!.storage_path, ep.audio_file!.file_name)}
+                      >
+                        Download Raw
+                      </button>
+                    )}
+                    {editable && ep.audio_file && !uploading && (
+                      <ConfirmButton
+                        className="small"
+                        confirmLabel="Delete raw audio?"
+                        onConfirm={() =>
+                          void run(
+                            () => audioService.deleteAudio(ep.audio_file!.id),
+                            'Raw audio removed.',
+                          )
+                        }
+                      >
+                        Remove raw audio
+                      </ConfirmButton>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-            <p className="small muted" style={{ marginTop: '0.5rem' }}>
+
+              {/* Final Audio Section */}
+              <div style={{ paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
+                <h3 className="row" style={{ gap: '0.5rem', marginBottom: '0.5rem' }}>
+                  <span className="badge badge-pink">🩷 Final Audio</span>
+                  {ep.final_audio_file && (
+                    <span className="small muted font-normal">
+                      {formatDuration(ep.final_audio_file.duration_seconds)} &middot; {formatFileSize(ep.final_audio_file.file_size)}
+                    </span>
+                  )}
+                  <span className="badge badge-grey" style={{ marginLeft: 'auto' }}>Permanent</span>
+                </h3>
+                
+                {ep.final_audio_file ? (
+                  <>
+                    <p className="small" style={{ margin: '0 0 0.5rem' }}>{ep.final_audio_file.file_name}</p>
+                    <AudioPlayer storagePath={ep.final_audio_file.storage_path} />
+                  </>
+                ) : (
+                  <Empty>No final edited audio uploaded yet.</Empty>
+                )}
+                
+                {(editable || ep.final_audio_file) && (
+                  <div className="actions-row">
+                    {editable && (
+                      <input
+                        type="file"
+                        accept="audio/mpeg,.mp3"
+                        disabled={uploading}
+                        onChange={(e) => void onFinalUpload(e.target.files?.[0], e)}
+                        aria-label="Upload final audio file"
+                      />
+                    )}
+                    {ep.final_audio_file && (
+                      <button
+                        type="button"
+                        className="small"
+                        onClick={() => void downloadSingleFile(ep.final_audio_file!.storage_path, ep.final_audio_file!.file_name)}
+                      >
+                        Download Final
+                      </button>
+                    )}
+                    {editable && ep.final_audio_file && !uploading && (
+                      <ConfirmButton
+                        className="small"
+                        confirmLabel="Delete final audio?"
+                        onConfirm={() =>
+                          void run(
+                            () => audioService.deleteAudio(ep.final_audio_file!.id, 'final_audio_file_id'),
+                            'Final audio removed.',
+                          )
+                        }
+                      >
+                        Remove final audio
+                      </ConfirmButton>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <p className="small muted" style={{ marginTop: '1rem' }}>
               MP3 only, up to 200 MB. Uploading again replaces the current file.
             </p>
           </section>
@@ -372,7 +474,7 @@ export function EpisodeDetailPage() {
             <h2>Workflow</h2>
             <div className="stack small">
               <div>
-                Status: <EpisodeStatusBadge status={ep.status} />
+                Status: <UnifiedStatusBadge episode={ep} />
               </div>
               <div className="muted">Submitted: {formatDateTime(ep.submitted_at)}</div>
               <div className="muted">Reviewed: {formatDateTime(ep.reviewed_at)}</div>
@@ -419,6 +521,19 @@ export function EpisodeDetailPage() {
                   }
                 >
                   Archive
+                </ConfirmButton>
+              )}
+
+              {can.archiveEpisode(profile.role) && ep.status === 'ARCHIVED' && (
+                <ConfirmButton
+                  className="small"
+                  confirmLabel="Activate it?"
+                  disabled={busy}
+                  onConfirm={() =>
+                    void run(() => episodeService.activateEpisode(ep.id), 'Episode activated.')
+                  }
+                >
+                  Activate
                 </ConfirmButton>
               )}
 

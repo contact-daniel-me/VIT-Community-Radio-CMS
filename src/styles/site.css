@@ -1726,19 +1726,20 @@
   gap: 0.6rem;
 }
 .app-header .logo-name {
-  color: #fff;
+  color: var(--admin-header-text);
 }
 .app-header .logo-freq {
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--admin-header-muted);
 }
 .app-brand-tag {
   font-family: var(--font-mono);
   font-size: 0.58rem;
   letter-spacing: 0.18em;
   padding: 0.16rem 0.4rem;
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: var(--bg-sunk);
+  border: 1px solid transparent;
   border-radius: var(--r-sm);
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--admin-header-text);
 }
 
 /* ---------- Logo mark colouring ------------------------------------------
@@ -1794,10 +1795,9 @@
   transform: translateX(-50%);
 }
 
-/* The mark is brand navy. On the near-black header, player and auth panel that
+/* The mark is brand navy. On the near-black player and auth panel that
    is unreadable, so it is knocked out to white — a flat bitmap cannot follow
    the theme on its own. */
-.app-header .logo-lockup .logo-mark,
 .player .logo-lockup .logo-mark,
 .auth-aside .logo-lockup .logo-mark,
 [data-theme='dark'] .logo-lockup .logo-mark {
@@ -2865,19 +2865,20 @@
   gap: 0.6rem;
 }
 .app-header .logo-name {
-  color: #fff;
+  color: var(--admin-header-text);
 }
 .app-header .logo-freq {
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--admin-header-muted);
 }
 .app-brand-tag {
   font-family: var(--font-mono);
   font-size: 0.58rem;
   letter-spacing: 0.18em;
   padding: 0.16rem 0.4rem;
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: var(--bg-sunk);
+  border: 1px solid transparent;
   border-radius: var(--r-sm);
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--admin-header-text);
 }
 
 /* ---------- Logo mark colouring ------------------------------------------
@@ -2933,10 +2934,9 @@
   transform: translateX(-50%);
 }
 
-/* The mark is brand navy. On the near-black header, player and auth panel that
+/* The mark is brand navy. On the near-black player and auth panel that
    is unreadable, so it is knocked out to white — a flat bitmap cannot follow
    the theme on its own. */
-.app-header .logo-lockup .logo-mark,
 .player .logo-lockup .logo-mark,
 .auth-aside .logo-lockup .logo-mark,
 [data-theme='dark'] .logo-lockup .logo-mark {
@@ -3745,19 +3745,20 @@
   gap: 0.6rem;
 }
 .app-header .logo-name {
-  color: #fff;
+  color: var(--admin-header-text);
 }
 .app-header .logo-freq {
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--admin-header-muted);
 }
 .app-brand-tag {
   font-family: var(--font-mono);
   font-size: 0.58rem;
   letter-spacing: 0.18em;
   padding: 0.16rem 0.4rem;
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: var(--bg-sunk);
+  border: 1px solid transparent;
   border-radius: var(--r-sm);
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--admin-header-text);
 }
 
 /* ---------- Logo mark colouring ------------------------------------------
@@ -3813,10 +3814,9 @@
   transform: translateX(-50%);
 }
 
-/* The mark is brand navy. On the near-black header, player and auth panel that
+/* The mark is brand navy. On the near-black player and auth panel that
    is unreadable, so it is knocked out to white — a flat bitmap cannot follow
    the theme on its own. */
-.app-header .logo-lockup .logo-mark,
 .player .logo-lockup .logo-mark,
 .auth-aside .logo-lockup .logo-mark,
 [data-theme='dark'] .logo-lockup .logo-mark {

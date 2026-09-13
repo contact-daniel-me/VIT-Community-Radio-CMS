@@ -61,6 +61,59 @@
   --r-lg: 8px;
   --r-pill: 999px;
 
+  /* Status Colors */
+  --status-booked-bg: #fffbeb;
+  --status-booked-bg-hover: #fef3c7;
+  --status-booked-border: #facc15;
+  --status-booked-badge-bg: #fffcee;
+  --status-booked-badge-border: #f5e495;
+  --status-booked-badge-text: #8c7300;
+
+  --status-approved-bg: #eff6ff;
+  --status-approved-bg-hover: #dbeafe;
+  --status-approved-border: #3b82f6;
+  --status-approved-badge-bg: #eef3fe;
+  --status-approved-badge-border: #c7d6fb;
+  --status-approved-badge-text: var(--info);
+
+  --status-audio-upload-bg: #fff7ed;
+  --status-audio-upload-bg-hover: #ffedd5;
+  --status-audio-upload-border: #f97316;
+  --status-audio-upload-badge-bg: #fff6eb;
+  --status-audio-upload-badge-border: #fcd4a9;
+  --status-audio-upload-badge-text: #ba5d00;
+
+  --status-final-upload-bg: #fdf2f8;
+  --status-final-upload-bg-hover: #fce7f3;
+  --status-final-upload-border: #ec4899;
+  --status-final-upload-badge-bg: #ffeff6;
+  --status-final-upload-badge-border: #fcbadb;
+  --status-final-upload-badge-text: #b92b6a;
+
+  --status-qc-done-bg: #f0fdf4;
+  --status-qc-done-bg-hover: #dcfce7;
+  --status-qc-done-border: #22c55e;
+  --status-qc-done-badge-bg: #eefaf1;
+  --status-qc-done-badge-border: #bfe3cc;
+  --status-qc-done-badge-text: var(--ok);
+
+  --status-archived-bg: #f8fafc;
+  --status-archived-bg-hover: #f1f5f9;
+  --status-archived-border: #94a3b8;
+  --status-archived-badge-bg: #f2f4f6;
+  --status-archived-badge-border: var(--border);
+  --status-archived-badge-text: var(--muted);
+
+  /* Admin Header & Nav */
+  --admin-header-bg: var(--bg);
+  --admin-header-text: var(--ink-strong);
+  --admin-header-muted: var(--ink-muted);
+  --admin-nav-bg: color-mix(in srgb, var(--bg) 92%, var(--accent));
+  --admin-nav-border: var(--line);
+  --admin-nav-text: var(--ink-muted);
+  --admin-nav-text-hover: var(--ink-strong);
+  --admin-nav-active: var(--on-air);
+
   /* Elevation — used sparingly. */
   --shadow-sm: 0 1px 2px rgba(20, 22, 28, 0.06);
   --shadow-md: 0 6px 20px -8px rgba(20, 22, 28, 0.18);
@@ -112,6 +165,59 @@
   --warn-wash: #241a0c;
   --info: #8b90ee;
   --info-wash: #171a2e;
+
+  /* Dark Status Colors */
+  --status-booked-bg: rgba(250, 204, 21, 0.06);
+  --status-booked-bg-hover: rgba(250, 204, 21, 0.12);
+  --status-booked-border: #facc15;
+  --status-booked-badge-bg: rgba(250, 204, 21, 0.12);
+  --status-booked-badge-border: rgba(250, 204, 21, 0.25);
+  --status-booked-badge-text: #fde047;
+
+  --status-approved-bg: rgba(59, 130, 246, 0.08);
+  --status-approved-bg-hover: rgba(59, 130, 246, 0.14);
+  --status-approved-border: #3b82f6;
+  --status-approved-badge-bg: rgba(59, 130, 246, 0.15);
+  --status-approved-badge-border: rgba(59, 130, 246, 0.3);
+  --status-approved-badge-text: #93c5fd;
+
+  --status-audio-upload-bg: rgba(249, 115, 22, 0.08);
+  --status-audio-upload-bg-hover: rgba(249, 115, 22, 0.14);
+  --status-audio-upload-border: #f97316;
+  --status-audio-upload-badge-bg: rgba(249, 115, 22, 0.15);
+  --status-audio-upload-badge-border: rgba(249, 115, 22, 0.3);
+  --status-audio-upload-badge-text: #fdba74;
+
+  --status-final-upload-bg: rgba(236, 72, 153, 0.08);
+  --status-final-upload-bg-hover: rgba(236, 72, 153, 0.14);
+  --status-final-upload-border: #ec4899;
+  --status-final-upload-badge-bg: rgba(236, 72, 153, 0.15);
+  --status-final-upload-badge-border: rgba(236, 72, 153, 0.3);
+  --status-final-upload-badge-text: #f9a8d4;
+
+  --status-qc-done-bg: rgba(34, 197, 94, 0.06);
+  --status-qc-done-bg-hover: rgba(34, 197, 94, 0.12);
+  --status-qc-done-border: #22c55e;
+  --status-qc-done-badge-bg: rgba(34, 197, 94, 0.12);
+  --status-qc-done-badge-border: rgba(34, 197, 94, 0.25);
+  --status-qc-done-badge-text: #86efac;
+
+  --status-archived-bg: rgba(148, 163, 184, 0.08);
+  --status-archived-bg-hover: rgba(148, 163, 184, 0.14);
+  --status-archived-border: #94a3b8;
+  --status-archived-badge-bg: rgba(148, 163, 184, 0.15);
+  --status-archived-badge-border: rgba(148, 163, 184, 0.3);
+  --status-archived-badge-text: #cbd5e1;
+
+  /* Admin Header & Nav */
+  --admin-header-bg: var(--surface);
+  --admin-header-text: #ffffff;
+  --admin-header-muted: #a3aab4;
+  --admin-nav-bg: var(--surface-raised);
+  --admin-nav-border: #242832;
+  --admin-nav-text: #a3aab4;
+  --admin-nav-text-hover: #ffffff;
+  --admin-nav-active: var(--on-air);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-md: 0 10px 30px -12px rgba(0, 0, 0, 0.7);

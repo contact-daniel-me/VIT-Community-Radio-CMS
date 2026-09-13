@@ -137,7 +137,7 @@ export function AnnouncementsPage() {
 
       {(showCreate || editing) && (
         <AnnouncementDialog
-          existing={editing}
+          existing={editing ?? undefined}
           onClose={() => {
             setShowCreate(false);
             setEditing(null);

@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { announcementService } from '@/services/announcementService';
 import { AnnouncementDialog } from './AnnouncementDialog';
-import { Empty, Loading } from '@/components/ui';
+import { Empty, Loading, Banner, ConfirmButton } from '@/components/ui';
+import { errorMessage } from '@/lib/errors';
 import type { AnnouncementRow } from '@/types/database';
 
 function getStatusBadge(ann: AnnouncementRow) {
@@ -34,11 +35,27 @@ function getStatusBadge(ann: AnnouncementRow) {
 export function AnnouncementsCard() {
   const announcements = useAsync(() => announcementService.getAllAnnouncements(), []);
   const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<AnnouncementRow | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const latest = useMemo(() => {
     if (!announcements.data) return [];
     return announcements.data.slice(0, 3);
   }, [announcements.data]);
+
+  const deleteAnnouncement = async (id: string) => {
+    setBusyId(id);
+    setError(null);
+    try {
+      await announcementService.deleteAnnouncement(id);
+      await announcements.reload();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   return (
     <>
@@ -49,6 +66,7 @@ export function AnnouncementsCard() {
             View all &rarr;
           </Link>
         </div>
+        <Banner>{error}</Banner>
 
         {announcements.loading ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -80,18 +98,31 @@ export function AnnouncementsCard() {
                 <p className="small" style={{ margin: 0, color: 'var(--ink)', opacity: 0.9, whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
                   {ann.message}
                 </p>
-                <div className="row align-center" style={{ gap: '0.5rem', marginTop: '0.2rem' }}>
-                  {getStatusBadge(ann)}
-                  <span className="small muted">
-                    &middot; {
-                      new Date(ann.created_at).toLocaleDateString(undefined, { 
-                        month: 'short', 
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: '2-digit'
-                      })
-                    }
-                  </span>
+                <div className="row spread align-center" style={{ marginTop: '0.2rem' }}>
+                  <div className="row align-center" style={{ gap: '0.5rem' }}>
+                    {getStatusBadge(ann)}
+                    <span className="small muted">
+                      &middot; {
+                        new Date(ann.created_at).toLocaleDateString(undefined, { 
+                          month: 'short', 
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit'
+                        })
+                      }
+                    </span>
+                  </div>
+                  <div className="row align-center" style={{ gap: '0.5rem' }}>
+                    <button className="link small" onClick={() => setEditing(ann)}>Edit</button>
+                    <ConfirmButton 
+                      className="link small danger" 
+                      confirmLabel="Delete?"
+                      onConfirm={() => void deleteAnnouncement(ann.id)}
+                      disabled={busyId === ann.id}
+                    >
+                      Delete
+                    </ConfirmButton>
+                  </div>
                 </div>
               </div>
             ))}
@@ -110,11 +141,16 @@ export function AnnouncementsCard() {
         </div>
       </section>
 
-      {showCreate && (
+      {(showCreate || editing) && (
         <AnnouncementDialog 
-          onClose={() => setShowCreate(false)}
+          existing={editing ?? undefined}
+          onClose={() => {
+            setShowCreate(false);
+            setEditing(null);
+          }}
           onSaved={() => {
             setShowCreate(false);
+            setEditing(null);
             void announcements.reload();
           }}
         />

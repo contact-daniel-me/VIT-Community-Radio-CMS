@@ -335,26 +335,28 @@ export function EpisodesPage() {
             </table>
           </div>
         )}
-        {profile.role === 'ADMIN' && selected.size > 0 && (
-          <div className="actions-row" style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--surface-sunken)', borderRadius: '8px' }}>
-            <span className="small muted" style={{ alignSelf: 'center' }}>{selected.size} selected</span>
+        {profile.role === 'ADMIN' && (episodes.data ?? []).length > 0 && (
+          <div className="actions-row" style={{ marginTop: '1.5rem', padding: '1rem', background: 'var(--surface-sunken)', borderRadius: '8px', flexWrap: 'wrap' }}>
+            <span className="small muted" style={{ alignSelf: 'center' }}>
+              {selected.size > 0 ? `${selected.size} selected` : 'Bulk downloads'}
+            </span>
             <button
               type="button"
               className="small primary"
               disabled={busy}
               onClick={async () => {
-                const eps = (episodes.data ?? []).filter(ep => selected.has(ep.id) && ep.audio_file && !ep.audio_file.deleted_at);
+                const eps = (episodes.data ?? []).filter(ep => ep.audio_file && !ep.audio_file.deleted_at);
                 const files = eps.map(ep => ({
                   storagePath: ep.audio_file!.storage_path,
                   filename: `RAW_${ep.id}_${ep.audio_file!.file_name}`
                 }));
                 if (files.length === 0) {
-                  setError('No valid raw audio files selected.');
+                  setError('No valid raw audio files available in this list.');
                   return;
                 }
                 setBusy(true);
                 try {
-                  await downloadBulkZip(files, 'vit_raw_audio.zip');
+                  await downloadBulkZip(files, 'vit_all_raw_audio.zip');
                   setSelected(new Set());
                 } catch(e) {
                   setError(errorMessage(e));
@@ -363,25 +365,25 @@ export function EpisodesPage() {
                 }
               }}
             >
-              Download Selected Raw
+              Download All Raw
             </button>
             <button
               type="button"
               className="small primary"
               disabled={busy}
               onClick={async () => {
-                const eps = (episodes.data ?? []).filter(ep => selected.has(ep.id) && ep.final_audio_file);
+                const eps = (episodes.data ?? []).filter(ep => ep.final_audio_file);
                 const files = eps.map(ep => ({
                   storagePath: ep.final_audio_file!.storage_path,
                   filename: `FINAL_${ep.id}_${ep.final_audio_file!.file_name}`
                 }));
                 if (files.length === 0) {
-                  setError('No valid final audio files selected.');
+                  setError('No valid final audio files available in this list.');
                   return;
                 }
                 setBusy(true);
                 try {
-                  await downloadBulkZip(files, 'vit_final_audio.zip');
+                  await downloadBulkZip(files, 'vit_all_final_audio.zip');
                   setSelected(new Set());
                 } catch(e) {
                   setError(errorMessage(e));
@@ -390,8 +392,68 @@ export function EpisodesPage() {
                 }
               }}
             >
-              Download Selected Final
+              Download All Final
             </button>
+            
+            {selected.size > 0 && (
+              <>
+                <div style={{ width: '1px', background: 'var(--border)', margin: '0 0.5rem' }} />
+                <button
+                  type="button"
+                  className="small"
+                  disabled={busy}
+                  onClick={async () => {
+                    const eps = (episodes.data ?? []).filter(ep => selected.has(ep.id) && ep.audio_file && !ep.audio_file.deleted_at);
+                    const files = eps.map(ep => ({
+                      storagePath: ep.audio_file!.storage_path,
+                      filename: `RAW_${ep.id}_${ep.audio_file!.file_name}`
+                    }));
+                    if (files.length === 0) {
+                      setError('No valid raw audio files selected.');
+                      return;
+                    }
+                    setBusy(true);
+                    try {
+                      await downloadBulkZip(files, 'vit_selected_raw_audio.zip');
+                      setSelected(new Set());
+                    } catch(e) {
+                      setError(errorMessage(e));
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Download Selected Raw
+                </button>
+                <button
+                  type="button"
+                  className="small"
+                  disabled={busy}
+                  onClick={async () => {
+                    const eps = (episodes.data ?? []).filter(ep => selected.has(ep.id) && ep.final_audio_file);
+                    const files = eps.map(ep => ({
+                      storagePath: ep.final_audio_file!.storage_path,
+                      filename: `FINAL_${ep.id}_${ep.final_audio_file!.file_name}`
+                    }));
+                    if (files.length === 0) {
+                      setError('No valid final audio files selected.');
+                      return;
+                    }
+                    setBusy(true);
+                    try {
+                      await downloadBulkZip(files, 'vit_selected_final_audio.zip');
+                      setSelected(new Set());
+                    } catch(e) {
+                      setError(errorMessage(e));
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Download Selected Final
+                </button>
+              </>
+            )}
           </div>
         )}
       </section>

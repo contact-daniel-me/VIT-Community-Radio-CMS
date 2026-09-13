@@ -274,7 +274,23 @@ export function UsersPage() {
       </section>
 
       <section className="card">
-        <h2>Activity log</h2>
+        <div className="row spread align-center" style={{ marginBottom: '1rem' }}>
+          <h2 style={{ margin: 0 }}>Activity log</h2>
+          <ConfirmButton
+            className="small danger outline"
+            confirmLabel="Are you sure you want to clear? This cannot be undone."
+            onConfirm={async () => {
+              try {
+                await activityService.clearAllActivity();
+                await activity.reload();
+              } catch (e) {
+                setError(errorMessage(e));
+              }
+            }}
+          >
+            Clear log
+          </ConfirmButton>
+        </div>
         {activity.loading ? (
           <Loading />
         ) : (

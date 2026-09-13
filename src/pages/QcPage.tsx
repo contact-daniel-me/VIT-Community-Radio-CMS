@@ -151,7 +151,7 @@ export function QcPage() {
                 <div style={{ marginTop: '0.9rem' }}>
                   <label htmlFor={`comment-${episode.id}`}>
                     Review notes{' '}
-                    <span className="hint">(required to reject, optional to approve)</span>
+                    <span className="hint">(optional)</span>
                   </label>
                   <textarea
                     id={`comment-${episode.id}`}
@@ -171,16 +171,11 @@ export function QcPage() {
                     <button
                       type="button"
                       className="danger"
-                      disabled={busy || comment.trim().length < 5}
+                      disabled={busy}
                       onClick={() => void decide(episode.id, 'REJECT')}
                     >
                       Reject
                     </button>
-                    {comment.trim().length < 5 && (
-                      <span className="small muted">
-                        Add a note of at least 5 characters to reject.
-                      </span>
-                    )}
                   </div>
                 </div>
               )}

@@ -7,13 +7,13 @@ import { Banner, Loading, UnifiedStatusBadge } from '@/components/ui';
 import { OnAirCard } from '@/components/OnAirCard';
 import { qcService } from '@/services/qcService';
 import { episodeService } from '@/services/episodeService';
-import { activityService, describeAction, describeSubject } from '@/services/activityService';
+import { activityService } from '@/services/activityService';
 import { bookingService } from '@/services/bookingService';
 import { scheduleService } from '@/services/scheduleService';
 import { dashboardMetricsService } from '@/services/dashboardMetricsService';
 import { slotStartsAt } from '@/utils/studio';
 import { can } from '@/lib/permissions';
-import { formatRelative, formatTime, formatDate } from '@/utils/datetime';
+import { formatTime, formatDate } from '@/utils/datetime';
 import { MetricCard, CompactEmptyState, QuickAction, PipelineVisual } from '@/components/ui/DashboardCards';
 import { supabase } from '@/lib/supabase';
 
@@ -34,7 +34,7 @@ export function DashboardPage() {
     const [
       pendingQc,
       recentEpisodes,
-      activity,
+      _activity,
       myBookings,
       metrics,
       expiringAudio,
@@ -63,7 +63,6 @@ export function DashboardPage() {
     return { 
       pendingQc, 
       recentEpisodes, 
-      activity, 
       awaitingUpload, 
       metrics, 
       expiringAudio, 
@@ -80,26 +79,8 @@ export function DashboardPage() {
   if (dashboard.error) return <Banner>{dashboard.error}</Banner>;
   if (!dashboard.data) return null;
 
-  const { pendingQc, recentEpisodes, activity, awaitingUpload, metrics, expiringAudio, upcomingBookings, todaysSchedule, totalEpisodes } = dashboard.data;
+  const { pendingQc, recentEpisodes, awaitingUpload, metrics, expiringAudio, upcomingBookings, todaysSchedule, totalEpisodes } = dashboard.data;
 
-  const handleClearAllActivity = async () => {
-    if (!window.confirm('Are you sure you want to clear all recent activity?')) return;
-    try {
-      await activityService.clearAllActivity();
-      dashboard.setData({ ...dashboard.data!, activity: [] });
-    } catch (err) {
-      console.error('Failed to clear all activity', err);
-    }
-  };
-
-  const handleDeleteActivity = async (id: string) => {
-    try {
-      await activityService.deleteActivity(id);
-      dashboard.setData({ ...dashboard.data!, activity: dashboard.data!.activity.filter(a => a.id !== id) });
-    } catch (err) {
-      console.error('Failed to delete activity', err);
-    }
-  };
 
   const handlePodcastSync = async () => {
     setSyncing(true);
@@ -237,10 +218,9 @@ export function DashboardPage() {
                   <div key={slot.id} className="row spread align-center list-item small" style={{ padding: '0.75rem 0' }}>
                     <div style={{ flex: 1 }}>
                       <div className="muted small" style={{ marginBottom: '0.2rem' }}>{formatTime(slot.start_time)} – {formatTime(slot.end_time)}</div>
-                      <strong style={{ display: 'block', fontSize: '0.95rem' }}>{slot.program?.name ?? 'Live Broadcast'}</strong>
-                      {slot.episode && <div className="muted small" style={{ marginTop: '0.2rem' }}>{slot.episode.title}</div>}
+                      <strong style={{ display: 'block', fontSize: '0.95rem' }}>{slot.program_name ?? 'Live Broadcast'}</strong>
+                      {slot.episode_title && <div className="muted small" style={{ marginTop: '0.2rem' }}>{slot.episode_title}</div>}
                     </div>
-                    {slot.episode && <UnifiedStatusBadge episode={slot.episode} />}
                   </div>
                 ))}
               </div>
@@ -278,7 +258,7 @@ export function DashboardPage() {
                     <div style={{ flex: 1 }}>
                       <div className="muted small" style={{ marginBottom: '0.2rem' }}>{formatDate(b.booking_date)} &middot; {formatTime(b.booking_date + 'T' + b.start_time)} – {formatTime(b.booking_date + 'T' + b.end_time)}</div>
                       <strong style={{ display: 'block', fontSize: '0.95rem' }}>{b.program?.name ?? 'Studio Session'}</strong>
-                      {b.episode && <div className="muted small" style={{ marginTop: '0.2rem' }}>{b.episode.title}</div>}
+                      {b.episode && <div className="muted small" style={{ marginTop: '0.2rem' }}>{b.episode.status}</div>}
                     </div>
                     <UnifiedStatusBadge booking={b} episode={b.episode} />
                   </div>
@@ -307,7 +287,7 @@ export function DashboardPage() {
                       <div className="icon-box" style={{ width: '32px', height: '32px', background: 'var(--bg-sunk)', boxShadow: 'none' }}><MusicIcon /></div>
                       <div style={{ overflow: 'hidden' }}>
                         <strong style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ep.title}</strong>
-                        <div className="muted" style={{ fontSize: '0.75rem' }}>{formatDate(ep.created_at)} &middot; {ep.duration ? new Date(ep.duration * 1000).toISOString().substr(11, 8) : '--:--:--'}</div>
+                        <div className="muted" style={{ fontSize: '0.75rem' }}>{formatDate(ep.created_at)} &middot; {ep.duration_seconds ? new Date(ep.duration_seconds * 1000).toISOString().substr(11, 8) : '--:--:--'}</div>
                       </div>
                     </div>
                     <UnifiedStatusBadge episode={ep} />
@@ -333,7 +313,7 @@ export function DashboardPage() {
                       <Link to={`/admin/episodes/${ep.id}`} style={{ display: 'block', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none', color: 'var(--text)' }}>
                         {ep.title}
                       </Link>
-                      <span className="muted" style={{ fontSize: '0.75rem' }}>{formatDate(ep.created_at)} &middot; {ep.duration ? new Date(ep.duration * 1000).toISOString().substr(11, 8) : '--:--:--'}</span>
+                      <span className="muted" style={{ fontSize: '0.75rem' }}>{formatDate(ep.created_at)} &middot; {ep.duration_seconds ? new Date(ep.duration_seconds * 1000).toISOString().substr(11, 8) : '--:--:--'}</span>
                     </div>
                     <UnifiedStatusBadge episode={ep} />
                   </div>

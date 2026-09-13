@@ -156,7 +156,7 @@ export const audioService = {
       await unwrap(
         supabase
           .from('episodes')
-          .update({ [targetField]: audioRow.id, duration_seconds: durationSeconds })
+          .update({ [targetField]: audioRow.id, duration_seconds: durationSeconds } as Partial<import('@/types/database').EpisodeRow>)
           .eq('id', episodeId)
           .select('id'),
       );
@@ -202,7 +202,7 @@ export const audioService = {
     // silently and we would lose the chance to report a permission failure.
     await supabase
       .from('episodes')
-      .update({ [targetField]: null })
+      .update({ [targetField]: null } as Partial<import('@/types/database').EpisodeRow>)
       .eq(targetField, audioId);
 
     const { error } = await supabase.from('audio_files').delete().eq('id', audioId);

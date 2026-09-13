@@ -22,13 +22,13 @@ export interface ExpiringRawAudio {
 export const dashboardMetricsService = {
   async getMetrics(): Promise<DashboardMetrics> {
     return unwrap(
-      supabase.rpc('get_dashboard_metrics')
+      supabase.rpc('get_dashboard_metrics').returns<DashboardMetrics>()
     );
   },
 
   async getExpiringRawAudio(): Promise<ExpiringRawAudio[]> {
     return unwrap(
-      supabase.rpc('get_expiring_raw_audio')
+      supabase.rpc('get_expiring_raw_audio').returns<ExpiringRawAudio[]>()
     );
   }
 };

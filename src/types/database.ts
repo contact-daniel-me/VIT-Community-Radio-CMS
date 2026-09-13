@@ -646,6 +646,24 @@ export type Database = {
           audio: { id: string; storage_path: string }[];
         };
       };
+      get_dashboard_metrics: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          pipeline: {
+            booked: number;
+            approved: number;
+            audio_upload: number;
+            final_upload: number;
+            qc_done: number;
+          };
+          todays_slots: number;
+          pending_qc: number;
+        };
+      };
+      get_expiring_raw_audio: {
+        Args: Record<PropertyKey, never>;
+        Returns: { episode_id: string; title: string; days_remaining: number }[];
+      };
     };
     Enums: {
       user_role: UserRole;

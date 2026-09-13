@@ -488,6 +488,7 @@ export function BookingDialog({
             rj: { id: profile.id, full_name: profile.full_name, email: profile.email },
             editor: null,
             program: selectedProgram ? { id: selectedProgram.id, name: selectedProgram.name } : null,
+            episode: null,
           }}
           profile={profile}
           onClose={() => setUploading(false)}

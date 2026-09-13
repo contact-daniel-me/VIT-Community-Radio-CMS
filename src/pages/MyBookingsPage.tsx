@@ -9,7 +9,7 @@ import { errorMessage } from '@/lib/errors';
 import { can } from '@/lib/permissions';
 import { formatDateTime } from '@/utils/datetime';
 import { formatBookingDate, formatSlotTime, slotStartsAt } from '@/utils/studio';
-import type { BookingStatus } from '@/types/database';
+
 
 type Tab = 'upcoming' | 'past' | 'cancelled';
 

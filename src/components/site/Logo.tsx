@@ -47,7 +47,17 @@ export function Logo({
       {withWordmark && (
         <span className="logo-text">
           <span className="logo-name">VIT COMMUNITY RADIO 90.8 FM</span>
-          <span className="logo-freq">VIT Vellore</span>
+          <span className="logo-freq" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            VIT Vellore 
+            <span style={{ 
+              background: 'var(--ink-faint)', 
+              color: 'var(--surface)', 
+              padding: '0.1rem 0.3rem', 
+              borderRadius: 'var(--r-sm)', 
+              fontSize: '0.65em', 
+              fontWeight: 700 
+            }}>CMS</span>
+          </span>
         </span>
       )}
     </span>

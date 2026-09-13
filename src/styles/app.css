@@ -113,6 +113,52 @@ a {
   color: var(--status-qc-done-badge-text);
 }
 
+/* Modern Dashboard Gradients */
+.metric-blue {
+  background: linear-gradient(145deg, #f0f7ff, #e0f2fe);
+  border: 1px solid #bae6fd;
+  color: #0369a1;
+}
+.metric-orange {
+  background: linear-gradient(145deg, #fff7ed, #ffedd5);
+  border: 1px solid #fed7aa;
+  color: #c2410c;
+}
+.metric-pink {
+  background: linear-gradient(145deg, #fdf2f8, #fce7f3);
+  border: 1px solid #fbcfe8;
+  color: #be185d;
+}
+.metric-green {
+  background: linear-gradient(145deg, #f0fdf4, #dcfce7);
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}
+.metric-purple {
+  background: linear-gradient(145deg, #faf5ff, #f3e8ff);
+  border: 1px solid #e9d5ff;
+  color: #7e22ce;
+}
+.metric-red {
+  background: linear-gradient(145deg, #fef2f2, #fee2e2);
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+.icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.icon-box svg {
+  width: 24px;
+  height: 24px;
+}
+
 .app-brand strong,
 .app-brand .logo-name {
   font-size: 1rem;
@@ -234,6 +280,15 @@ a {
   }
   .grid-main-side {
     grid-template-columns: 2fr 1fr;
+  }
+}
+@media (min-width: 1024px) {
+  .grid-dashboard-3 {
+    grid-template-columns: 1.2fr 2fr 1.2fr;
+    align-items: start;
+  }
+  .grid-dashboard-bottom {
+    grid-template-columns: 1.2fr 1.5fr 1.5fr;
   }
 }
 

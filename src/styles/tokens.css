@@ -56,9 +56,9 @@
   --info-wash: #ecedf8;
 
   /* Geometry — restrained. Editorial layouts use edges, not pills. */
-  --r-sm: 3px;
-  --r-md: 5px;
-  --r-lg: 8px;
+  --r-sm: 6px;
+  --r-md: 12px;
+  --r-lg: 16px;
   --r-pill: 999px;
 
   /* Status Colors */
@@ -115,8 +115,9 @@
   --admin-nav-active: var(--on-air);
 
   /* Elevation — used sparingly. */
-  --shadow-sm: 0 1px 2px rgba(20, 22, 28, 0.06);
-  --shadow-md: 0 6px 20px -8px rgba(20, 22, 28, 0.18);
+  --shadow-sm: 0 2px 8px rgba(20, 22, 28, 0.04);
+  --shadow-md: 0 8px 24px -6px rgba(20, 22, 28, 0.12);
+  --shadow-lg: 0 12px 32px -8px rgba(20, 22, 28, 0.16);
 
   /* Motion. */
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);

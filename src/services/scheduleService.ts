@@ -116,7 +116,8 @@ export const scheduleService = {
   },
 
   async deleteSchedule(id: string): Promise<void> {
-    await unwrap(supabase.from('schedules').delete().eq('id', id));
+    const { error } = await supabase.from('schedules').delete().eq('id', id);
+    if (error) throw new Error(error.message);
   },
 
   /**

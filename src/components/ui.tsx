@@ -81,34 +81,34 @@ export function UnifiedStatusBadge({
   episode?: { status: string; audio_file_id: string | null; final_audio_file_id?: string | null } | null;
 }) {
   if (episode?.status === 'APPROVED') {
-    return <span className="badge badge-green">🟢 QC Done</span>;
+    return <span className="badge badge-green">QC Done</span>;
   }
   if (episode?.final_audio_file_id) {
-    return <span className="badge badge-pink">🩷 Final Upload</span>;
+    return <span className="badge badge-pink">Final Upload</span>;
   }
   if (episode?.audio_file_id) {
-    return <span className="badge badge-orange">🟠 Audio Upload</span>;
+    return <span className="badge badge-orange">Audio Upload</span>;
   }
   if (booking?.script_status === 'YES') {
-    return <span className="badge badge-blue">🔵 Approved</span>;
+    return <span className="badge badge-blue">Approved</span>;
   }
   if (booking?.status === 'CONFIRMED' || booking?.status === 'COMPLETED') {
-    return <span className="badge badge-yellow">🟡 Booked Slot</span>;
+    return <span className="badge badge-yellow">Booked Slot</span>;
   }
 
   // Fallback for episode-only views
   if (episode) {
-    if (episode.status === 'PENDING_QC') return <span className="badge badge-amber">🟡 Pending QC</span>;
-    if (episode.status === 'REJECTED') return <span className="badge badge-red">🔴 Rejected</span>;
-    if (episode.status === 'ARCHIVED') return <span className="badge badge-grey">⚫ Archived</span>;
-    return <span className="badge badge-grey">⚪ Draft</span>;
+    if (episode.status === 'PENDING_QC') return <span className="badge badge-amber">Pending QC</span>;
+    if (episode.status === 'REJECTED') return <span className="badge badge-red">Rejected</span>;
+    if (episode.status === 'ARCHIVED') return <span className="badge badge-grey">Archived</span>;
+    return <span className="badge badge-grey">Draft</span>;
   }
 
   // Fallback for booking-only views
   if (booking) {
-    if (booking.status === 'CANCELLED') return <span className="badge badge-grey">⚫ Cancelled</span>;
-    if (booking.status === 'NO_SHOW') return <span className="badge badge-grey">⚫ No Show</span>;
-    if (booking.script_status === 'PENDING') return <span className="badge badge-yellow">🟡 Pending Script</span>;
+    if (booking.status === 'CANCELLED') return <span className="badge badge-grey">Cancelled</span>;
+    if (booking.status === 'NO_SHOW') return <span className="badge badge-grey">No Show</span>;
+    if (booking.script_status === 'PENDING') return <span className="badge badge-yellow">Pending Script</span>;
   }
 
   return <span className="badge badge-grey">Unknown</span>;

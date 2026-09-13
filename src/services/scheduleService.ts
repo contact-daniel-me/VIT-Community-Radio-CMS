@@ -115,6 +115,10 @@ export const scheduleService = {
     );
   },
 
+  async deleteSchedule(id: string): Promise<void> {
+    await unwrap(supabase.from('schedules').delete().eq('id', id));
+  },
+
   /**
    * Advisory check so the form can warn before submitting. The database still
    * has the final say via the exclusion constraint -- this is convenience only.

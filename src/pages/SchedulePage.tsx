@@ -137,6 +137,17 @@ export function SchedulePage() {
     }
   };
 
+  const remove = async (id: string) => {
+    setError(null);
+    try {
+      await scheduleService.deleteSchedule(id);
+      setNotice('Slot deleted from database.');
+      await Promise.all([daySchedule.reload(), upcoming.reload()]);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    }
+  };
+
   const shiftDay = (days: number) => {
     const next = new Date(`${day}T12:00:00+05:30`);
     next.setDate(next.getDate() + days);
@@ -334,6 +345,15 @@ export function SchedulePage() {
                             onConfirm={() => void cancel(slot.id)}
                           >
                             Cancel
+                          </ConfirmButton>
+                        )}
+                        {profile.role === 'ADMIN' && (
+                          <ConfirmButton
+                            className="small danger outline"
+                            confirmLabel="Delete forever?"
+                            onConfirm={() => void remove(slot.id)}
+                          >
+                            Delete
                           </ConfirmButton>
                         )}
                       </td>

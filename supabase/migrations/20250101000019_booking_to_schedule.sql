@@ -4,19 +4,29 @@
 
 -- 1. Add program_id to studio_bookings
 alter table public.studio_bookings
-add column program_id uuid references public.programs (id) on delete restrict;
+add column if not exists program_id uuid references public.programs (id) on delete restrict;
 
 -- 2. Link existing bookings to a program based on name, or create a dummy one
 do $$
 declare
   v_dummy_id uuid;
 begin
-  -- Try to match existing bookings by show_name
-  update public.studio_bookings b
-  set program_id = p.id
-  from public.programs p
-  where lower(btrim(b.show_name)) = lower(btrim(p.name))
-    and b.program_id is null;
+  -- Try to match existing bookings by show_name, if the column exists
+  if exists (
+    select 1 
+    from information_schema.columns 
+    where table_schema = 'public' 
+      and table_name = 'studio_bookings' 
+      and column_name = 'show_name'
+  ) then
+    execute '
+      update public.studio_bookings b
+      set program_id = p.id
+      from public.programs p
+      where lower(btrim(b.show_name)) = lower(btrim(p.name))
+        and b.program_id is null;
+    ';
+  end if;
 
   -- Create a dummy program for any remaining unmatched bookings
   if exists (select 1 from public.studio_bookings where program_id is null) then
@@ -30,8 +40,9 @@ end;
 $$;
 
 -- 3. Make program_id NOT NULL and drop show_name (since program_id replaces it)
+-- Note: wrapping alter column set not null isn't directly 'if exists', but it should be fine if already not null.
 alter table public.studio_bookings alter column program_id set not null;
-alter table public.studio_bookings drop column show_name;
+alter table public.studio_bookings drop column if exists show_name;
 
 -- 4. Create trigger to automatically insert/cancel a schedule row
 create or replace function app.propagate_booking_to_schedule()

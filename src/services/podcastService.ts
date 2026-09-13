@@ -14,6 +14,76 @@ import type { PodcastEpisodeRow } from '@/types/database';
 
 export type { PodcastEpisodeRow };
 
+const RSS_URL = 'https://anchor.fm/s/dd6c2248/podcast/rss';
+
+async function fetchFallbackRSS(): Promise<PodcastEpisodeRow[]> {
+  try {
+    const res = await fetch(RSS_URL);
+    if (!res.ok) return [];
+    const text = await res.text();
+
+    const extractText = (xml: string, tag: string) => {
+      const cdataRe = new RegExp(`<${tag}[^>]*>\\s*<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>\\s*</${tag}>`, 'i');
+      const plainRe = new RegExp(`<${tag}[^>]*>([^<]*)</${tag}>`, 'i');
+      const cdataM = xml.match(cdataRe);
+      if (cdataM) return cdataM[1].trim();
+      const plainM = xml.match(plainRe);
+      return plainM ? plainM[1].trim() : '';
+    };
+
+    const stripHtml = (html: string) =>
+      html
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&#039;/g, "'")
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const itemChunks = text.split(/<item[\s>]/i).slice(1);
+    const episodes: PodcastEpisodeRow[] = [];
+
+    for (const chunk of itemChunks) {
+      const itemXml = chunk.split(/<\/item>/i)[0];
+      const rss_guid = extractText(itemXml, 'guid');
+      if (!rss_guid) continue;
+
+      const audio_url = itemXml.match(/<enclosure[^>]*url="([^"]*)"/i)?.[1] || '';
+      const title = stripHtml(extractText(itemXml, 'title')) || 'Untitled Episode';
+      const description =
+        stripHtml(extractText(itemXml, 'description') || extractText(itemXml, 'itunes:summary')) || null;
+      const artwork_url = itemXml.match(/<itunes:image[^>]*href="([^"]*)"/i)?.[1] || null;
+      const duration = extractText(itemXml, 'itunes:duration') || null;
+      const pubDateRaw = extractText(itemXml, 'pubDate');
+      const pub_date = pubDateRaw ? new Date(pubDateRaw).toISOString() : null;
+      const spotify_url = extractText(itemXml, 'link') || null;
+      const epNumRaw = extractText(itemXml, 'itunes:episode');
+      const episode_number = epNumRaw ? parseInt(epNumRaw, 10) || null : null;
+
+      episodes.push({
+        id: rss_guid, // Use guid as a fallback id since we don't have db uuid
+        rss_guid,
+        title,
+        description,
+        audio_url,
+        spotify_url,
+        artwork_url,
+        duration,
+        pub_date,
+        episode_number,
+        last_synced_at: new Date().toISOString(),
+      });
+    }
+    return episodes;
+  } catch (e) {
+    console.error('Failed to fetch fallback RSS:', e);
+    return [];
+  }
+}
+
 export const PAGE_SIZE = 10;
 
 export interface EpisodeQuery {
@@ -69,8 +139,22 @@ export const podcastService = {
 
     if (error) throw new Error(error.message);
 
-    const episodes = (data as PodcastEpisodeRow[]) ?? [];
-    const total = count ?? 0;
+    let episodes = (data as PodcastEpisodeRow[]) ?? [];
+    let total = count ?? 0;
+
+    // Fallback to client-side RSS if the database is completely empty
+    if (total === 0 && !search && !fromDate && !toDate) {
+      const fallback = await fetchFallbackRSS();
+      total = fallback.length;
+      
+      // RSS is typically newest first. If they want oldest first:
+      if (sort === 'oldest') {
+        fallback.reverse();
+      }
+      
+      episodes = fallback.slice(from, to + 1);
+    }
+
     const hasMore = from + episodes.length < total;
 
     return { episodes, total, hasMore };

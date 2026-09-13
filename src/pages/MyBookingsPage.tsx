@@ -23,6 +23,7 @@ export function MyBookingsPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [uploadFor, setUploadFor] = useState<BookingWithPeople | null>(null);
+  const [cancelReason, setCancelReason] = useState<string>('');
 
   // Admins and producers oversee the whole studio; everyone else sees their own.
   const oversees = can.manageProgram(profile.role);
@@ -51,8 +52,24 @@ export function MyBookingsPage() {
     setError(null);
     setNotice(null);
     try {
-      await bookingService.cancelBooking(booking.id);
+      await bookingService.cancelBooking(booking.id, cancelReason);
       setNotice(`${booking.reference} cancelled. The slot is free for someone else.`);
+      setCancelReason('');
+      await bookings.reload();
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const reapprove = async (booking: BookingWithPeople) => {
+    setBusyId(booking.id);
+    setError(null);
+    setNotice(null);
+    try {
+      await bookingService.reapproveBooking(booking.id);
+      setNotice(`${booking.reference} reapproved successfully.`);
       await bookings.reload();
     } catch (cause) {
       setError(errorMessage(cause));
@@ -236,21 +253,45 @@ export function MyBookingsPage() {
                     </dl>
 
                     {cancellable ? (
-                      <div className="dialog-actions">
-                        <ConfirmButton
-                          className="small danger"
-                          confirmLabel="Cancel this booking?"
-                          disabled={busyId === booking.id}
-                          onConfirm={() => void cancel(booking)}
-                        >
-                          {busyId === booking.id ? 'Cancelling…' : 'Cancel booking'}
-                        </ConfirmButton>
+                      <div className="stack" style={{ gap: '0.8rem', marginTop: '1.2rem' }}>
+                        <div>
+                          <label htmlFor={`cancel-reason-${booking.id}`} className="visually-hidden">Cancellation reason (optional)</label>
+                          <input 
+                            id={`cancel-reason-${booking.id}`}
+                            type="text" 
+                            className="text-input" 
+                            placeholder="Optional: reason for cancellation" 
+                            value={cancelReason}
+                            onChange={(e) => setCancelReason(e.target.value)}
+                            style={{ width: '100%', padding: '0.62rem 0.7rem', borderRadius: 'var(--r-md)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)' }}
+                          />
+                        </div>
+                        <div className="dialog-actions">
+                          <ConfirmButton
+                            className="small danger"
+                            confirmLabel="Cancel this booking?"
+                            disabled={busyId === booking.id}
+                            onConfirm={() => void cancel(booking)}
+                          >
+                            {busyId === booking.id ? 'Cancelling…' : 'Cancel booking'}
+                          </ConfirmButton>
+                        </div>
                       </div>
                     ) : booking.status === 'CONFIRMED' ? (
                       <p className="small muted">
-                        This slot has already started, so it can no longer be cancelled here.
-                        Contact an administrator if something needs changing.
+                        This booking has already started and can no longer be cancelled from here.
                       </p>
+                    ) : booking.status === 'CANCELLED' && oversees ? (
+                      <div className="dialog-actions" style={{ marginTop: '1.2rem' }}>
+                        <ConfirmButton
+                          className="small"
+                          confirmLabel="Reapprove this booking?"
+                          disabled={busyId === booking.id}
+                          onConfirm={() => void reapprove(booking)}
+                        >
+                          {busyId === booking.id ? 'Reapproving…' : 'Reapprove booking'}
+                        </ConfirmButton>
+                      </div>
                     ) : null}
                   </div>
                 )}

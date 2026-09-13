@@ -269,7 +269,12 @@ export const bookingService = {
    */
   async cancelBooking(id: string, reason?: string): Promise<StudioBookingRow> {
     const patch: Partial<StudioBookingRow> = { status: 'CANCELLED' };
-    if (reason?.trim()) patch.notes = reason.trim();
+    if (reason?.trim()) {
+      // We must append to existing notes if any
+      const { data: existing } = await supabase.from('studio_bookings').select('notes').eq('id', id).single();
+      const currentNotes = existing?.notes || '';
+      patch.notes = currentNotes ? `${currentNotes}\n\nCancellation Reason: ${reason.trim()}` : `Cancellation Reason: ${reason.trim()}`;
+    }
 
     const { data, error } = await supabase
       .from('studio_bookings')
@@ -283,6 +288,22 @@ export const bookingService = {
         'PERMISSION',
         'This booking cannot be cancelled from here. It may have already started, or belong to someone else.',
       );
+    }
+    return data[0];
+  },
+
+  async reapproveBooking(id: string): Promise<StudioBookingRow> {
+    const patch: Partial<StudioBookingRow> = { status: 'CONFIRMED' };
+    
+    const { data, error } = await supabase
+      .from('studio_bookings')
+      .update(patch)
+      .eq('id', id)
+      .select('*');
+
+    if (error) throw translateBookingError(error);
+    if (!data || data.length === 0) {
+      throw new AppError('PERMISSION', 'Could not reapprove this booking.');
     }
     return data[0];
   },

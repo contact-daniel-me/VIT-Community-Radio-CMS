@@ -1639,6 +1639,9 @@
 .auth-aside .logo-text {
   color: #ffffff !important;
 }
+.auth-aside .logo-name {
+  color: #ffffff !important;
+}
 .auth-aside .logo-freq {
   color: rgba(255, 255, 255, 0.7) !important;
 }

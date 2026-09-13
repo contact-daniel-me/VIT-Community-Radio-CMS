@@ -59,7 +59,7 @@ export function StudioPublicPage() {
             </p>
           ) : (
             <p className="studio-hero-note">
-              Anyone can see what is free. <Link to="/login">Sign in</Link> to reserve a slot,
+              <Link to="/login">Sign in</Link> to reserve a slot,
               or <Link to="/register">request access</Link> if you are new to the station.
             </p>
           )}

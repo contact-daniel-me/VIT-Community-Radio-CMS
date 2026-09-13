@@ -113,7 +113,7 @@ export function DeleteEpisodeDialog({
             <div className="dialog-actions">
               <button
                 type="submit"
-                className="btn btn-solid danger-action"
+                className="btn btn-solid"
                 disabled={!matches || busy}
               >
                 {busy ? 'Deleting…' : 'Delete permanently'}

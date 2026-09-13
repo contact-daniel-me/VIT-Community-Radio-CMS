@@ -12,6 +12,7 @@ import { BadgeCard } from '@/components/badges/BadgeCard';
 import { BadgeDetailPanel } from '@/components/badges/BadgeDetailPanel';
 import { BadgeUnlockAnimation } from '@/components/badges/BadgeUnlockAnimation';
 import { NextBadgeWidget } from '@/components/badges/NextBadgeWidget';
+import { AdminGamificationDashboard } from '@/components/admin/gamification/AdminGamificationDashboard';
 
 const SEEN_KEY = 'vit_radio_seen_badges';
 
@@ -34,8 +35,7 @@ function markBadgeSeen(id: string) {
   }
 }
 
-export function BadgesPage() {
-  const profile = useCurrentUser();
+function UserBadgesView({ profile }: { profile: { id: string; role: string; [key: string]: unknown } }) {
   const [selectedBadge, setSelectedBadge] = useState<ComputedBadge | null>(null);
   const [unlockingBadge, setUnlockingBadge] = useState<ComputedBadge | null>(null);
   const hasShownUnlock = useRef(false);
@@ -60,7 +60,6 @@ export function BadgesPage() {
   const unlockedCount = badges.filter((b) => b.state === 'unlocked').length;
   const almostCount = badges.filter((b) => b.state === 'almost').length;
 
-  // Find the "next" badge: almost first, then closest to threshold
   const nextBadge = useMemo(() => {
     const locked = badges.filter((b) => b.state !== 'unlocked');
     const almost = locked.filter((b) => b.state === 'almost');
@@ -76,7 +75,6 @@ export function BadgesPage() {
       : null;
   }, [badges]);
 
-  // On first load, show unlock animation for newly-unlocked badges (once each)
   useEffect(() => {
     if (hasShownUnlock.current || badges.length === 0) return;
     const seen = getSeenBadges();
@@ -90,7 +88,6 @@ export function BadgesPage() {
   const handleDismissUnlock = () => {
     if (unlockingBadge) markBadgeSeen(unlockingBadge.id);
     setUnlockingBadge(null);
-    // Chain to next unseen badge if any
     const seen = getSeenBadges();
     const next = badges.find((b) => b.state === 'unlocked' && !seen.has(b.id));
     if (next) setUnlockingBadge(next);
@@ -104,7 +101,6 @@ export function BadgesPage() {
       />
 
       <div className="badges-page">
-        {/* Level bar */}
         {!progress.loading && (
           <div className="badges-level-bar">
             <div className="badges-level-row">
@@ -123,17 +119,14 @@ export function BadgesPage() {
           </div>
         )}
 
-        {/* Next achievement widget */}
         {!progress.loading && nextBadge && (
           <NextBadgeWidget badge={nextBadge} />
         )}
 
-        {/* Badge grid */}
         {progress.loading ? (
           <Loading label="Loading your badges…" />
         ) : (
           <>
-            {/* Unlocked section */}
             {unlockedCount > 0 && (
               <section>
                 <h2 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--ink-muted)', marginBottom: '1rem' }}>
@@ -154,7 +147,6 @@ export function BadgesPage() {
               </section>
             )}
 
-            {/* Almost section */}
             {almostCount > 0 && (
               <section>
                 <h2 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--ink-muted)', marginBottom: '1rem' }}>
@@ -175,7 +167,6 @@ export function BadgesPage() {
               </section>
             )}
 
-            {/* Locked section */}
             <section>
               <h2 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--ink-muted)', marginBottom: '1rem' }}>
                 🔒 Locked ({badges.filter((b) => b.state === 'locked').length})
@@ -197,15 +188,23 @@ export function BadgesPage() {
         )}
       </div>
 
-      {/* Badge detail panel */}
       {selectedBadge && (
         <BadgeDetailPanel badge={selectedBadge} onClose={() => setSelectedBadge(null)} />
       )}
 
-      {/* Unlock animation overlay */}
       {unlockingBadge && (
         <BadgeUnlockAnimation badge={unlockingBadge} onDismiss={handleDismissUnlock} />
       )}
     </>
   );
+}
+
+export function BadgesPage() {
+  const profile = useCurrentUser();
+
+  if (profile.role === 'ADMIN') {
+    return <AdminGamificationDashboard />;
+  }
+
+  return <UserBadgesView profile={profile} />;
 }

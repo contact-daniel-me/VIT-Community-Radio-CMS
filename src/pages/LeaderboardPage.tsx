@@ -369,21 +369,25 @@ export function LeaderboardPage() {
 
   return (
     <div className="lb-page site">
-      <div className="lb-hero-bg" />
       
-      <SiteHeader />
-      
-      <main id="main" className="lb-inner" style={{ paddingTop: '2rem' }}>
-
+      <div className="lb-hero-wrapper">
+        <div className="lb-hero-bg" />
+        <SiteHeader />
+        
         {/* Hero Section */}
-        <div className="lb-header">
+        <div className="lb-inner lb-header">
           <div className="lb-header-content">
             <h1 className="lb-title">Leaderboard</h1>
             <p className="lb-subtitle">Compete. Create. Earn. Rise to the Top.</p>
           </div>
           
-          <img src="/images/trophy.jpg" alt="Golden Trophy" className="lb-header-graphic" style={{ mixBlendMode: 'multiply' }} />
+          <div className="lb-header-graphic-wrap">
+            <img src="/images/trophy.jpg" alt="Golden Trophy" className="lb-header-graphic" style={{ mixBlendMode: 'multiply' }} />
+          </div>
         </div>
+      </div>
+      
+      <main id="main" className="lb-inner" style={{ paddingTop: '2rem' }}>
 
         {/* Filters */}
         <div className="lb-filters-wrap">

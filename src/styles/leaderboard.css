@@ -11,16 +11,21 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+.lb-hero-wrapper {
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
 /* Background that mimics the soft purple/blue space */
 .lb-hero-bg {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 400px;
+  bottom: 0;
   background: linear-gradient(145deg, #f5f3ff 0%, #ede9fe 100%);
-  z-index: 0;
-  overflow: hidden;
+  z-index: -1;
 }
 .lb-hero-bg::after {
   content: '';
@@ -60,6 +65,7 @@
   align-items: center;
   padding: 3rem 0 1rem;
   position: relative;
+  gap: 2rem;
 }
 
 .lb-header-content {
@@ -87,11 +93,15 @@
   margin: 0;
 }
 
-.lb-header-graphic {
-  position: absolute;
-  right: 0;
-  top: -20px;
+.lb-header-graphic-wrap {
+  flex-shrink: 0;
   width: 400px;
+  display: flex;
+  justify-content: center;
+}
+
+.lb-header-graphic {
+  width: 100%;
   height: auto;
   animation: lb-hero-float 6s ease-in-out infinite;
   pointer-events: none;
@@ -217,6 +227,7 @@
   gap: 2.5rem;
   flex: 2;
   justify-content: center;
+  flex-wrap: wrap;
 }
 .lb-my-stat-col {
   display: flex;
@@ -414,6 +425,7 @@
   border-radius: 1.25rem;
   padding: 1.5rem;
   box-shadow: 0 4px 20px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02);
+  overflow-x: auto;
 }
 
 .lb-table-header {
@@ -658,7 +670,9 @@
   .lb-td-badges, .lb-td-change, .th-badges, .th-change { display: none; }
   .lb-my-stats-grid { gap: 1rem; }
   .lb-my-graphic { display: none; }
-  .lb-header-graphic { opacity: 0.2; right: -50px; }
+  .lb-header { flex-direction: column; text-align: center; }
+  .lb-header-graphic-wrap { width: 300px; margin-top: 1rem; }
+  .lb-header-graphic { opacity: 0.9; right: 0; }
   .lb-podium-block { width: 100px; }
   .lb-podium-block.rank-1 { height: 160px; }
 }

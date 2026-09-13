@@ -276,6 +276,53 @@ export type CurrentBroadcastRow = {
   audio_storage_path: string | null;
 }
 
+export type BadgeRarity = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+
+export type GamificationBadgeRow = {
+  id: string;
+  badge_key: string;
+  name: string;
+  description: string;
+  requirement: string;
+  icon: string;
+  rarity: BadgeRarity;
+  xp: number;
+  threshold: number;
+  metric: string;
+  almost_threshold: number | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type GamificationLevelRow = {
+  id: string;
+  level: number;
+  title: string;
+  min_xp: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export type GamificationXpRuleRow = {
+  id: string;
+  action: string;
+  description: string;
+  xp_reward: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type UserGamificationAdjustmentRow = {
+  id: string;
+  user_id: string;
+  admin_id: string;
+  xp_adjustment: number;
+  reason: string | null;
+  created_at: string;
+}
+
 /** Curated, anonymous-readable projection for the public homepage. */
 export type PublicNowPlayingRow = {
   broadcast_status: BroadcastStatus;
@@ -621,6 +668,45 @@ export type Database = {
         Insert: Insertable<PodcastEpisodeRow, 'rss_guid' | 'title' | 'audio_url'>;
         Update: Partial<PodcastEpisodeRow>;
         Relationships: [];
+      };
+      gamification_badges: {
+        Row: GamificationBadgeRow;
+        Insert: Insertable<GamificationBadgeRow, 'badge_key' | 'name' | 'description' | 'requirement' | 'icon' | 'rarity' | 'xp' | 'threshold' | 'metric'>;
+        Update: Partial<GamificationBadgeRow>;
+        Relationships: [];
+      };
+      gamification_levels: {
+        Row: GamificationLevelRow;
+        Insert: Insertable<GamificationLevelRow, 'level' | 'title' | 'min_xp'>;
+        Update: Partial<GamificationLevelRow>;
+        Relationships: [];
+      };
+      gamification_xp_rules: {
+        Row: GamificationXpRuleRow;
+        Insert: Insertable<GamificationXpRuleRow, 'action' | 'description' | 'xp_reward'>;
+        Update: Partial<GamificationXpRuleRow>;
+        Relationships: [];
+      };
+      user_gamification_adjustments: {
+        Row: UserGamificationAdjustmentRow;
+        Insert: Insertable<UserGamificationAdjustmentRow, 'user_id' | 'admin_id' | 'xp_adjustment'>;
+        Update: Partial<UserGamificationAdjustmentRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'user_gamification_adjustments_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_gamification_adjustments_admin_id_fkey';
+            columns: ['admin_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
       };
     };
     Views: {

@@ -10,6 +10,7 @@ const SECTIONS = [
   { label: 'Studio', to: '/studio' },
   { label: 'Schedule', to: '/schedule' },
   { label: 'Episodes', to: '/episodes' },
+  { label: 'Leaderboard', to: '/leaderboard' },
   { label: 'About', to: '/about' },
 ];
 

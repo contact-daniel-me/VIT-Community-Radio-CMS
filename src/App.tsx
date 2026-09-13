@@ -28,6 +28,7 @@ import { MyBookingsPage } from '@/pages/MyBookingsPage';
 import { AnnouncementsPage } from '@/pages/AnnouncementsPage';
 import { GlobalAudioProvider } from '@/hooks/GlobalAudioContext';
 import { BadgesPage } from '@/pages/BadgesPage';
+import { LeaderboardPage } from '@/pages/LeaderboardPage';
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const { session, profile, loading } = useAuth();
@@ -116,6 +117,7 @@ export default function App() {
             <Route path="/schedule" element={<SchedulePublicPage />} />
             <Route path="/about" element={<AboutPublicPage />} />
             <Route path="/episodes" element={<EpisodesPublicPage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
 
             {/* Everything below requires a session AND an active profile. */}
             <Route

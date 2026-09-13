@@ -1881,41 +1881,12 @@
   --logo-paper: #14161c;
 }
 
-/* ---------- Brand artwork crop -------------------------------------------
-   The supplied PNG (2466x1667) is a vertical lockup. These fractions isolate
-   the mic mark so it can sit beside type in a compact header. Measured from the
-   artwork; adjust here if the file is ever replaced.
-
-     mark occupies  x 0.414 .. 0.575   (width  0.161 of the file)
-                    y 0.044 .. 0.746   (height 0.702 of the file)  */
-.logo-lockup {
-  --logo-crop-w: 0.161;
-  --logo-crop-h: 0.702;
-  --logo-crop-top: 0.044;
-
-  position: relative;
-  display: block;
-  flex: none;
-  overflow: hidden;
-  /* Box matches the mark's own aspect ratio, so nothing is squashed. */
-  aspect-ratio: calc(var(--logo-crop-w) * 2466) / calc(var(--logo-crop-h) * 1667);
-}
-.logo-lockup .logo-mark {
-  position: absolute;
-  left: 50%;
-  top: calc(-1 * var(--logo-crop-top) / var(--logo-crop-h) * 100%);
-  height: calc(100% / var(--logo-crop-h));
-  width: auto;
-  max-width: none;
-  transform: translateX(-50%);
-}
-
 /* The mark is brand navy. On the near-black player and auth panel that
    is unreadable, so it is knocked out to white — a flat bitmap cannot follow
    the theme on its own. */
-.player .logo-lockup .logo-mark,
-.auth-aside .logo-lockup .logo-mark,
-[data-theme='dark'] .logo-lockup .logo-mark {
+.player .logo-mark,
+.auth-aside .logo-mark,
+[data-theme='dark'] .logo-mark {
   filter: brightness(0) invert(1);
 }
 
@@ -3020,41 +2991,12 @@
   --logo-paper: #14161c;
 }
 
-/* ---------- Brand artwork crop -------------------------------------------
-   The supplied PNG (2466x1667) is a vertical lockup. These fractions isolate
-   the mic mark so it can sit beside type in a compact header. Measured from the
-   artwork; adjust here if the file is ever replaced.
-
-     mark occupies  x 0.414 .. 0.575   (width  0.161 of the file)
-                    y 0.044 .. 0.746   (height 0.702 of the file)  */
-.logo-lockup {
-  --logo-crop-w: 0.161;
-  --logo-crop-h: 0.702;
-  --logo-crop-top: 0.044;
-
-  position: relative;
-  display: block;
-  flex: none;
-  overflow: hidden;
-  /* Box matches the mark's own aspect ratio, so nothing is squashed. */
-  aspect-ratio: calc(var(--logo-crop-w) * 2466) / calc(var(--logo-crop-h) * 1667);
-}
-.logo-lockup .logo-mark {
-  position: absolute;
-  left: 50%;
-  top: calc(-1 * var(--logo-crop-top) / var(--logo-crop-h) * 100%);
-  height: calc(100% / var(--logo-crop-h));
-  width: auto;
-  max-width: none;
-  transform: translateX(-50%);
-}
-
 /* The mark is brand navy. On the near-black player and auth panel that
    is unreadable, so it is knocked out to white — a flat bitmap cannot follow
    the theme on its own. */
-.player .logo-lockup .logo-mark,
-.auth-aside .logo-lockup .logo-mark,
-[data-theme='dark'] .logo-lockup .logo-mark {
+.player .logo-mark,
+.auth-aside .logo-mark,
+[data-theme='dark'] .logo-mark {
   filter: brightness(0) invert(1);
 }
 
@@ -3900,41 +3842,12 @@
   --logo-paper: #14161c;
 }
 
-/* ---------- Brand artwork crop -------------------------------------------
-   The supplied PNG (2466x1667) is a vertical lockup. These fractions isolate
-   the mic mark so it can sit beside type in a compact header. Measured from the
-   artwork; adjust here if the file is ever replaced.
-
-     mark occupies  x 0.414 .. 0.575   (width  0.161 of the file)
-                    y 0.044 .. 0.746   (height 0.702 of the file)  */
-.logo-lockup {
-  --logo-crop-w: 0.161;
-  --logo-crop-h: 0.702;
-  --logo-crop-top: 0.044;
-
-  position: relative;
-  display: block;
-  flex: none;
-  overflow: hidden;
-  /* Box matches the mark's own aspect ratio, so nothing is squashed. */
-  aspect-ratio: calc(var(--logo-crop-w) * 2466) / calc(var(--logo-crop-h) * 1667);
-}
-.logo-lockup .logo-mark {
-  position: absolute;
-  left: 50%;
-  top: calc(-1 * var(--logo-crop-top) / var(--logo-crop-h) * 100%);
-  height: calc(100% / var(--logo-crop-h));
-  width: auto;
-  max-width: none;
-  transform: translateX(-50%);
-}
-
 /* The mark is brand navy. On the near-black player and auth panel that
    is unreadable, so it is knocked out to white — a flat bitmap cannot follow
    the theme on its own. */
-.player .logo-lockup .logo-mark,
-.auth-aside .logo-lockup .logo-mark,
-[data-theme='dark'] .logo-lockup .logo-mark {
+.player .logo-mark,
+.auth-aside .logo-mark,
+[data-theme='dark'] .logo-mark {
   filter: brightness(0) invert(1);
 }
 

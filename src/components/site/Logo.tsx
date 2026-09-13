@@ -28,20 +28,14 @@ export function Logo({
       {artworkMissing ? (
         <LogoMark size={size} />
       ) : (
-        /* The supplied artwork is a vertical lockup: mic mark on top, wordmark
-           beneath. Shrunk to header height the built-in wordmark becomes an
-           illegible smudge and duplicates the type beside it, so the frame crops
-           to the mark. The mark's own proportions are untouched — see
-           --logo-crop-* in site.css for the measurements. */
-        <span className="logo-lockup" style={{ height: size }}>
-          <img
-            src="/brand/vit-community-radio.png"
-            alt={withWordmark ? '' : 'VIT Community Radio'}
-            className="logo-mark"
-            onError={() => setArtworkMissing(true)}
-            decoding="async"
-          />
-        </span>
+        <img
+          src="/brand/vit-community-radio.png"
+          alt={withWordmark ? '' : 'VIT Community Radio'}
+          className="logo-mark"
+          style={{ height: size, width: 'auto', objectFit: 'contain' }}
+          onError={() => setArtworkMissing(true)}
+          decoding="async"
+        />
       )}
 
       {withWordmark && (

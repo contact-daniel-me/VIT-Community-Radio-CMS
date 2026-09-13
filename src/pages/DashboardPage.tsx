@@ -152,50 +152,54 @@ export function DashboardPage() {
         <MetricCard title="Total Episodes" value={totalEpisodes} status="total" icon={<PodcastIcon />} />
       </section>
 
-      {/* 2. MIDDLE GRID (On Air | Pipeline | Podcast Sync) */}
-      <div className="grid grid-dashboard-3" style={{ gap: '1.5rem', marginBottom: '2rem' }}>
-        
-        {/* LEFT: ON AIR — stretches to its own content height */}
-        <section className="card stack fade-in" style={{ gap: '1rem', padding: '0', overflow: 'hidden', alignSelf: 'stretch' }}>
-          <div style={{ padding: '1rem 1rem 0' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>On Air / Next Up</h3>
-          </div>
-          <OnAirCard state={station.onAir} now={station.now} loading={station.loading} />
-        </section>
+      {/* 2. MIDDLE GRID — three independent columns, each card sizes to its own content */}
+      <div className="dash-cols" style={{ marginBottom: '2rem' }}>
 
-        {/* CENTER: PIPELINE — sizes to content only */}
-        <section style={{ display: 'flex', flexDirection: 'column', alignSelf: 'start' }}>
-          <PipelineVisual metrics={metrics.pipeline} />
-        </section>
-
-        {/* RIGHT: PODCAST SYNC — stretches to its own content height */}
-        {(profile.role === 'ADMIN' || profile.role === 'PRODUCER') && (
-          <section className="card fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignSelf: 'stretch' }}>
-            <div className="row spread align-center">
-              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Podcast Sync</h3>
-              <button type="button" onClick={handlePodcastSync} disabled={syncing} className="primary small metric-red" style={{ borderRadius: '6px', fontWeight: 600 }}>
-                {syncing ? 'Syncing...' : 'Sync Episodes Now'}
-              </button>
+        {/* LEFT COLUMN */}
+        <div className="dash-col">
+          <section className="card stack fade-in" style={{ gap: '1rem', padding: '0', overflow: 'hidden' }}>
+            <div style={{ padding: '1rem 1rem 0' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>On Air / Next Up</h3>
             </div>
-            
-            <div className="card metric-green row align-center" style={{ padding: '1rem', gap: '1rem', border: 'none', background: 'var(--ok-wash)' }}>
-              <div className="icon-box" style={{ background: '#dcfce7', color: '#15803d', boxShadow: 'none' }}><CheckCircleIcon /></div>
-              <div>
-                <strong style={{ display: 'block', color: '#15803d' }}>Last synced successfully</strong>
-                <span className="small" style={{ color: '#15803d', opacity: 0.8 }}>
-                  {syncResult && syncResult.status === 'success' ? syncResult.message.split('\n')[1] : '13 Sept 2026 - 08:35 PM'}
-                </span>
-              </div>
-            </div>
-
-            <div className="card metric-purple row align-center" style={{ padding: '1rem', gap: '1rem', border: 'none', background: '#f3e8ff' }}>
-              <div className="icon-box" style={{ background: '#e9d5ff', color: '#7e22ce', boxShadow: 'none' }}><PodcastIcon /></div>
-              <div>
-                <strong style={{ display: 'block', color: '#7e22ce' }}>{totalEpisodes} episodes</strong>
-                <span className="small" style={{ color: '#7e22ce', opacity: 0.8 }}>Updated from Spotify/Anchor RSS</span>
-              </div>
-            </div>
+            <OnAirCard state={station.onAir} now={station.now} loading={station.loading} />
           </section>
+        </div>
+
+        {/* CENTER COLUMN */}
+        <div className="dash-col dash-col--wide">
+          <PipelineVisual metrics={metrics.pipeline} />
+        </div>
+
+        {/* RIGHT COLUMN */}
+        {(profile.role === 'ADMIN' || profile.role === 'PRODUCER') && (
+          <div className="dash-col">
+            <section className="card fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="row spread align-center">
+                <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Podcast Sync</h3>
+                <button type="button" onClick={handlePodcastSync} disabled={syncing} className="primary small metric-red" style={{ borderRadius: '6px', fontWeight: 600 }}>
+                  {syncing ? 'Syncing...' : 'Sync Episodes Now'}
+                </button>
+              </div>
+
+              <div className="card metric-green row align-center" style={{ padding: '1rem', gap: '1rem', border: 'none', background: 'var(--ok-wash)' }}>
+                <div className="icon-box" style={{ background: '#dcfce7', color: '#15803d', boxShadow: 'none' }}><CheckCircleIcon /></div>
+                <div>
+                  <strong style={{ display: 'block', color: '#15803d' }}>Last synced successfully</strong>
+                  <span className="small" style={{ color: '#15803d', opacity: 0.8 }}>
+                    {syncResult && syncResult.status === 'success' ? syncResult.message.split('\n')[1] : '13 Sept 2026 - 08:35 PM'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="card metric-purple row align-center" style={{ padding: '1rem', gap: '1rem', border: 'none', background: '#f3e8ff' }}>
+                <div className="icon-box" style={{ background: '#e9d5ff', color: '#7e22ce', boxShadow: 'none' }}><PodcastIcon /></div>
+                <div>
+                  <strong style={{ display: 'block', color: '#7e22ce' }}>{totalEpisodes} episodes</strong>
+                  <span className="small" style={{ color: '#7e22ce', opacity: 0.8 }}>Updated from Spotify/Anchor RSS</span>
+                </div>
+              </div>
+            </section>
+          </div>
         )}
       </div>
 

@@ -292,6 +292,35 @@ a {
   }
 }
 
+.dash-cols {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+.dash-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+@media (min-width: 860px) {
+  .dash-cols {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  .dash-col {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+@media (min-width: 1024px) {
+  .dash-col {
+    flex: 1.2 1 0;
+  }
+  .dash-col--wide {
+    flex: 2 1 0;
+  }
+}
+
 /* ---------- On air ---------- */
 .onair {
   border-left: 4px solid var(--border);

@@ -42,11 +42,12 @@ export const leaderboardService = {
   async getLeaderboard(filter: LeaderboardFilter = 'all'): Promise<LeaderboardEntry[]> {
     const since = getDateFilter(filter);
 
-    // Fetch all active profiles
+    // Fetch all active non-admin profiles
     const { data: profiles, error: profileError } = await supabase
       .from('profiles')
       .select('id, full_name')
-      .eq('active', true);
+      .eq('active', true)
+      .neq('role', 'ADMIN');
 
     if (profileError || !profiles) return [];
 

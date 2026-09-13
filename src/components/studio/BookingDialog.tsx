@@ -85,7 +85,10 @@ export function BookingDialog({
     override_reason: '',
   });
 
-  // Focus the panel when it opens, and close it on Escape.
+  const [customShowTitle, setCustomShowTitle] = useState('');
+
+  // The escape key is captured here rather than on the dialog element so it works
+  // even if focus is inside an input.
   useEffect(() => {
     dialogRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
@@ -103,6 +106,10 @@ export function BookingDialog({
       setError('Choose which show you are recording.');
       return;
     }
+    if ((form.program_id === 'other_show' || form.program_id === 'special_link') && !customShowTitle.trim()) {
+      setError('Please enter the custom show title.');
+      return;
+    }
     if (!form.self_edit && !form.editor_id) {
       setError('Choose an editor, or select "I will edit it myself".');
       return;
@@ -118,9 +125,21 @@ export function BookingDialog({
     setBusy(true);
     setError(null);
     try {
+      let finalProgramId = form.program_id;
+      if (finalProgramId === 'other_show' || finalProgramId === 'special_link') {
+        const newProg = await programService.createProgram({
+          name: customShowTitle.trim(),
+          category: 'SPECIAL',
+          default_duration_minutes: 30,
+          requires_audio: true
+        }, profile.id);
+        finalProgramId = newProg.id;
+      }
+
       const booking = await bookingService.createBooking(
         {
           ...form,
+          program_id: finalProgramId,
           // Only an admin may send an override; anyone else omits it and the
           // database applies the ordinary 24-hour rule.
           override_reason: insideNotice && mayOverride ? form.override_reason : null,
@@ -203,12 +222,7 @@ export function BookingDialog({
                     id="b-show"
                     value={form.program_id}
                     onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === 'other_show' || val === 'special_link') {
-                        window.location.href = "mailto:radio@vit.ac.in?subject=Other%20Show%20and%20Special";
-                        return;
-                      }
-                      setForm({ ...form, program_id: val });
+                      setForm({ ...form, program_id: e.target.value });
                     }}
                     required
                     autoFocus
@@ -223,6 +237,19 @@ export function BookingDialog({
                     ))}
                   </select>
                   {programmes.loading && <p className="small muted">Loading shows&hellip;</p>}
+                  
+                  {(form.program_id === 'other_show' || form.program_id === 'special_link') && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <input
+                        type="text"
+                        placeholder="Enter the show title..."
+                        value={customShowTitle}
+                        onChange={(e) => setCustomShowTitle(e.target.value)}
+                        required
+                        autoFocus
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="field-row">

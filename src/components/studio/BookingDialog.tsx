@@ -79,11 +79,13 @@ export function BookingDialog({
     language: 'TAMIL',
     script_status: 'PENDING',
     script_approver: '',
-    self_edit: true,
+    self_edit: false,
     editor_id: null,
     notes: '',
     override_reason: '',
   });
+
+  const [editorMode, setEditorMode] = useState<'admin' | 'self' | 'pick'>('admin');
 
   const [customShowTitle, setCustomShowTitle] = useState('');
 
@@ -110,8 +112,8 @@ export function BookingDialog({
       setError('Please enter the custom show title.');
       return;
     }
-    if (!form.self_edit && !form.editor_id) {
-      setError('Choose an editor, or select "I will edit it myself".');
+    if (editorMode === 'pick' && !form.editor_id) {
+      setError('Choose an editor, or select another option.');
       return;
     }
     if (insideNotice && mayOverride && (form.override_reason ?? '').trim().length < 5) {
@@ -310,8 +312,23 @@ export function BookingDialog({
                     <input
                       type="radio"
                       name="edit"
-                      checked={form.self_edit}
-                      onChange={() => setForm({ ...form, self_edit: true, editor_id: null })}
+                      checked={editorMode === 'admin'}
+                      onChange={() => {
+                        setEditorMode('admin');
+                        setForm({ ...form, self_edit: false, editor_id: null });
+                      }}
+                    />
+                    <span>Admin will assign a editor for you (Recommend)</span>
+                  </label>
+                  <label className="radio">
+                    <input
+                      type="radio"
+                      name="edit"
+                      checked={editorMode === 'self'}
+                      onChange={() => {
+                        setEditorMode('self');
+                        setForm({ ...form, self_edit: true, editor_id: null });
+                      }}
                     />
                     <span>I will edit the audio myself</span>
                   </label>
@@ -319,13 +336,16 @@ export function BookingDialog({
                     <input
                       type="radio"
                       name="edit"
-                      checked={!form.self_edit}
-                      onChange={() => setForm({ ...form, self_edit: false })}
+                      checked={editorMode === 'pick'}
+                      onChange={() => {
+                        setEditorMode('pick');
+                        setForm({ ...form, self_edit: false });
+                      }}
                     />
                     <span>I need an editor</span>
                   </label>
 
-                  {!form.self_edit && (
+                  {editorMode === 'pick' && (
                     <div className="editor-list">
                       {editors.loading ? (
                         <p className="muted small">Loading editors&hellip;</p>
@@ -424,7 +444,7 @@ export function BookingDialog({
                 />
                 <Row
                   label="Editor"
-                  value={form.self_edit ? 'Editing it myself' : (selectedEditor?.full_name ?? '--')}
+                  value={form.self_edit ? 'Editing it myself' : (selectedEditor?.full_name ?? 'To be assigned by admin')}
                 />
                 <Row
                   label="Booking type"

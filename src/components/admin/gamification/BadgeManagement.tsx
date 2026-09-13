@@ -27,11 +27,11 @@ export function BadgeManagement() {
       };
       
       if (badge.id && badge.id !== 'new') {
-        // @ts-expect-error - Dynamic bypass
-        await supabase.from('gamification_badges').update(toSave).eq('id', badge.id);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await supabase.from('gamification_badges').update(toSave as any).eq('id', badge.id);
       } else {
-        // @ts-expect-error - Dynamic bypass
-        await supabase.from('gamification_badges').insert(toSave);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await supabase.from('gamification_badges').insert(toSave as any);
       }
       
       setIsEditing(null);

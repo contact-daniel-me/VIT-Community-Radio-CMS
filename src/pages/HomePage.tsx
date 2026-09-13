@@ -1,8 +1,10 @@
 import { useAsync } from '@/hooks/useAsync';
 import { useHashScroll } from '@/hooks/useHashScroll';
 import { publicService } from '@/services/publicService';
+import { announcementService } from '@/services/announcementService';
 import { SiteHeader } from '@/components/site/SiteHeader';
 import { Hero } from '@/components/site/Hero';
+import { StationAnnouncements } from '@/components/site/StationAnnouncements';
 import { EpisodeCard } from '@/components/site/Cards';
 import { SpotifyShow } from '@/components/site/SpotifyShow';
 import { CommunityCTA, SiteFooter } from '@/components/site/CommunityCTA';
@@ -17,7 +19,7 @@ import { RadioPlayer } from '@/components/site/RadioPlayer';
  */
 export function HomePage() {
   const station = useAsync(async () => {
-    const [nowPlaying, schedule, episodes, chart, programmes] = await Promise.all([
+    const [nowPlaying, schedule, episodes, chart, programmes, announcements] = await Promise.all([
       publicService.getNowPlaying(),
       publicService.getTodaySchedule(),
       publicService.getRecentEpisodes(5).catch(() => []),
@@ -25,8 +27,9 @@ export function HomePage() {
       // on, and neither should take the page down if a view is unavailable.
       publicService.getFixedPointChart().catch(() => []),
       publicService.getShows(50).catch(() => []),
+      announcementService.getActiveAnnouncements().catch(() => []),
     ]);
-    return { nowPlaying, schedule, episodes, chart, programmes };
+    return { nowPlaying, schedule, episodes, chart, programmes, announcements };
   }, []);
 
   // The header tabs are links to /#schedule, /#episodes and /#about.
@@ -40,6 +43,10 @@ export function HomePage() {
 
       <main id="main">
         <Hero now={now} />
+
+        {station.data?.announcements && station.data.announcements.length > 0 && (
+          <StationAnnouncements announcements={station.data.announcements} />
+        )}
 
         <section className="section" id="episodes">
           <div className="section-head">

@@ -25,6 +25,8 @@ export type EpisodeStatus =
   | 'REJECTED'
   | 'ARCHIVED';
 
+export type AnnouncementStatus = 'DRAFT' | 'PUBLISHED' | 'SCHEDULED' | 'ARCHIVED';
+
 export type QcDecision = 'APPROVED' | 'REJECTED';
 
 export type ScheduleStatus = 'SCHEDULED' | 'ON_AIR' | 'COMPLETED' | 'CANCELLED';
@@ -208,6 +210,19 @@ export type ScheduleRow = {
   updated_at: string;
 }
 
+export type AnnouncementRow = {
+  id: string;
+  title: string;
+  message: string;
+  status: AnnouncementStatus;
+  published_at: string | null;
+  scheduled_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+}
+
 export type BroadcastStateRow = {
   id: boolean;
   status: BroadcastStatus;
@@ -367,6 +382,20 @@ export type Database = {
         Insert: Insertable<ProfileRow, 'id' | 'full_name' | 'email'>;
         Update: Partial<ProfileRow>;
         Relationships: [];
+      };
+      announcements: {
+        Row: AnnouncementRow;
+        Insert: Insertable<AnnouncementRow, 'title' | 'message' | 'status' | 'created_by'>;
+        Update: Partial<AnnouncementRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'announcements_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          }
+        ];
       };
       programs: {
         Row: ProgramRow;

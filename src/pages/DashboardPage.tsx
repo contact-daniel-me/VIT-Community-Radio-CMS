@@ -3,7 +3,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { useStationStatus } from '@/hooks/useStationStatus';
 import { Banner, Loading, UnifiedStatusBadge } from '@/components/ui';
-import { OnAirCard } from '@/components/OnAirCard';
+import { AnnouncementsCard } from '@/components/studio/AnnouncementsCard';
 import { qcService } from '@/services/qcService';
 import { episodeService } from '@/services/episodeService';
 import { activityService } from '@/services/activityService';
@@ -134,12 +134,7 @@ export function DashboardPage() {
 
         {/* LEFT COLUMN */}
         <div className="dash-col">
-          <section className="card stack fade-in" style={{ gap: '1rem', padding: '0', overflow: 'hidden' }}>
-            <div style={{ padding: '1rem 1rem 0' }}>
-              <h3 style={{ margin: 0, fontSize: '1.1rem' }}>On Air / Next Up</h3>
-            </div>
-            <OnAirCard state={station.onAir} now={station.now} loading={station.loading} />
-          </section>
+          <AnnouncementsCard />
         </div>
 
         {/* CENTER COLUMN */}

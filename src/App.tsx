@@ -25,6 +25,7 @@ import { AboutPublicPage } from '@/pages/AboutPublicPage';
 import { EpisodesPublicPage } from '@/pages/EpisodesPublicPage';
 import { StudioPage } from '@/pages/StudioPage';
 import { MyBookingsPage } from '@/pages/MyBookingsPage';
+import { AnnouncementsPage } from '@/pages/AnnouncementsPage';
 import { GlobalAudioProvider } from '@/hooks/GlobalAudioContext';
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
@@ -150,6 +151,7 @@ export default function App() {
                   /studio page stays public and renders the same calendar. */}
               <Route path="studio/book" element={<StudioPage />} />
               <Route path="bookings" element={<MyBookingsPage />} />
+              <Route path="announcements" element={<AnnouncementsPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>

@@ -79,7 +79,7 @@ export function SiteFooter() {
           </div>
           <div>
             <h3>Station</h3>
-            <a href="#about">About us</a>
+            <Link to="/about">About us</Link>
             <Link to="/register">Join the team</Link>
             <Link to="/login">Team sign in</Link>
           </div>

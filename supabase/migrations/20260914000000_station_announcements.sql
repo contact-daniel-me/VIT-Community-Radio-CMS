@@ -12,7 +12,7 @@ create table public.announcements (
   expires_at timestamptz,
   created_at timestamptz default now() not null,
   updated_at timestamptz default now() not null,
-  created_by uuid references auth.users not null
+  created_by uuid references public.profiles(id) not null
 );
 
 -- RLS

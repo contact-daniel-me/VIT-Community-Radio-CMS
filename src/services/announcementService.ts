@@ -15,7 +15,7 @@ export const announcementService = {
   async getAllAnnouncements(): Promise<AnnouncementWithAuthor[]> {
     const { data, error } = await supabase
       .from('announcements')
-      .select('*, author:profiles!announcements_created_by_fkey(full_name)')
+      .select('*')
       .order('created_at', { ascending: false });
 
     if (error) throw new AppError('UNKNOWN', error.message);

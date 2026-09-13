@@ -65,7 +65,7 @@ export function AnnouncementDialog({
 
       if (!isDraft) {
         if (mode === 'publish') {
-          published_at = new Date().toISOString();
+          published_at = existing?.published_at || new Date().toISOString();
         } else {
           if (!scheduledDate || !scheduledTime) throw new Error('Please select a schedule date and time.');
           scheduled_at = new Date(`${scheduledDate}T${scheduledTime}:00`).toISOString();
@@ -250,7 +250,7 @@ export function AnnouncementDialog({
               Cancel
             </button>
             <button type="submit" form="announcement-form" className="btn btn-solid" disabled={busy}>
-              {busy ? 'Saving...' : mode === 'publish' ? 'Publish Announcement' : 'Schedule Announcement'}
+              {busy ? 'Saving...' : mode === 'publish' ? (existing?.status === 'PUBLISHED' ? 'Update Announcement' : 'Publish Announcement') : 'Schedule Announcement'}
             </button>
           </div>
         </div>

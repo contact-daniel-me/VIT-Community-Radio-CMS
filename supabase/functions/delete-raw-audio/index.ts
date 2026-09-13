@@ -130,10 +130,10 @@ Deno.serve(async (req) => {
       { status: 200, headers: { 'Content-Type': 'application/json' } },
     );
 
-  } catch (err: any) {
+  } catch (err) {
     console.error('[delete-raw-audio] Unexpected error:', err);
     return new Response(
-      JSON.stringify({ error: err.message || 'Internal Server Error' }),
+      JSON.stringify({ error: err instanceof Error ? err.message : 'Internal Server Error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } },
     );
   }

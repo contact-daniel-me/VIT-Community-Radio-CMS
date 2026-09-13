@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
@@ -34,7 +33,7 @@ export function DashboardPage() {
     const [
       pendingQc,
       recentEpisodes,
-      _activity,
+      , // Ignore the activity result
       myBookings,
       metrics,
       expiringAudio,

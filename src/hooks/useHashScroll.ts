@@ -55,5 +55,5 @@ export function useHashScroll(ready = true): void {
     });
 
     return () => cancelAnimationFrame(raf);
-  }, [hash, key, ready]);
+  }, [hash, key, ready, navType]);
 }

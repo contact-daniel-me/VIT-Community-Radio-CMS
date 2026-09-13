@@ -277,7 +277,7 @@ export function EpisodeDetailPage() {
             <div className="stack" style={{ gap: '1.5rem' }}>
               <div>
                 <h3 className="row" style={{ gap: '0.5rem', marginBottom: '0.5rem' }}>
-                  <span className="badge badge-orange">🟠 Raw Audio</span>
+                  <span className="badge badge-orange">Raw Audio</span>
                   {ep.audio_file && !ep.audio_file.deleted_at && (
                     <span className="small muted font-normal">
                       {formatDuration(ep.audio_file.duration_seconds)} &middot; {formatFileSize(ep.audio_file.file_size)}
@@ -285,7 +285,7 @@ export function EpisodeDetailPage() {
                   )}
                   {ep.raw_file_delete_at && (!ep.audio_file || !ep.audio_file.deleted_at) && (
                     <span className="badge badge-amber" style={{ marginLeft: 'auto' }}>
-                      ⚠️ {(() => {
+                      {(() => {
                         const days = Math.ceil((new Date(ep.raw_file_delete_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
                         return days > 0 ? `${days} days remaining` : 'Scheduled for deletion today';
                       })()}
@@ -351,7 +351,7 @@ export function EpisodeDetailPage() {
               {/* Final Audio Section */}
               <div style={{ paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
                 <h3 className="row" style={{ gap: '0.5rem', marginBottom: '0.5rem' }}>
-                  <span className="badge badge-pink">🩷 Final Audio</span>
+                  <span className="badge badge-pink">Final Audio</span>
                   {ep.final_audio_file && (
                     <span className="small muted font-normal">
                       {formatDuration(ep.final_audio_file.duration_seconds)} &middot; {formatFileSize(ep.final_audio_file.file_size)}

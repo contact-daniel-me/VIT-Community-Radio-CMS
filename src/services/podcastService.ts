@@ -75,6 +75,8 @@ async function fetchFallbackRSS(): Promise<PodcastEpisodeRow[]> {
         pub_date,
         episode_number,
         last_synced_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       });
     }
     return episodes;

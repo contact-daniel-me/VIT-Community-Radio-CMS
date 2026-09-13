@@ -66,7 +66,17 @@ INSERT INTO gamification_badges (badge_key, name, description, requirement, icon
 ('locked-to-the-frequency', 'Locked To The Frequency', 'Twenty bookings. The studio slot is basically yours.', 'Book 20 studio slots', 'lock', 'EPIC', 200, 20, 'bookingCount', 18),
 ('voice-of-vit', 'Voice Of VIT', 'Twenty-five shows. You ARE the voice of VIT.', 'Create 25 episodes', 'mic', 'EPIC', 250, 25, 'episodeCount', 23),
 ('radio-devotion', 'Radio Devotion', 'Thirty bookings. This isn''t a hobby — it''s a calling.', 'Book 30 studio slots', 'broadcast', 'LEGENDARY', 300, 30, 'bookingCount', 27),
-('radio-legend', 'Radio Legend', 'Fifty episodes. Your legacy is woven into VIT Community Radio.', 'Create 50 episodes', 'legend', 'LEGENDARY', 500, 50, 'episodeCount', 45);
+('radio-legend', 'Radio Legend', 'Fifty episodes. Your legacy is woven into VIT Community Radio.', 'Create 50 episodes', 'legend', 'LEGENDARY', 500, 50, 'episodeCount', 45)
+ON CONFLICT (badge_key) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  requirement = EXCLUDED.requirement,
+  icon = EXCLUDED.icon,
+  rarity = EXCLUDED.rarity,
+  xp = EXCLUDED.xp,
+  threshold = EXCLUDED.threshold,
+  metric = EXCLUDED.metric,
+  almost_threshold = EXCLUDED.almost_threshold;
 
 -- Insert Levels
 INSERT INTO gamification_levels (level, title, min_xp) VALUES
@@ -77,14 +87,20 @@ INSERT INTO gamification_levels (level, title, min_xp) VALUES
 (5, 'Rising Voice', 850),
 (6, 'Broadcast Veteran', 1300),
 (7, 'Station Pillar', 1900),
-(8, 'Radio Legend', 2700);
+(8, 'Radio Legend', 2700)
+ON CONFLICT (level) DO UPDATE SET
+  title = EXCLUDED.title,
+  min_xp = EXCLUDED.min_xp;
 
 -- Insert XP Rules (based on leaderboardService.ts)
 INSERT INTO gamification_xp_rules (action, description, xp_reward) VALUES
 ('EPISODE_CREATE', 'Create a new show', 10),
 ('EPISODE_QC_SUBMIT', 'Submit show for QC', 5),
 ('EPISODE_QC_APPROVE', 'Show is approved', 25),
-('STUDIO_BOOKING', 'Book a studio slot', 15);
+('STUDIO_BOOKING', 'Book a studio slot', 15)
+ON CONFLICT (action) DO UPDATE SET
+  description = EXCLUDED.description,
+  xp_reward = EXCLUDED.xp_reward;
 
 -- RLS
 ALTER TABLE gamification_badges ENABLE ROW LEVEL SECURITY;

@@ -18,6 +18,14 @@ export interface BadgeDefinition {
   badge_key?: string;
 }
 
+export interface XpRule {
+  id: string;
+  action: string;
+  description: string;
+  xp_reward: number;
+  active: boolean;
+}
+
 export interface UserBadgeProgress {
   episodeCount: number;
   approvedCount: number;
@@ -156,6 +164,31 @@ export const badgeService = {
       rangeInLevel,
       pct: Math.min(100, Math.round((progressInLevel / rangeInLevel) * 100)),
     };
+  },
+
+  async getXpRules(): Promise<XpRule[]> {
+    const { data, error } = await supabase
+      .from('gamification_xp_rules')
+      .select('*')
+      .order('action', { ascending: true });
+      
+    if (error) {
+      if (error.code === '42P01') {
+        return []; // Fallback empty if table not available
+      }
+      console.error('Error fetching xp rules:', error);
+      return [];
+    }
+    return data as XpRule[];
+  },
+
+  async updateXpRule(id: string, updates: Partial<XpRule>): Promise<void> {
+    const { error } = await supabase
+      .from('gamification_xp_rules')
+      .update(updates)
+      .eq('id', id);
+
+    if (error) throw error;
   },
 
   async getUserProgress(userId: string): Promise<UserBadgeProgress> {

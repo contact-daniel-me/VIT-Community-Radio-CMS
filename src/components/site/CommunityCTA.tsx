@@ -54,9 +54,21 @@ export function SiteFooter() {
 
         <nav className="footer-links" aria-label="Footer">
           <div>
-            <h3>Listen</h3>
-            <a href="#schedule">Today&rsquo;s schedule</a>
-            <a href="#episodes">Recent episodes</a>
+            <h3>Follow us on</h3>
+            <a
+              href="https://www.instagram.com/vitradio"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Instagram
+            </a>
+            <a
+              href="https://www.youtube.com/@vitradiolive"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              YouTube Live
+            </a>
             <a
               href="https://open.spotify.com/show/6uOOkDQiomTEE0Re9TqQaA"
               target="_blank"

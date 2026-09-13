@@ -38,9 +38,7 @@ export function AboutStation({
       value: `${formatSlotTime(opens.slice(0, 5))} to ${closeTimeStr}, Monday to Friday`,
     });
   }
-  if (programmeCount) {
-    facts.push({ label: 'Programmes', value: `${programmeCount} on the roster` });
-  }
+
 
   return (
     <section className="section about" id="about">

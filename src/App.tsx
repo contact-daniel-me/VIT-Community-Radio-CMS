@@ -2,7 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/AuthProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/layouts/AppLayout';
-import { Banner, Loading } from '@/components/ui';
+import { Loading } from '@/components/ui';
 import { can } from '@/lib/permissions';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import type { UserRole } from '@/types/database';

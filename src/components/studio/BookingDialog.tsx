@@ -27,7 +27,7 @@ const SCRIPT_OPTIONS: { value: ScriptApproval; label: string }[] = [
   { value: 'NO', label: 'Not yet' },
 ];
 
-type Step = 'form' | 'review' | 'done';
+type Step = 'form' | 'review' | 'done' | 'requested';
 
 /**
  * The booking flow: form, review, confirmation.

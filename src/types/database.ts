@@ -300,6 +300,12 @@ export type CurrentBroadcastRow = {
 
 export type BadgeRarity = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
 
+export type UserBadgeRow = {
+  user_id: string;
+  badge_key: string;
+  earned_at: string;
+}
+
 export type GamificationBadgeRow = {
   id: string;
   badge_key: string;
@@ -732,6 +738,20 @@ export type Database = {
         Insert: Insertable<GamificationXpRuleRow, 'action' | 'description' | 'xp_reward'>;
         Update: Partial<GamificationXpRuleRow>;
         Relationships: [];
+      };
+      user_badges: {
+        Row: UserBadgeRow;
+        Insert: Insertable<UserBadgeRow, 'user_id' | 'badge_key'>;
+        Update: Partial<UserBadgeRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'user_badges_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       user_gamification_adjustments: {
         Row: UserGamificationAdjustmentRow;

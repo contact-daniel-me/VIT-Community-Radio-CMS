@@ -129,7 +129,7 @@ export function DashboardPage() {
       <section className="row wrap spread" style={{ gap: '1rem', marginBottom: '2rem' }}>
         <MetricCard title="Today's Slots" value={metrics.todays_slots} status="booked" icon={<CalendarIcon />} />
         {can.manageProgram(profile.role) && (
-          <MetricCard title="Pending Requests" value={pendingRequests.length} status="draft" icon={<ClockIcon />} />
+          <MetricCard title="Pending Requests" value={pendingRequests.length} status="qc" icon={<ClockIcon />} />
         )}
         <MetricCard title="Pending QC" value={metrics.pending_qc} status="approved" icon={<ClockIcon />} />
         <MetricCard title="Final Upload" value={metrics.pipeline.final_upload} status="final" icon={<CloudUploadIcon />} />

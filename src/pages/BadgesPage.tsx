@@ -45,7 +45,7 @@ function UserBadgesView({ profile }: { profile: { id: string; role: string; [key
     return { progress: prog, badges: badgesList };
   }, [profile.id]);
 
-  const progress = { loading: data.loading, data: data.data?.progress };
+
   const badges = data.data?.badges ?? [];
 
   const totalXp = useMemo(

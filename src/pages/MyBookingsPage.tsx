@@ -198,7 +198,7 @@ export function MyBookingsPage() {
           {list.map((item: any) => {
             const isRequest = item.status === 'PENDING' || item.status === 'REJECTED';
             const booking = item as BookingWithPeople;
-            const request = item as (StudioBookingRequestRow & { program?: { name: string } });
+            const request = item as (StudioBookingRequestRow & { program?: { name: string }, user?: { full_name: string } });
             
             const open = openId === item.id;
             const startsAt = slotStartsAt(item.booking_date, item.start_time.slice(0, 5));

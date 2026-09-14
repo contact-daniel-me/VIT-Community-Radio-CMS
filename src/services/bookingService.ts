@@ -6,6 +6,7 @@ import type {
   ScriptApproval,
   ShowLanguage,
   StudioBookingRow,
+  StudioBookingRequestRow,
 } from '@/types/database';
 import type { LineupBooking } from '@/utils/lineup';
 import {
@@ -144,18 +145,21 @@ export const bookingService = {
     );
   },
 
-  /** Every booking, for the admin view. RLS still decides what comes back. */
-  async getUpcomingBookings(limit = 5): Promise<BookingWithPeople[]> {
-    return unwrap(
-      supabase
-        .from('studio_bookings')
-        .select(BOOKING_SELECT)
-        .gte('booking_date', new Date().toISOString().split('T')[0])
-        .order('booking_date', { ascending: true })
-        .order('start_time', { ascending: true })
-        .limit(limit)
-        .returns<BookingWithPeople[]>()
-    );
+  /** Every booking, for the admin view or scoped to RJ. RLS still decides what comes back. */
+  async getUpcomingBookings(limit = 5, userId?: string): Promise<BookingWithPeople[]> {
+    let query = supabase
+      .from('studio_bookings')
+      .select(BOOKING_SELECT)
+      .gte('booking_date', new Date().toISOString().split('T')[0])
+      .order('booking_date', { ascending: true })
+      .order('start_time', { ascending: true })
+      .limit(limit);
+
+    if (userId) {
+      query = query.eq('rj_id', userId);
+    }
+
+    return unwrap(query.returns<BookingWithPeople[]>());
   },
 
   async getAllBookings(limit = 200): Promise<BookingWithPeople[]> {
@@ -243,7 +247,7 @@ export const bookingService = {
         script_status: input.script_status,
         script_approver: input.script_approver?.trim() || null,
         self_edit: input.self_edit,
-        editor_id: input.self_edit ? null : (input.editor_id ?? null),
+        editor_id: input.self_edit ? null : (input.editor_id || null),
         notes: input.notes?.trim() || null,
         origin: input.override_reason ? 'ADMIN_OVERRIDE' : 'RJ',
         override_reason: input.override_reason?.trim() || null,
@@ -346,6 +350,147 @@ export const bookingService = {
       throw new AppError('PERMISSION', 'You do not have permission to change this booking.');
     }
     return data[0];
+  },
+
+  /** 
+   * Update an existing booking's non-critical details.
+   */
+  async updateBooking(id: string, updates: Partial<BookingInput>): Promise<void> {
+    const { error } = await supabase
+      .from('studio_bookings')
+      .update({
+        notes: updates.notes,
+        editor_id: updates.editor_id,
+        self_edit: updates.self_edit,
+      })
+      .eq('id', id);
+
+    if (error) throw translateBookingError(error);
+  },
+
+  async createRequest(input: BookingInput, userId: string): Promise<StudioBookingRequestRow> {
+    const startTime = `${input.start_time}:00`;
+    const [h, m] = input.start_time.split(':').map(Number);
+    const endMinutes = h * 60 + m + 30;
+    const endTime = `${String(Math.floor(endMinutes / 60)).padStart(2, '0')}:${String(endMinutes % 60).padStart(2, '0')}:00`;
+
+    const { data, error } = await supabase
+      .from('studio_booking_requests')
+      .insert({
+        user_id: userId,
+        booking_date: input.booking_date,
+        start_time: startTime,
+        end_time: endTime,
+        program_id: input.program_id,
+        language: input.language,
+        script_status: input.script_status,
+        script_approver: input.script_approver?.trim() || null,
+        self_edit: input.self_edit,
+        editor_id: input.self_edit ? null : (input.editor_id || null),
+        notes: input.notes?.trim() || null,
+        status: 'PENDING'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') throw new AppError('CONFLICT', 'You already have a pending request for this slot.');
+      throw translateBookingError(error);
+    }
+    return data;
+  },
+
+  async getUserRequests(userId: string): Promise<StudioBookingRequestRow[]> {
+    const { data, error } = await supabase
+      .from('studio_booking_requests')
+      .select(`*, program:programs!studio_booking_requests_program_id_fkey (id, name)`)
+      .eq('user_id', userId)
+      .order('booking_date', { ascending: false })
+      .order('start_time', { ascending: false });
+    
+    if (error) throw translateBookingError(error);
+    return data;
+  },
+
+  async getPendingRequests(): Promise<(StudioBookingRequestRow & { user: { full_name: string }, program: { name: string } })[]> {
+    const { data, error } = await supabase
+      .from('studio_booking_requests')
+      .select(`
+        *,
+        user:profiles!studio_booking_requests_user_id_fkey (full_name),
+        program:programs!studio_booking_requests_program_id_fkey (name)
+      `)
+      .eq('status', 'PENDING')
+      .order('created_at', { ascending: true });
+      
+    if (error) throw translateBookingError(error);
+    return data as any;
+  },
+
+  async approveRequest(requestId: string, adminId: string): Promise<void> {
+    const { data: request, error: reqError } = await supabase
+      .from('studio_booking_requests')
+      .select('*')
+      .eq('id', requestId)
+      .single();
+      
+    if (reqError || !request) throw new AppError('NOT_FOUND', 'Booking request not found.');
+    if (request.status !== 'PENDING') throw new AppError('VALIDATION', 'Request is no longer pending.');
+
+    // Attempt to book it directly. If someone else took it, this will safely throw CONFLICT.
+    await this.createBooking(
+      {
+        booking_date: request.booking_date,
+        start_time: request.start_time.slice(0, 5), // 'HH:mm'
+        program_id: request.program_id,
+        language: request.language,
+        script_status: request.script_status,
+        script_approver: request.script_approver,
+        self_edit: request.self_edit,
+        editor_id: request.editor_id,
+        notes: request.notes,
+        override_reason: 'Approved same-day request',
+      },
+      request.user_id,
+      adminId
+    );
+
+    // If successful, update the request status.
+    const { error: updateError } = await supabase
+      .from('studio_booking_requests')
+      .update({
+        status: 'APPROVED',
+        reviewed_by: adminId,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', requestId);
+
+    if (updateError) throw translateBookingError(updateError);
+  },
+
+  async rejectRequest(requestId: string, adminId: string, reason: string | null): Promise<void> {
+    const { error } = await supabase
+      .from('studio_booking_requests')
+      .update({
+        status: 'REJECTED',
+        rejection_reason: reason,
+        reviewed_by: adminId,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', requestId);
+
+    if (error) throw translateBookingError(error);
+  },
+
+  async cancelRequest(requestId: string, userId: string): Promise<void> {
+    const { error } = await supabase
+      .from('studio_booking_requests')
+      .update({ status: 'CANCELLED' })
+      .eq('id', requestId)
+      .eq('user_id', userId)
+      .eq('status', 'PENDING');
+
+    if (error) throw translateBookingError(error);
   },
 };
 

@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
+import { useCurrentUser } from '@/hooks/useAuth';
+import { can } from '@/lib/permissions';
 import { announcementService } from '@/services/announcementService';
 import { AnnouncementDialog } from './AnnouncementDialog';
 import { Empty, Loading, Banner, ConfirmButton } from '@/components/ui';
@@ -33,6 +35,8 @@ function getStatusBadge(ann: AnnouncementRow) {
 }
 
 export function AnnouncementsCard() {
+  const profile = useCurrentUser();
+  const isAdmin = can.manageAnnouncements(profile.role);
   const announcements = useAsync(() => announcementService.getAllAnnouncements(), []);
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<AnnouncementRow | null>(null);
@@ -41,8 +45,10 @@ export function AnnouncementsCard() {
 
   const latest = useMemo(() => {
     if (!announcements.data) return [];
-    return announcements.data.slice(0, 3);
-  }, [announcements.data]);
+    // RJs only see active (published) announcements
+    const list = isAdmin ? announcements.data : announcements.data.filter(a => a.status === 'PUBLISHED');
+    return list.slice(0, 3);
+  }, [announcements.data, isAdmin]);
 
   const deleteAnnouncement = async (id: string) => {
     setBusyId(id);
@@ -62,9 +68,11 @@ export function AnnouncementsCard() {
       <section className="card stack fade-in" style={{ gap: '1rem', padding: '1.2rem', overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
         <div className="row spread align-center">
           <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Station Announcements</h3>
-          <Link to="/announcements" className="link small" style={{ fontWeight: 500 }}>
-            View all &rarr;
-          </Link>
+          {isAdmin && (
+            <Link to="/announcements" className="link small" style={{ fontWeight: 500 }}>
+              View all &rarr;
+            </Link>
+          )}
         </div>
         <Banner>{error}</Banner>
 
@@ -112,33 +120,37 @@ export function AnnouncementsCard() {
                       }
                     </span>
                   </div>
-                  <div className="row align-center" style={{ gap: '0.5rem' }}>
-                    <button className="link small" onClick={() => setEditing(ann)}>Edit</button>
-                    <ConfirmButton 
-                      className="link small danger" 
-                      confirmLabel="Delete?"
-                      onConfirm={() => void deleteAnnouncement(ann.id)}
-                      disabled={busyId === ann.id}
-                    >
-                      Delete
-                    </ConfirmButton>
-                  </div>
+                  {isAdmin && (
+                    <div className="row align-center" style={{ gap: '0.5rem' }}>
+                      <button className="link small" onClick={() => setEditing(ann)}>Edit</button>
+                      <ConfirmButton 
+                        className="link small danger" 
+                        confirmLabel="Delete?"
+                        onConfirm={() => void deleteAnnouncement(ann.id)}
+                        disabled={busyId === ann.id}
+                      >
+                        Delete
+                      </ConfirmButton>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        <div style={{ marginTop: 'auto', paddingTop: '0.5rem' }}>
-          <button 
-            type="button" 
-            className="btn btn-ghost" 
-            style={{ width: '100%', justifyContent: 'center' }}
-            onClick={() => setShowCreate(true)}
-          >
-            + Create Announcement
-          </button>
-        </div>
+        {isAdmin && (
+          <div style={{ marginTop: 'auto', paddingTop: '0.5rem' }}>
+            <button 
+              type="button" 
+              className="btn btn-ghost" 
+              style={{ width: '100%', justifyContent: 'center' }}
+              onClick={() => setShowCreate(true)}
+            >
+              + Create Announcement
+            </button>
+          </div>
+        )}
       </section>
 
       {(showCreate || editing) && (

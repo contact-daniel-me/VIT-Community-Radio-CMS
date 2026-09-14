@@ -48,11 +48,7 @@ function RequireRole({
   const { profile } = useAuth();
   if (!profile) return null;
   if (!allow(profile.role)) {
-    return (
-      <Banner kind="error">
-        This section is not available for your role ({profile.role}).
-      </Banner>
-    );
+    return <Navigate to="/dashboard" replace />;
   }
   return children;
 }
@@ -128,11 +124,25 @@ export default function App() {
               }
             >
               <Route path="dashboard" element={<DashboardPage />} />
-              <Route path="programs" element={<ProgramsPage />} />
+              <Route
+                path="programs"
+                element={
+                  <RequireRole allow={can.manageProgram}>
+                    <ProgramsPage />
+                  </RequireRole>
+                }
+              />
               <Route path="admin/episodes" element={<EpisodesPage />} />
               <Route path="admin/episodes/:episodeId" element={<EpisodeDetailPage />} />
               <Route path="qc" element={<QcPage />} />
-              <Route path="schedule/edit" element={<SchedulePage />} />
+              <Route
+                path="schedule/edit"
+                element={
+                  <RequireRole allow={can.schedule}>
+                    <SchedulePage />
+                  </RequireRole>
+                }
+              />
               <Route
                 path="audio"
                 element={
@@ -154,7 +164,14 @@ export default function App() {
                   /studio page stays public and renders the same calendar. */}
               <Route path="studio/book" element={<StudioPage />} />
               <Route path="bookings" element={<MyBookingsPage />} />
-              <Route path="announcements" element={<AnnouncementsPage />} />
+              <Route
+                path="announcements"
+                element={
+                  <RequireRole allow={can.manageAnnouncements}>
+                    <AnnouncementsPage />
+                  </RequireRole>
+                }
+              />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="badges" element={<BadgesPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

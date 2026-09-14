@@ -39,20 +39,24 @@ export function DashboardPage() {
       expiringAudio,
       upcomingBookings,
       todaysSchedule,
-      totalEpisodesResult
+      totalEpisodesResult,
+      pendingRequests
     ] = await Promise.all([
-      qcService.getPendingQC(),
+      can.reviewQC(profile.role) ? qcService.getPendingQC() : Promise.resolve([]),
       episodeService.getEpisodes({
         limit: 5,
         ...(profile.role === 'RJ' ? { mineOnly: profile.id } : {}),
       }),
       can.viewFullActivity(profile.role) ? activityService.getRecentActivity(8) : Promise.resolve([]),
       bookingService.getMyBookings(profile.id).catch(() => []),
-      dashboardMetricsService.getMetrics(),
+      profile.role === 'RJ' ? dashboardMetricsService.getRJMetrics(profile.id) : dashboardMetricsService.getMetrics(),
       dashboardMetricsService.getExpiringRawAudio(),
-      bookingService.getUpcomingBookings(5),
-      scheduleService.getTodaySchedule(today),
-      supabase.from('episodes').select('*', { count: 'exact', head: true })
+      bookingService.getUpcomingBookings(5, profile.role === 'RJ' ? profile.id : undefined),
+      can.schedule(profile.role) ? scheduleService.getTodaySchedule(today) : Promise.resolve([]),
+      profile.role === 'RJ' 
+        ? supabase.from('episodes').select('*', { count: 'exact', head: true }).eq('created_by', profile.id)
+        : supabase.from('episodes').select('*', { count: 'exact', head: true }),
+      can.manageProgram(profile.role) ? bookingService.getPendingRequests() : Promise.resolve([])
     ]);
 
     const awaitingUpload = myBookings.filter(
@@ -67,7 +71,8 @@ export function DashboardPage() {
       expiringAudio, 
       upcomingBookings, 
       todaysSchedule,
-      totalEpisodes: totalEpisodesResult.count || 0
+      totalEpisodes: totalEpisodesResult.count || 0,
+      pendingRequests
     };
   }, [profile.id, profile.role]);
 
@@ -77,7 +82,7 @@ export function DashboardPage() {
   if (dashboard.error) return <Banner>{dashboard.error}</Banner>;
   if (!dashboard.data) return null;
 
-  const { pendingQc, recentEpisodes, awaitingUpload, metrics, expiringAudio, upcomingBookings, todaysSchedule, totalEpisodes } = dashboard.data;
+  const { pendingQc, recentEpisodes, awaitingUpload, metrics, expiringAudio, upcomingBookings, todaysSchedule, totalEpisodes, pendingRequests } = dashboard.data;
 
   const todayStr = new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date());
 
@@ -123,6 +128,9 @@ export function DashboardPage() {
       {/* 1. METRICS ROW */}
       <section className="row wrap spread" style={{ gap: '1rem', marginBottom: '2rem' }}>
         <MetricCard title="Today's Slots" value={metrics.todays_slots} status="booked" icon={<CalendarIcon />} />
+        {can.manageProgram(profile.role) && (
+          <MetricCard title="Pending Requests" value={pendingRequests.length} status="draft" icon={<ClockIcon />} />
+        )}
         <MetricCard title="Pending QC" value={metrics.pending_qc} status="approved" icon={<ClockIcon />} />
         <MetricCard title="Final Upload" value={metrics.pipeline.final_upload} status="final" icon={<CloudUploadIcon />} />
         <MetricCard title="QC Done" value={metrics.pipeline.qc_done} status="qc" icon={<CheckCircleIcon />} />
@@ -149,28 +157,30 @@ export function DashboardPage() {
         
         {/* COLUMN 1 */}
         <div className="stack" style={{ gap: '1.5rem' }}>
-          {/* TODAY'S SCHEDULE */}
-          <section className="card fade-in" style={{ flex: 1 }}>
-            <div className="row spread align-center" style={{ marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Today's Schedule</h2>
-              <Link to="/schedule" className="muted small" style={{ fontWeight: 600, textDecoration: 'none' }}>View full schedule →</Link>
-            </div>
-            {todaysSchedule.length === 0 ? (
-              <CompactEmptyState message="Nothing scheduled today." actionText="Book a studio slot" actionLink="/bookings" />
-            ) : (
-              <div className="stack" style={{ gap: '0.25rem' }}>
-                {todaysSchedule.slice(0, 5).map(slot => (
-                  <div key={slot.id} className="row spread align-center list-item small" style={{ padding: '0.75rem 0' }}>
-                    <div style={{ flex: 1 }}>
-                      <div className="muted small" style={{ marginBottom: '0.2rem' }}>{formatTime(slot.start_time)} – {formatTime(slot.end_time)}</div>
-                      <strong style={{ display: 'block', fontSize: '0.95rem' }}>{slot.program_name ?? 'Live Broadcast'}</strong>
-                      {slot.episode_title && <div className="muted small" style={{ marginTop: '0.2rem' }}>{slot.episode_title}</div>}
-                    </div>
-                  </div>
-                ))}
+          {/* TODAY'S SCHEDULE - ADMIN ONLY */}
+          {can.schedule(profile.role) && (
+            <section className="card fade-in" style={{ flex: 1 }}>
+              <div className="row spread align-center" style={{ marginBottom: '1rem' }}>
+                <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Today's Schedule</h2>
+                <Link to="/schedule" className="muted small" style={{ fontWeight: 600, textDecoration: 'none' }}>View full schedule →</Link>
               </div>
-            )}
-          </section>
+              {todaysSchedule.length === 0 ? (
+                <CompactEmptyState message="Nothing scheduled today." actionText="Book a studio slot" actionLink="/bookings" />
+              ) : (
+                <div className="stack" style={{ gap: '0.25rem' }}>
+                  {todaysSchedule.slice(0, 5).map(slot => (
+                    <div key={slot.id} className="row spread align-center list-item small" style={{ padding: '0.75rem 0' }}>
+                      <div style={{ flex: 1 }}>
+                        <div className="muted small" style={{ marginBottom: '0.2rem' }}>{formatTime(slot.start_time)} – {formatTime(slot.end_time)}</div>
+                        <strong style={{ display: 'block', fontSize: '0.95rem' }}>{slot.program_name ?? 'Live Broadcast'}</strong>
+                        {slot.episode_title && <div className="muted small" style={{ marginTop: '0.2rem' }}>{slot.episode_title}</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           {/* QUICK ACTIONS */}
           <section className="card fade-in" style={{ background: 'var(--surface-raised)' }}>
@@ -216,31 +226,33 @@ export function DashboardPage() {
         {/* COLUMN 3 */}
         <div className="stack" style={{ gap: '1.5rem' }}>
           {/* PENDING QC */}
-          <section className="card fade-in">
-            <div className="row spread align-center" style={{ marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Pending QC</h2>
-              <Link to="/admin/qc" className="muted small" style={{ fontWeight: 600, textDecoration: 'none' }}>Review all →</Link>
-            </div>
-            
-            {pendingQc.length === 0 ? (
-              <CompactEmptyState message="QC queue is clear" />
-            ) : (
-              <div className="stack" style={{ gap: '0.5rem' }}>
-                {pendingQc.slice(0, 3).map(ep => (
-                  <div key={ep.id} className="list-item small row spread align-center" style={{ padding: '0.5rem 0' }}>
-                    <div className="row align-center" style={{ gap: '0.75rem', flex: 1, minWidth: 0 }}>
-                      <div className="icon-box" style={{ width: '32px', height: '32px', background: 'var(--bg-sunk)', boxShadow: 'none' }}><MusicIcon /></div>
-                      <div style={{ overflow: 'hidden' }}>
-                        <strong style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ep.title}</strong>
-                        <div className="muted" style={{ fontSize: '0.75rem' }}>{formatDate(ep.created_at)} &middot; {ep.duration_seconds ? new Date(ep.duration_seconds * 1000).toISOString().substr(11, 8) : '--:--:--'}</div>
-                      </div>
-                    </div>
-                    <UnifiedStatusBadge episode={ep} />
-                  </div>
-                ))}
+          {can.reviewQC(profile.role) && (
+            <section className="card fade-in">
+              <div className="row spread align-center" style={{ marginBottom: '1rem' }}>
+                <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Pending QC</h2>
+                <Link to="/admin/qc" className="muted small" style={{ fontWeight: 600, textDecoration: 'none' }}>Review all →</Link>
               </div>
-            )}
-          </section>
+              
+              {pendingQc.length === 0 ? (
+                <CompactEmptyState message="QC queue is clear" />
+              ) : (
+                <div className="stack" style={{ gap: '0.5rem' }}>
+                  {pendingQc.slice(0, 3).map(ep => (
+                    <div key={ep.id} className="list-item small row spread align-center" style={{ padding: '0.5rem 0' }}>
+                      <div className="row align-center" style={{ gap: '0.75rem', flex: 1, minWidth: 0 }}>
+                        <div className="icon-box" style={{ width: '32px', height: '32px', background: 'var(--bg-sunk)', boxShadow: 'none' }}><MusicIcon /></div>
+                        <div style={{ overflow: 'hidden' }}>
+                          <strong style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ep.title}</strong>
+                          <div className="muted" style={{ fontSize: '0.75rem' }}>{formatDate(ep.created_at)} &middot; {ep.duration_seconds ? new Date(ep.duration_seconds * 1000).toISOString().substr(11, 8) : '--:--:--'}</div>
+                        </div>
+                      </div>
+                      <UnifiedStatusBadge episode={ep} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           {/* RECENT EPISODES */}
           <section className="card fade-in">

@@ -20,7 +20,8 @@ export function EpisodesPage() {
 
   const programFilter = params.get('program') ?? '';
   const statusFilter = (params.get('status') ?? '') as EpisodeStatus | '';
-  const mineOnly = params.get('mine') === '1';
+  const isRj = profile.role === 'RJ';
+  const mineOnly = isRj || params.get('mine') === '1';
   const search = params.get('q') ?? '';
 
   const setParam = (key: string, value: string) => {
@@ -93,7 +94,7 @@ export function EpisodesPage() {
   return (
     <>
       <PageHeader
-        title="Episodes"
+        title={isRj ? "My Episodes" : "Episodes"}
         description="Create a draft, attach the audio, then send it to QC."
         actions={
           can.createEpisode(profile.role) && (
@@ -112,8 +113,14 @@ export function EpisodesPage() {
       <Banner>{error}</Banner>
       {activePrograms.length === 0 && !programs.loading && (
         <Banner kind="info">
-          There are no active programs yet. Create one under <Link to="/programs">Programs</Link>{' '}
-          before adding episodes.
+          There are no active programs yet.{' '}
+          {can.manageProgram(profile.role) ? (
+            <>
+              Create one under <Link to="/programs">Programs</Link> before adding episodes.
+            </>
+          ) : (
+            'Please contact an administrator to create a program before adding episodes.'
+          )}
         </Banner>
       )}
 
@@ -247,14 +254,16 @@ export function EpisodesPage() {
               </option>
             ))}
           </select>
-          <label className="checkbox">
-            <input
-              type="checkbox"
-              checked={mineOnly}
-              onChange={(e) => setParam('mine', e.target.checked ? '1' : '')}
-            />
-            Only mine
-          </label>
+          {!isRj && (
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={mineOnly}
+                onChange={(e) => setParam('mine', e.target.checked ? '1' : '')}
+              />
+              Only mine
+            </label>
+          )}
         </div>
 
         {episodes.loading ? (

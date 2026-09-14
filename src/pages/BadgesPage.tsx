@@ -5,7 +5,6 @@ import { Loading, PageHeader } from '@/components/ui';
 import {
   badgeService,
   getLevelFromXp,
-  BADGE_DEFINITIONS,
   type ComputedBadge,
 } from '@/services/badgeService';
 import { BadgeCard } from '@/components/badges/BadgeCard';
@@ -40,15 +39,14 @@ function UserBadgesView({ profile }: { profile: { id: string; role: string; [key
   const [unlockingBadge, setUnlockingBadge] = useState<ComputedBadge | null>(null);
   const hasShownUnlock = useRef(false);
 
-  const progress = useAsync(
-    () => badgeService.getUserProgress(profile.id),
-    [profile.id],
-  );
+  const data = useAsync(async () => {
+    const prog = await badgeService.getUserProgress(profile.id);
+    const badgesList = await badgeService.computeBadgesAsync(prog);
+    return { progress: prog, badges: badgesList };
+  }, [profile.id]);
 
-  const badges = useMemo(() => {
-    if (!progress.data) return [];
-    return badgeService.computeBadges(progress.data);
-  }, [progress.data]);
+  const progress = { loading: data.loading, data: data.data?.progress };
+  const badges = data.data?.badges ?? [];
 
   const totalXp = useMemo(
     () => badges.filter((b) => b.state === 'unlocked').reduce((sum, b) => sum + b.xp, 0),
@@ -97,11 +95,11 @@ function UserBadgesView({ profile }: { profile: { id: string; role: string; [key
     <>
       <PageHeader
         title="Your Badges"
-        description={`${unlockedCount} of ${BADGE_DEFINITIONS.length} badges unlocked${almostCount > 0 ? ` · ${almostCount} almost there` : ''}`}
+        description={`${unlockedCount} of ${badges.length} badges unlocked${almostCount > 0 ? ` · ${almostCount} almost there` : ''}`}
       />
 
       <div className="badges-page">
-        {!progress.loading && (
+        {!data.loading && !data.error && (
           <div className="badges-level-bar">
             <div className="badges-level-row">
               <div>
@@ -125,12 +123,14 @@ function UserBadgesView({ profile }: { profile: { id: string; role: string; [key
           </div>
         )}
 
-        {!progress.loading && nextBadge && (
+        {!data.loading && !data.error && nextBadge && (
           <NextBadgeWidget badge={nextBadge} />
         )}
 
-        {progress.loading ? (
+        {data.loading ? (
           <Loading label="Loading your badges…" />
+        ) : data.error ? (
+          <div className="banner danger">{data.error}</div>
         ) : (
           <>
             {unlockedCount > 0 && (

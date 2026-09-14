@@ -38,6 +38,8 @@ export interface UserBadgeProgress {
   firstApprovalAt: string | null;
   monthlyApproved: number;
   consecutiveWeeks: number;
+  explicitBadges: { badge_key: string; earned_at: string }[];
+  signInCount?: number;
 }
 
 export interface ComputedBadge extends BadgeDefinition {
@@ -202,6 +204,7 @@ export const badgeService = {
       scheduledResult,
       audioResult,
       monthlyApprovedResult,
+      explicitBadgesResult,
     ] = await Promise.allSettled([
       supabase.from('episodes').select('id, created_at', { count: 'exact' }).eq('created_by', userId),
       supabase.from('episodes').select('id, reviewed_at', { count: 'exact' }).eq('created_by', userId).eq('status', 'APPROVED'),
@@ -210,6 +213,7 @@ export const badgeService = {
       supabase.from('schedules').select('id', { count: 'exact' }).eq('created_by', userId),
       supabase.from('episodes').select('id', { count: 'exact' }).eq('created_by', userId).not('audio_file_id', 'is', null),
       supabase.from('episodes').select('id', { count: 'exact' }).eq('created_by', userId).eq('status', 'APPROVED').gte('reviewed_at', thirtyDaysAgo),
+      supabase.from('user_badges').select('badge_key, earned_at').eq('user_id', userId),
     ]);
 
     const episodes = episodesResult.status === 'fulfilled' ? episodesResult.value : null;
@@ -219,6 +223,7 @@ export const badgeService = {
     const scheduled = scheduledResult.status === 'fulfilled' ? scheduledResult.value : null;
     const audio = audioResult.status === 'fulfilled' ? audioResult.value : null;
     const monthly = monthlyApprovedResult.status === 'fulfilled' ? monthlyApprovedResult.value : null;
+    const explicitBadges = explicitBadgesResult.status === 'fulfilled' ? (explicitBadgesResult.value.data ?? []) : [];
 
     const episodeRows = episodes?.data ?? [];
     const bookingRows = bookings?.data ?? [];
@@ -241,25 +246,35 @@ export const badgeService = {
       firstEpisodeCreatedAt: episodeRows[0]?.created_at ?? null,
       firstBookingAt: bookingRows[0]?.created_at ?? null,
       firstApprovalAt: approvedRows[0]?.reviewed_at ?? null,
+      explicitBadges,
     };
   },
 
   async computeBadgesAsync(progress: UserBadgeProgress): Promise<ComputedBadge[]> {
     const definitions = await this.getBadgeDefinitions();
     return definitions.map((def) => {
-      const current = progress[def.metric] as number;
+      let current = progress[def.metric] as number;
       const almostAt = def.almostThreshold ?? Math.max(1, Math.floor(def.threshold * 0.8));
 
       let state: BadgeState = 'locked';
-      if (current >= def.threshold) state = 'unlocked';
-      else if (current >= almostAt) state = 'almost';
-
       let unlockedAt: string | null = null;
-      if (state === 'unlocked') {
-        if (def.metric === 'episodeCount') unlockedAt = progress.firstEpisodeCreatedAt;
-        if (def.metric === 'approvedCount') unlockedAt = progress.firstApprovalAt;
-        if (def.metric === 'bookingCount') unlockedAt = progress.firstBookingAt;
+
+      const explicit = progress.explicitBadges?.find((b) => b.badge_key === def.badge_key || b.badge_key === def.id);
+      if (explicit) {
+        state = 'unlocked';
+        unlockedAt = explicit.earned_at;
+        current = def.threshold;
+      } else {
+        if (current >= def.threshold) state = 'unlocked';
+        else if (current >= almostAt) state = 'almost';
+
+        if (state === 'unlocked') {
+          if (def.metric === 'episodeCount') unlockedAt = progress.firstEpisodeCreatedAt;
+          if (def.metric === 'approvedCount') unlockedAt = progress.firstApprovalAt;
+          if (def.metric === 'bookingCount') unlockedAt = progress.firstBookingAt;
+        }
       }
+      
       return { ...def, state, current, unlockedAt };
     });
   },
@@ -267,14 +282,34 @@ export const badgeService = {
   // Maintain backward compatibility for components that still expect synchronous computation using fallback rules
   computeBadges(progress: UserBadgeProgress): ComputedBadge[] {
     return FALLBACK_BADGE_DEFINITIONS.map((def) => {
-      const current = progress[def.metric] as number;
+      let current = progress[def.metric] as number;
       const almostAt = def.almostThreshold ?? Math.max(1, Math.floor(def.threshold * 0.8));
       let state: BadgeState = 'locked';
-      if (current >= def.threshold) state = 'unlocked';
-      else if (current >= almostAt) state = 'almost';
-      const unlockedAt: string | null = null;
+      let unlockedAt: string | null = null;
+
+      const explicit = progress.explicitBadges?.find((b) => b.badge_key === def.badge_key || b.badge_key === def.id);
+      if (explicit) {
+        state = 'unlocked';
+        unlockedAt = explicit.earned_at;
+        current = def.threshold;
+      } else {
+        if (current >= def.threshold) state = 'unlocked';
+        else if (current >= almostAt) state = 'almost';
+      }
+      
       return { ...def, state, current, unlockedAt };
     });
+  },
+
+  async awardFirstSignIn(userId: string): Promise<void> {
+    const { error } = await supabase
+      .from('user_badges')
+      .insert({ user_id: userId, badge_key: 'first-signal' });
+    
+    // Ignore conflict errors since it just means they already have it
+    if (error && error.code !== '23505') {
+      console.error('Failed to award first sign-in badge:', error);
+    }
   },
 };
 

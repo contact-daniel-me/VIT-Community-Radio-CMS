@@ -44,6 +44,28 @@ export type EntityType =
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
 export type BookingStatus = 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW';
+export type BookingRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+
+export type StudioBookingRequestRow = {
+  id: string;
+  user_id: string;
+  program_id: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  language: ShowLanguage;
+  script_status: ScriptApproval;
+  script_approver: string | null;
+  self_edit: boolean;
+  editor_id: string | null;
+  notes: string | null;
+  status: BookingRequestStatus;
+  rejection_reason: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
 export type BookingOrigin = 'RJ' | 'ADMIN_OVERRIDE';
 export type ShowLanguage = 'TAMIL' | 'ENGLISH' | 'HINDI' | 'TELUGU' | 'MALAYALAM';
 export type ScriptApproval = 'YES' | 'NO' | 'PENDING';
@@ -627,6 +649,30 @@ export type Database = {
           },
           {
             foreignKeyName: 'studio_bookings_program_id_fkey';
+            columns: ['program_id'];
+            isOneToOne: false;
+            referencedRelation: 'programs';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      studio_booking_requests: {
+        Row: StudioBookingRequestRow;
+        Insert: Insertable<
+          StudioBookingRequestRow,
+          'user_id' | 'program_id' | 'booking_date' | 'start_time' | 'end_time' | 'language'
+        >;
+        Update: Partial<StudioBookingRequestRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'studio_booking_requests_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'studio_booking_requests_program_id_fkey';
             columns: ['program_id'];
             isOneToOne: false;
             referencedRelation: 'programs';

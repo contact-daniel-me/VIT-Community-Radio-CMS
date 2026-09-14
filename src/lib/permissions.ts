@@ -51,6 +51,8 @@ export const can = {
 
   archiveEpisode: (role: UserRole): boolean => role === 'ADMIN' || role === 'PRODUCER',
 
+  manageAnnouncements: (role: UserRole): boolean => role === 'ADMIN',
+
   manageUsers: (role: UserRole): boolean => role === 'ADMIN',
 
   viewAudioLibrary: (role: UserRole): boolean => role === 'ADMIN' || role === 'PRODUCER',

@@ -138,21 +138,30 @@ export function BookingDialog({
         finalProgramId = newProg.id;
       }
 
-      const booking = await bookingService.createBooking(
-        {
-          ...form,
-          program_id: finalProgramId,
-          // Only an admin may send an override; anyone else omits it and the
-          // database applies the ordinary 24-hour rule.
-          override_reason: insideNotice && mayOverride ? form.override_reason : null,
-        },
-        profile.id,
-        profile.id,
-      );
-      setCreated(booking);
-      setStep('done');
-      // Refresh the calendar behind the panel so the slot shows as taken.
-      onBooked();
+      if (insideNotice && !mayOverride) {
+        await bookingService.createRequest(
+          {
+            ...form,
+            program_id: finalProgramId,
+          },
+          profile.id
+        );
+        setStep('requested');
+        onBooked();
+      } else {
+        const booking = await bookingService.createBooking(
+          {
+            ...form,
+            program_id: finalProgramId,
+            override_reason: insideNotice && mayOverride ? form.override_reason : null,
+          },
+          profile.id,
+          profile.id,
+        );
+        setCreated(booking);
+        setStep('done');
+        onBooked();
+      }
     } catch (cause) {
       setError(errorMessage(cause));
       // A conflict means our view of the week is stale: go back and re-read.
@@ -205,15 +214,11 @@ export function BookingDialog({
             <>
               {insideNotice && !mayOverride && (
                 <div className="notice-block">
-                  <p className="notice-title">Need a studio slot today?</p>
+                  <p className="notice-title">Same-day booking</p>
                   <p>
-                    Studio bookings must be made at least 24 hours in advance. Same-day
-                    bookings require admin approval &mdash; please contact the VIT Community
-                    Radio administrator.
+                    Bookings made less than 24 hours in advance require admin approval. 
+                    Submit your request here and the administrator will review it.
                   </p>
-                  <a className="btn btn-outline" href="mailto:radio@vit.ac.in?subject=Same-day%20studio%20request">
-                    Contact admin
-                  </a>
                 </div>
               )}
 
@@ -414,7 +419,7 @@ export function BookingDialog({
                   <button
                     type="submit"
                     className="btn btn-solid"
-                    disabled={insideNotice && !mayOverride}
+                    disabled={busy}
                   >
                     Review booking
                   </button>
@@ -459,7 +464,10 @@ export function BookingDialog({
                   onClick={() => void confirm()}
                   disabled={busy}
                 >
-                  {busy ? 'Booking the studio…' : 'Confirm studio booking'}
+                  {busy 
+                    ? (insideNotice && !mayOverride ? 'Sending request…' : 'Booking the studio…') 
+                    : (insideNotice && !mayOverride ? 'Request Admin Approval' : 'Confirm studio booking')
+                  }
                 </button>
                 <button
                   type="button"
@@ -525,6 +533,33 @@ export function BookingDialog({
                 </Link>
                 <button type="button" className="btn btn-ghost" onClick={onClose}>
                   Back to calendar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 'requested' && (
+            <div className="confirmed">
+              <div className="confirmed-mark" aria-hidden="true" style={{ background: '#3b82f6', color: '#fff', borderColor: '#3b82f6' }}>
+                <svg viewBox="0 0 24 24" width="26" height="26">
+                  <path
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M4 12.5l5.2 5.2L20 7"
+                  />
+                </svg>
+              </div>
+              <h3 className="confirmed-title">Approval request sent</h3>
+              <p className="muted" style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                Your same-day studio booking request has been sent to the administrator. You'll be notified once it is approved or rejected.
+              </p>
+
+              <div className="dialog-actions" style={{ justifyContent: 'center' }}>
+                <button type="button" className="btn btn-solid" onClick={onClose}>
+                  Done
                 </button>
               </div>
             </div>

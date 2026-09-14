@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { authService } from '@/services/authService';
+import { badgeService } from '@/services/badgeService';
 import { errorMessage } from '@/lib/errors';
 import type { ProfileRow } from '@/types/database';
 import { AuthContext, type AuthContextValue } from './authContext';
@@ -19,6 +20,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       const loaded = await authService.getProfile(nextSession.user.id);
+      // Award badge before finalizing profile to prevent race conditions on initial gamification load
+      await badgeService.awardFirstSignIn(nextSession.user.id).catch(() => undefined);
+
       if (mounted.current) {
         setProfile(loaded);
         setError(null);

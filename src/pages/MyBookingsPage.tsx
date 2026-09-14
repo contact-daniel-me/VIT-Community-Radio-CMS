@@ -9,9 +9,9 @@ import { errorMessage } from '@/lib/errors';
 import { can } from '@/lib/permissions';
 import { formatDateTime } from '@/utils/datetime';
 import { formatBookingDate, formatSlotTime, slotStartsAt } from '@/utils/studio';
+import type { StudioBookingRequestRow } from '@/types/database';
 
-
-type Tab = 'upcoming' | 'past' | 'cancelled';
+type Tab = 'upcoming' | 'past' | 'cancelled' | 'requests';
 
 
 
@@ -32,8 +32,14 @@ export function MyBookingsPage() {
     [profile.id, oversees],
   );
 
+  const requests = useAsync(
+    () => (oversees ? bookingService.getPendingRequests() : bookingService.getUserRequests(profile.id)),
+    [profile.id, oversees],
+  );
+
   const groups = useMemo(() => {
     const all = bookings.data ?? [];
+    const allReqs = requests.data ?? [];
     const now = Date.now();
     const started = (b: BookingWithPeople) =>
       slotStartsAt(b.booking_date, b.start_time.slice(0, 5)).getTime() <= now;
@@ -44,8 +50,9 @@ export function MyBookingsPage() {
         .sort((a, b) => a.booking_date.localeCompare(b.booking_date)),
       past: all.filter((b) => b.status !== 'CANCELLED' && started(b)),
       cancelled: all.filter((b) => b.status === 'CANCELLED'),
+      requests: allReqs.filter((r) => r.status === 'PENDING' || r.status === 'REJECTED'),
     };
-  }, [bookings.data]);
+  }, [bookings.data, requests.data]);
 
   const cancel = async (booking: BookingWithPeople) => {
     setBusyId(booking.id);
@@ -56,6 +63,57 @@ export function MyBookingsPage() {
       setNotice(`${booking.reference} cancelled. The slot is free for someone else.`);
       setCancelReason('');
       await bookings.reload();
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const cancelRequest = async (request: StudioBookingRequestRow) => {
+    setBusyId(request.id);
+    setError(null);
+    setNotice(null);
+    try {
+      await bookingService.cancelRequest(request.id, profile.id);
+      setNotice(`Request cancelled.`);
+      await requests.reload();
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const approveRequest = async (request: StudioBookingRequestRow) => {
+    setBusyId(request.id);
+    setError(null);
+    setNotice(null);
+    try {
+      await bookingService.approveRequest(request.id, profile.id);
+      setNotice(`Request approved and booking confirmed.`);
+      await requests.reload();
+      await bookings.reload();
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const rejectRequest = async (request: StudioBookingRequestRow) => {
+    if (!cancelReason) {
+      setError('Please provide a reason for rejecting the request.');
+      return;
+    }
+    setBusyId(request.id);
+    setError(null);
+    setNotice(null);
+    try {
+      await bookingService.rejectRequest(request.id, profile.id, cancelReason);
+      setNotice(`Request rejected.`);
+      setCancelReason('');
+      await requests.reload();
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -100,7 +158,7 @@ export function MyBookingsPage() {
       <Banner kind="success">{notice}</Banner>
 
       <div className="tabs" role="tablist" aria-label="Booking groups">
-        {(['upcoming', 'past', 'cancelled'] as Tab[]).map((key) => (
+        {(['upcoming', 'requests', 'past', 'cancelled'] as Tab[]).map((key) => (
           <button
             key={key}
             role="tab"
@@ -126,6 +184,8 @@ export function MyBookingsPage() {
               <>
                 Nothing booked yet. <Link to="/studio">Pick a studio slot</Link> to get started.
               </>
+            ) : tab === 'requests' ? (
+              'No pending or rejected requests.'
             ) : tab === 'past' ? (
               'No past sessions yet.'
             ) : (
@@ -135,53 +195,59 @@ export function MyBookingsPage() {
         </section>
       ) : (
         <div className="booking-list">
-          {list.map((booking) => {
-            const open = openId === booking.id;
-            const startsAt = slotStartsAt(booking.booking_date, booking.start_time.slice(0, 5));
-            // Available as soon as the booking exists: an RJ may have recorded
-            // before the slot, and waiting for the clock only gets in the way.
-            const canUpload = booking.status !== 'CANCELLED';
+          {list.map((item: any) => {
+            const isRequest = item.status === 'PENDING' || item.status === 'REJECTED';
+            const booking = item as BookingWithPeople;
+            const request = item as (StudioBookingRequestRow & { program?: { name: string } });
+            
+            const open = openId === item.id;
+            const startsAt = slotStartsAt(item.booking_date, item.start_time.slice(0, 5));
+            const canUpload = !isRequest && booking.status !== 'CANCELLED';
             const cancellable =
+              !isRequest &&
               booking.status === 'CONFIRMED' &&
               (startsAt.getTime() > Date.now() || oversees) &&
               (booking.rj_id === profile.id || oversees);
 
             return (
-              <article key={booking.id} className={`booking-card ${getUnifiedStatusClass({ booking, episode: booking.episode })}`}>
+              <article key={item.id} className={`booking-card ${isRequest ? '' : getUnifiedStatusClass({ booking, episode: booking.episode })}`}>
                 <div className="booking-main">
                   <div className="booking-when">
                     <span className="booking-date">
-                      {formatBookingDate(booking.booking_date, { short: true })}
+                      {formatBookingDate(item.booking_date, { short: true })}
                     </span>
                     <span className="booking-time">
-                      {formatSlotTime(booking.start_time.slice(0, 5))} &ndash;{' '}
-                      {formatSlotTime(booking.end_time.slice(0, 5))}
+                      {formatSlotTime(item.start_time.slice(0, 5))} &ndash;{' '}
+                      {formatSlotTime(item.end_time.slice(0, 5))}
                     </span>
                   </div>
 
                   <div className="booking-what">
-                    <h3 className="booking-show">{booking.program?.name ?? 'Unknown Show'}</h3>
+                    <h3 className="booking-show">{isRequest ? (request.program?.name ?? 'Unknown Show') : (booking.program?.name ?? 'Unknown Show')}</h3>
                     <p className="booking-meta">
-                      <span className="booking-ref">{booking.reference}</span>
-                      <span className="dot">&middot;</span>
-                      {booking.language.charAt(0) + booking.language.slice(1).toLowerCase()}
-                      {oversees && booking.rj && (
+                      {!isRequest && <span className="booking-ref">{booking.reference}</span>}
+                      {!isRequest && <span className="dot">&middot;</span>}
+                      {item.language.charAt(0) + item.language.slice(1).toLowerCase()}
+                      {oversees && (isRequest ? request.user : booking.rj) && (
                         <>
                           <span className="dot">&middot;</span>
-                          {booking.rj.full_name}
+                          {isRequest ? request.user?.full_name : booking.rj?.full_name}
                         </>
                       )}
                     </p>
                   </div>
 
                   <div className="booking-side">
-                    <UnifiedStatusBadge booking={booking} episode={booking.episode} />
-                    {booking.origin === 'ADMIN_OVERRIDE' && (
+                    {isRequest ? (
+                      <span className={`badge ${request.status === 'PENDING' ? 'badge-amber' : 'badge-red'}`}>
+                        {request.status === 'PENDING' ? 'Pending Approval' : 'Rejected'}
+                      </span>
+                    ) : (
+                      <UnifiedStatusBadge booking={booking} episode={booking.episode} />
+                    )}
+                    {!isRequest && booking.origin === 'ADMIN_OVERRIDE' && (
                       <span className="badge badge-amber">Override</span>
                     )}
-                    {/* The upload is the whole point of the page once a session
-                        has happened, so it sits on the card rather than behind
-                        the Details toggle. */}
                     {canUpload && booking.rj_id === profile.id && (
                       booking.episode_id ? (
                         <Link
@@ -205,7 +271,7 @@ export function MyBookingsPage() {
                       type="button"
                       className="btn btn-ghost small"
                       aria-expanded={open}
-                      onClick={() => setOpenId(open ? null : booking.id)}
+                      onClick={() => setOpenId(open ? null : item.id)}
                     >
                       {open ? 'Hide' : 'Details'}
                     </button>
@@ -215,44 +281,101 @@ export function MyBookingsPage() {
                 {open && (
                   <div className="booking-detail">
                     <dl className="review">
-                      <Detail label="Reference" value={booking.reference} />
-                      <Detail label="Date" value={formatBookingDate(booking.booking_date)} />
+                      {!isRequest && <Detail label="Reference" value={booking.reference} />}
+                      <Detail label="Date" value={formatBookingDate(item.booking_date)} />
                       <Detail
                         label="Time"
-                        value={`${formatSlotTime(booking.start_time.slice(0, 5))} – ${formatSlotTime(
-                          booking.end_time.slice(0, 5),
+                        value={`${formatSlotTime(item.start_time.slice(0, 5))} – ${formatSlotTime(
+                          item.end_time.slice(0, 5),
                         )} (30 min)`}
                       />
                       <div className="review-row">
                         <dt>Status</dt>
-                        <dd><UnifiedStatusBadge booking={booking} episode={booking.episode} /></dd>
+                        <dd>
+                          {isRequest ? (
+                            <span className={`badge ${request.status === 'PENDING' ? 'badge-amber' : 'badge-red'}`}>
+                              {request.status === 'PENDING' ? 'Pending Approval' : 'Rejected'}
+                            </span>
+                          ) : (
+                            <UnifiedStatusBadge booking={booking} episode={booking.episode} />
+                          )}
+                        </dd>
                       </div>
                       <Detail
                         label="Editor"
                         value={
-                          booking.self_edit
+                          item.self_edit
                             ? 'Editing it themselves'
-                            : (booking.editor?.full_name ?? 'Not assigned yet')
+                            : (!isRequest && booking.editor?.full_name ? booking.editor.full_name : 'Not assigned yet')
                         }
                       />
                       <Detail
                         label="Script"
                         value={
-                          booking.script_status === 'YES'
-                            ? `Approved${booking.script_approver ? ` by ${booking.script_approver}` : ''}`
-                            : booking.script_status === 'PENDING'
+                          item.script_status === 'YES'
+                            ? `Approved${item.script_approver ? ` by ${item.script_approver}` : ''}`
+                            : item.script_status === 'PENDING'
                               ? 'Pending approval'
                               : 'Not approved'
                         }
                       />
-                      {booking.notes && <Detail label="Notes" value={booking.notes} />}
-                      {booking.override_reason && (
+                      {item.notes && <Detail label="Notes" value={item.notes} />}
+                      {!isRequest && booking.override_reason && (
                         <Detail label="Override reason" value={booking.override_reason} />
                       )}
-                      <Detail label="Created" value={formatDateTime(booking.created_at)} />
+                      {isRequest && request.rejection_reason && (
+                        <Detail label="Reason" value={request.rejection_reason} />
+                      )}
+                      <Detail label="Created" value={formatDateTime(item.created_at)} />
                     </dl>
 
-                    {cancellable ? (
+                    {isRequest && request.status === 'PENDING' ? (
+                      oversees ? (
+                        <div className="stack" style={{ gap: '0.8rem', marginTop: '1.2rem' }}>
+                          <div>
+                            <label htmlFor={`reject-reason-${request.id}`} className="visually-hidden">Rejection reason (required for rejection)</label>
+                            <input 
+                              id={`reject-reason-${request.id}`}
+                              type="text" 
+                              className="text-input" 
+                              placeholder="Reason for rejection (required to reject)" 
+                              value={cancelReason}
+                              onChange={(e) => setCancelReason(e.target.value)}
+                              style={{ width: '100%', padding: '0.62rem 0.7rem', borderRadius: 'var(--r-md)', border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)' }}
+                            />
+                          </div>
+                          <div className="dialog-actions">
+                            <ConfirmButton
+                              className="small danger"
+                              confirmLabel="Reject request?"
+                              disabled={busyId === request.id}
+                              onConfirm={() => void rejectRequest(request)}
+                            >
+                              {busyId === request.id ? 'Rejecting…' : 'Reject'}
+                            </ConfirmButton>
+                            <button 
+                              type="button" 
+                              className="btn btn-solid small" 
+                              disabled={busyId === request.id}
+                              onClick={() => void approveRequest(request)}
+                            >
+                              {busyId === request.id ? 'Approving…' : 'Approve'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="dialog-actions" style={{ marginTop: '1.2rem' }}>
+                          <ConfirmButton
+                            className="small danger"
+                            confirmLabel="Cancel request?"
+                            disabled={busyId === request.id}
+                            onConfirm={() => void cancelRequest(request)}
+                          >
+                            {busyId === request.id ? 'Cancelling…' : 'Cancel request'}
+                          </ConfirmButton>
+                        </div>
+                      )
+                    ) : cancellable ? (
                       <div className="stack" style={{ gap: '0.8rem', marginTop: '1.2rem' }}>
                         <div>
                           <label htmlFor={`cancel-reason-${booking.id}`} className="visually-hidden">Cancellation reason (optional)</label>
@@ -277,11 +400,11 @@ export function MyBookingsPage() {
                           </ConfirmButton>
                         </div>
                       </div>
-                    ) : booking.status === 'CONFIRMED' ? (
+                    ) : !isRequest && booking.status === 'CONFIRMED' ? (
                       <p className="small muted">
                         This booking has already started and can no longer be cancelled from here.
                       </p>
-                    ) : booking.status === 'CANCELLED' && oversees ? (
+                    ) : !isRequest && booking.status === 'CANCELLED' && oversees ? (
                       <div className="dialog-actions" style={{ marginTop: '1.2rem' }}>
                         <ConfirmButton
                           className="small"

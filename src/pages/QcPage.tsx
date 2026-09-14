@@ -129,7 +129,7 @@ export function QcPage() {
                     {episode.program?.name} &middot; Host{' '}
                     {episode.host_name ?? episode.assignee?.full_name ?? '--'} &middot; Submitted{' '}
                     {formatDateTime(episode.submitted_at)} &middot;{' '}
-                    {formatDuration(episode.audio_file?.duration_seconds)}
+                    {formatDuration(episode.final_audio_file?.duration_seconds)}
                   </p>
                 </div>
                 <button
@@ -145,7 +145,8 @@ export function QcPage() {
               </div>
 
               {episode.description && <p className="small">{episode.description}</p>}
-              <AudioPlayer storagePath={episode.audio_file?.storage_path} />
+              <p className="small muted" style={{ marginTop: '0.5rem', marginBottom: '0.2rem' }}>Final Audio for QC</p>
+              <AudioPlayer storagePath={episode.final_audio_file?.storage_path} />
 
               {open && (
                 <div style={{ marginTop: '0.9rem' }}>

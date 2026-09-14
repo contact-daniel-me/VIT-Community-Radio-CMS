@@ -277,7 +277,7 @@ export function EpisodeDetailPage() {
             <div className="stack" style={{ gap: '1.5rem' }}>
               <div>
                 <h3 className="row" style={{ gap: '0.5rem', marginBottom: '0.5rem' }}>
-                  <span className="badge badge-orange">Raw Audio</span>
+                  <span className="badge badge-orange">{isReviewer ? 'Raw Audio — Reference Only' : 'Raw Audio'}</span>
                   {ep.audio_file && !ep.audio_file.deleted_at && (
                     <span className="small muted font-normal">
                       {formatDuration(ep.audio_file.duration_seconds)} &middot; {formatFileSize(ep.audio_file.file_size)}
@@ -417,7 +417,7 @@ export function EpisodeDetailPage() {
             <section className="card">
               <h2>QC review</h2>
               <p className="small muted">
-                Listen to the audio above, then approve it for scheduling or send it back with a
+                Listen to the <strong>Final Audio</strong> above, then approve it for scheduling or send it back with a
                 reason.
               </p>
               <div className="actions-row">
@@ -485,7 +485,7 @@ export function EpisodeDetailPage() {
                 <button
                   type="button"
                   className="primary"
-                  disabled={busy || (needsAudio && !ep.audio_file_id)}
+                  disabled={busy || (needsAudio && !ep.final_audio_file_id)}
                   onClick={() =>
                     void run(() => episodeService.submitForQC(ep.id), 'Sent to the QC queue.')
                   }
@@ -549,9 +549,9 @@ export function EpisodeDetailPage() {
               )}
             </div>
 
-            {needsAudio && !ep.audio_file_id && editable && (
+            {needsAudio && !ep.final_audio_file_id && editable && (
               <p className="small muted" style={{ marginTop: '0.5rem' }}>
-                Upload the audio before submitting for QC.
+                Upload the final edited audio before submitting for QC.
               </p>
             )}
           </section>

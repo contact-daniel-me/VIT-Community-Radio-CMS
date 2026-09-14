@@ -116,8 +116,9 @@ export const scheduleService = {
   },
 
   async deleteSchedule(id: string): Promise<void> {
-    const { error } = await supabase.from('schedules').delete().eq('id', id);
+    const { count, error } = await supabase.from('schedules').delete({ count: 'exact' }).eq('id', id);
     if (error) throw new Error(error.message);
+    if (count === 0) throw new Error('You do not have permission to delete this schedule, or it does not exist.');
   },
 
   /**

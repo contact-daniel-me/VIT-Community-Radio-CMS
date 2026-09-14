@@ -293,6 +293,7 @@ export function EpisodesPage() {
                       />
                     </th>
                   )}
+                  <th>Episode ID</th>
                   <th>Episode</th>
                   <th>Program</th>
                   <th>Host</th>
@@ -319,6 +320,9 @@ export function EpisodesPage() {
                         />
                       </td>
                     )}
+                    <td>
+                      <span style={{ fontFamily: 'monospace', opacity: 0.8, fontSize: '0.9em', letterSpacing: '0.5px' }}>{episode.episode_id}</span>
+                    </td>
                     <td>
                       <Link to={`/admin/episodes/${episode.id}`}>{episode.title}</Link>
                       {episode.episode_number && (

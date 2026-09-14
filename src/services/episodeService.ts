@@ -54,7 +54,10 @@ export const episodeService = {
     if (filters.mineOnly) {
       query = query.or(`created_by.eq.${filters.mineOnly},assigned_rj.eq.${filters.mineOnly}`);
     }
-    if (filters.search?.trim()) query = query.ilike('title', `%${filters.search.trim()}%`);
+    if (filters.search?.trim()) {
+      const term = filters.search.trim();
+      query = query.or(`title.ilike.%${term}%,episode_id.ilike.%${term}%`);
+    }
     if (filters.limit) query = query.limit(filters.limit);
 
     return unwrap(query.returns<EpisodeWithRelations[]>());

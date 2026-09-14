@@ -149,12 +149,15 @@ export function EpisodeDetailPage() {
           ep.episode_number ? ` · Episode ${ep.episode_number}` : ''
         }`}
         actions={
-          <>
+          <div className="row align-center" style={{ gap: '0.75rem' }}>
+            <span style={{ fontFamily: 'monospace', opacity: 0.8, fontSize: '0.9em', letterSpacing: '0.5px', background: 'var(--surface-sunken)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+              {ep.episode_id}
+            </span>
             <UnifiedStatusBadge episode={ep} />
             <button type="button" className="small" onClick={() => navigate('/admin/episodes')}>
               Back to episodes
             </button>
-          </>
+          </div>
         }
       />
 

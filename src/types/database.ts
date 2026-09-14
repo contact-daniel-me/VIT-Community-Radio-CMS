@@ -168,6 +168,7 @@ export type ProgramRow = {
 
 export type EpisodeRow = {
   id: string;
+  episode_id: string;
   program_id: string;
   title: string;
   description: string | null;

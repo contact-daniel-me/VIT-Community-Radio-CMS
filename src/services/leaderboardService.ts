@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { 
   badgeService, 
+  type ComputedBadge
 } from '@/services/badgeService';
 
 export type LeaderboardFilter = 'all' | 'month' | 'week';
@@ -17,6 +18,8 @@ export interface LeaderboardEntry {
   levelTitle: string;
   levelPct: number;
   nextLevelXp: number | null;
+  streak: number;
+  badges: ComputedBadge[];
 }
 
 const FALLBACK_XP_RULES: Record<string, number> = {
@@ -56,7 +59,7 @@ export const leaderboardService = {
       { data: overridesData }
     ] = await Promise.all([
       supabase.from('profiles').select('id, full_name').eq('active', true).neq('role', 'ADMIN'),
-      supabase.from('episodes').select('created_by, status, submitted_at').not('created_by', 'is', null),
+      supabase.from('episodes').select('created_by, status, submitted_at, created_at, reviewed_at').not('created_by', 'is', null),
       supabase.from('studio_bookings').select('rj_id, created_at').neq('status', 'CANCELLED').not('rj_id', 'is', null),
       supabase.from('gamification_xp_rules').select('action, xp_reward').eq('active', true),
       badgeService.getBadgeDefinitions(),
@@ -85,15 +88,26 @@ export const leaderboardService = {
     }
 
     // Aggregate counts per user, applying date filter
-    const userEpisodes: Record<string, { total: number; approved: number; submitted: number }> = {};
-    const userBookings: Record<string, number> = {};
+    const userEpisodes: Record<string, { total: number; approved: number; submitted: number; firstCreated: string | null; firstApproved: string | null; dates: string[] }> = {};
+    const userBookings: Record<string, { total: number; firstCreated: string | null; dates: string[] }> = {};
 
     for (const ep of episodeRows) {
       const uid = ep.created_by;
       if (!uid) continue;
-      if (!userEpisodes[uid]) userEpisodes[uid] = { total: 0, approved: 0, submitted: 0 };
+      if (!userEpisodes[uid]) userEpisodes[uid] = { total: 0, approved: 0, submitted: 0, firstCreated: null, firstApproved: null, dates: [] };
       userEpisodes[uid].total++;
-      if (ep.status === 'APPROVED') userEpisodes[uid].approved++;
+      if (ep.created_at) {
+        userEpisodes[uid].dates.push(ep.created_at);
+        if (!userEpisodes[uid].firstCreated || new Date(ep.created_at) < new Date(userEpisodes[uid].firstCreated!)) {
+          userEpisodes[uid].firstCreated = ep.created_at;
+        }
+      }
+      if (ep.status === 'APPROVED') {
+        userEpisodes[uid].approved++;
+        if (ep.reviewed_at && (!userEpisodes[uid].firstApproved || new Date(ep.reviewed_at) < new Date(userEpisodes[uid].firstApproved!))) {
+          userEpisodes[uid].firstApproved = ep.reviewed_at;
+        }
+      }
       if (ep.submitted_at) userEpisodes[uid].submitted++;
     }
 
@@ -101,42 +115,76 @@ export const leaderboardService = {
       const uid = bk.rj_id;
       if (!uid) continue;
       if (since && bk.created_at < since) continue;
-      userBookings[uid] = (userBookings[uid] ?? 0) + 1;
+      if (!userBookings[uid]) userBookings[uid] = { total: 0, firstCreated: null, dates: [] };
+      userBookings[uid].total++;
+      if (bk.created_at) {
+        userBookings[uid].dates.push(bk.created_at);
+        if (!userBookings[uid].firstCreated || new Date(bk.created_at) < new Date(userBookings[uid].firstCreated!)) {
+          userBookings[uid].firstCreated = bk.created_at;
+        }
+      }
     }
 
     // Fetch dynamic levels
     const levels = await badgeService.getLevels();
 
+    // Helper for streaks
+    const computeConsecutiveWeeks = (dates: string[]): number => {
+      if (dates.length === 0) return 0;
+      const weeks = new Set(
+        dates.map((d) => {
+          const date = new Date(d);
+          const startOfWeek = new Date(date);
+          startOfWeek.setDate(date.getDate() - date.getDay());
+          return startOfWeek.toISOString().split('T')[0];
+        }),
+      );
+      const sorted = Array.from(weeks).sort().reverse();
+      if (sorted.length === 0) return 0;
+      let streak = 1;
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = new Date(sorted[i - 1]);
+        const curr = new Date(sorted[i]);
+        const diff = (prev.getTime() - curr.getTime()) / (7 * 24 * 60 * 60 * 1000);
+        if (Math.abs(diff - 1) < 0.1) streak++;
+        else break;
+      }
+      return streak;
+    };
+
     // Build leaderboard entries
     const entries: LeaderboardEntry[] = profiles.map((p) => {
-      const ep = userEpisodes[p.id] ?? { total: 0, approved: 0, submitted: 0 };
-      const bk = userBookings[p.id] ?? 0;
+      const ep = userEpisodes[p.id] ?? { total: 0, approved: 0, submitted: 0, firstCreated: null, firstApproved: null, dates: [] };
+      const bk = userBookings[p.id] ?? { total: 0, firstCreated: null, dates: [] };
 
       // XP from activities
       const activityXp =
         ep.total * (xpRules['EPISODE_CREATE'] || 0) +
         ep.approved * (xpRules['EPISODE_QC_APPROVE'] || 0) +
         ep.submitted * (xpRules['EPISODE_QC_SUBMIT'] || 0) +
-        bk * (xpRules['STUDIO_BOOKING'] || 0);
+        bk.total * (xpRules['STUDIO_BOOKING'] || 0);
 
-      // Count unlocked badges by checking thresholds against dynamic badge definitions
-      const badgeCount = badgeDefinitions.filter((def) => {
-        if (def.metric === 'episodeCount') return ep.total >= def.threshold;
-        if (def.metric === 'approvedCount') return ep.approved >= def.threshold;
-        if (def.metric === 'submittedCount') return ep.submitted >= def.threshold;
-        if (def.metric === 'bookingCount') return bk >= def.threshold;
-        return false;
-      }).length;
+      // Compute ComputedBadge[] 
+      const computedBadges = badgeDefinitions.map((def) => {
+        let current = 0;
+        let unlockedAt: string | null = null;
+        if (def.metric === 'episodeCount') { current = ep.total; unlockedAt = ep.firstCreated; }
+        else if (def.metric === 'approvedCount') { current = ep.approved; unlockedAt = ep.firstApproved; }
+        else if (def.metric === 'submittedCount') { current = ep.submitted; unlockedAt = ep.firstCreated; }
+        else if (def.metric === 'bookingCount') { current = bk.total; unlockedAt = bk.firstCreated; }
+        
+        const almostAt = def.almostThreshold ?? Math.max(1, Math.floor(def.threshold * 0.8));
+        let state: 'locked' | 'almost' | 'unlocked' = 'locked';
+        if (current >= def.threshold) state = 'unlocked';
+        else if (current >= almostAt) state = 'almost';
+        
+        return { ...def, state, current, unlockedAt: state === 'unlocked' ? unlockedAt : null };
+      });
 
-      const badgeXpTotal = badgeDefinitions
-        .filter((def) => {
-          if (def.metric === 'episodeCount') return ep.total >= def.threshold;
-          if (def.metric === 'approvedCount') return ep.approved >= def.threshold;
-          if (def.metric === 'submittedCount') return ep.submitted >= def.threshold;
-          if (def.metric === 'bookingCount') return bk >= def.threshold;
-          return false;
-        })
-        .reduce((sum, def) => sum + def.xp, 0);
+      const badgeCount = computedBadges.filter(b => b.state === 'unlocked').length;
+      const badgeXpTotal = computedBadges.filter(b => b.state === 'unlocked').reduce((sum, b) => sum + b.xp, 0);
+
+      const streak = computeConsecutiveWeeks([...ep.dates, ...bk.dates]);
 
       const manualAdjustment = overrides[p.id] ?? 0;
       const totalXp = Math.max(0, activityXp + badgeXpTotal + manualAdjustment);
@@ -160,11 +208,13 @@ export const leaderboardService = {
         badgeCount,
         episodeCount: ep.total,
         approvedCount: ep.approved,
-        bookingCount: bk,
+        bookingCount: bk.total,
         level: current.level,
         levelTitle: current.title,
         levelPct,
         nextLevelXp: next?.minXp ?? null,
+        streak,
+        badges: computedBadges as any,
       };
     });
 

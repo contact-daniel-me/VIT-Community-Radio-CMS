@@ -25,16 +25,19 @@ export function UserGamificationTable() {
 
   return (
     <div className="admin-gamification-users">
-      <div className="admin-controls" style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem' }}>
-        <input 
-          type="text" 
-          placeholder="Search users by name..." 
-          className="admin-input" 
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ width: '300px' }}
-        />
-        {/* Placeholder for more filters if needed */}
+      <div className="table-header-row">
+        <h3 style={{ margin: 0, fontSize: '1.125rem', color: '#0f172a' }}>User Gamification</h3>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <input 
+            type="text" 
+            placeholder="Search users..." 
+            className="admin-input" 
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: '250px' }}
+          />
+          <button className="btn btn-primary btn-sm">View All Users</button>
+        </div>
       </div>
 
       <div className="admin-table-wrap">
@@ -42,40 +45,72 @@ export function UserGamificationTable() {
           <thead>
             <tr>
               <th>User</th>
-              <th>Level</th>
               <th>XP</th>
+              <th>Level</th>
               <th>Badges</th>
-              <th>Rank</th>
+              <th>Streak</th>
+              <th>Progress</th>
+              <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((user, i) => (
-              <tr key={user.userId}>
-                <td>
-                  <strong>{user.name}</strong>
-                </td>
-                <td>
-                  <span className="badge" style={{ background: '#eff6ff', color: '#3b82f6' }}>
-                    Level {user.level}
-                  </span>
-                </td>
-                <td>{user.xp.toLocaleString()} XP</td>
-                <td>{user.badgeCount}</td>
-                <td>#{i + 1}</td>
-                <td>
-                  <button 
-                    className="btn btn-outline btn-sm"
-                    onClick={() => setSelectedUser(user)}
-                  >
-                    Manage
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {filtered.map((user) => {
+              const isActive = user.xp > 0 || user.episodeCount > 0 || user.bookingCount > 0;
+              return (
+                <tr key={user.userId}>
+                  <td>
+                    <div className="user-cell">
+                      <div className="user-avatar">{user.name.charAt(0).toUpperCase()}</div>
+                      <strong>{user.name}</strong>
+                    </div>
+                  </td>
+                  <td>
+                    <span className="xp-val">{user.xp.toLocaleString()}</span> XP
+                  </td>
+                  <td>
+                    <span className="lvl-badge">Level {user.level}</span>
+                  </td>
+                  <td>{user.badgeCount}</td>
+                  <td>
+                    {user.streak > 0 ? (
+                      <div className="streak-cell">
+                        🔥 {user.streak}
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td>
+                    <div className="progress-cell">
+                      <div className="progress-bar-bg">
+                        <div className="progress-bar-fill" style={{ width: `${user.levelPct}%` }}></div>
+                      </div>
+                      <div className="progress-text">{user.levelPct}% to Lvl {user.level + 1}</div>
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                      <span className={`status-dot ${isActive ? 'active' : 'inactive'}`}></span>
+                      <span style={{ fontSize: '0.875rem', color: isActive ? '#15803d' : '#64748b' }}>
+                        {isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </td>
+                  <td>
+                    <button 
+                      className="btn btn-outline btn-sm"
+                      onClick={() => setSelectedUser(user)}
+                    >
+                      Manage
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>No users found.</td>
+                <td colSpan={8} style={{ textAlign: 'center', padding: '2rem' }}>No users found.</td>
               </tr>
             )}
           </tbody>

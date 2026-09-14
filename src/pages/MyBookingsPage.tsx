@@ -136,6 +136,21 @@ export function MyBookingsPage() {
     }
   };
 
+  const permanentlyDelete = async (booking: BookingWithPeople) => {
+    setBusyId(booking.id);
+    setError(null);
+    setNotice(null);
+    try {
+      await bookingService.permanentlyDeleteBooking(booking.id);
+      setNotice(`${booking.reference} has been permanently deleted.`);
+      await bookings.reload();
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const list = groups[tab];
 
   return (
@@ -405,7 +420,7 @@ export function MyBookingsPage() {
                         This booking has already started and can no longer be cancelled from here.
                       </p>
                     ) : !isRequest && booking.status === 'CANCELLED' && oversees ? (
-                      <div className="dialog-actions" style={{ marginTop: '1.2rem' }}>
+                      <div className="dialog-actions" style={{ marginTop: '1.2rem', gap: '0.5rem' }}>
                         <ConfirmButton
                           className="small"
                           confirmLabel="Reapprove this booking?"
@@ -413,6 +428,14 @@ export function MyBookingsPage() {
                           onConfirm={() => void reapprove(booking)}
                         >
                           {busyId === booking.id ? 'Reapproving…' : 'Reapprove booking'}
+                        </ConfirmButton>
+                        <ConfirmButton
+                          className="small danger"
+                          confirmLabel="Delete permanently?"
+                          disabled={busyId === booking.id}
+                          onConfirm={() => void permanentlyDelete(booking)}
+                        >
+                          {busyId === booking.id ? 'Deleting…' : 'Delete permanently'}
                         </ConfirmButton>
                       </div>
                     ) : null}

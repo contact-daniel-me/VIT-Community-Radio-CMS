@@ -28,8 +28,8 @@ export function NextBadgeWidget({ badge }: Props) {
 
         {/* Badge circle background */}
         <div style={{
-          width: 64,
-          height: 64,
+          width: 44,
+          height: 44,
           borderRadius: '50%',
           background: `color-mix(in srgb, ${rarityColor} 12%, transparent)`,
           border: `2px solid ${rarityColor}`,
@@ -40,7 +40,7 @@ export function NextBadgeWidget({ badge }: Props) {
         }}>
           {IconComponent && (
             <IconComponent
-              size={36}
+              size={24}
               style={{ color: rarityColor, filter: 'brightness(0.9)' }}
             />
           )}
@@ -72,7 +72,7 @@ export function NextBadgeWidget({ badge }: Props) {
       {badge.cta && (
         <Link
           to={badge.cta.to}
-          className="btn btn-outline"
+          className="btn btn-outline btn-sm"
           style={{ flexShrink: 0, borderColor: rarityColor, color: rarityColor, whiteSpace: 'nowrap' }}
         >
           {badge.cta.label}

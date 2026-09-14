@@ -33,11 +33,17 @@
 
 .badges-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 1024px) {
+  .badges-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
   .badges-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
@@ -52,22 +58,22 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 1.5rem 1rem 1.25rem;
-  border-radius: var(--r-lg);
-  border: 1.5px solid var(--line);
+  padding: 0.75rem 0.5rem;
+  min-height: 100px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
   background: var(--surface);
   cursor: pointer;
   user-select: none;
   transition: transform 180ms var(--ease), box-shadow 180ms var(--ease), border-color 180ms var(--ease);
   outline: none;
   text-align: center;
-  /* Entrance: will be overridden by stagger animation */
   animation: badge-entrance 0.4s var(--ease) both;
 }
 
 .badge-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px -6px rgba(0,0,0,0.14);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px -4px rgba(0,0,0,0.1);
 }
 
 .badge-card:focus-visible {
@@ -99,18 +105,18 @@
    BADGE CARD — LOCKED STATE
    -------------------------------------------------------------------------- */
 .badge-card.is-locked {
-  background: var(--bg-sunk, #f0eeeb);
+  background: var(--bg-sunk, #f8fafc);
   border-color: var(--line);
-  opacity: 0.85;
+  opacity: 0.65;
 }
 
 .badge-card.is-locked .badge-icon-wrap {
-  animation: badge-float 4s ease-in-out infinite;
+  /* No float animation for locked to reduce visual noise */
 }
 
 .badge-card.is-locked .badge-icon-svg {
   color: var(--ink-faint);
-  filter: grayscale(1) opacity(0.45);
+  filter: grayscale(1);
 }
 
 .badge-card.is-locked .badge-lock-overlay {
@@ -169,9 +175,9 @@
    BADGE CARD — UNLOCKED STATE
    -------------------------------------------------------------------------- */
 .badge-card.is-unlocked {
-  border-color: var(--rarity-color, var(--badge-common));
-  box-shadow: 0 0 0 1px var(--rarity-color),
-              0 4px 16px -4px var(--rarity-glow);
+  border-color: color-mix(in srgb, var(--rarity-color, var(--badge-common)) 40%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--rarity-color, var(--badge-common)) 10%, transparent),
+              0 2px 8px -2px var(--rarity-glow);
   background: var(--surface);
 }
 
@@ -180,7 +186,7 @@
 }
 
 .badge-card.is-unlocked:hover .badge-icon-wrap {
-  animation: badge-shine-hover 0.5s var(--ease) both;
+  transform: scale(1.05);
 }
 
 @keyframes badge-shine-hover {
@@ -194,12 +200,13 @@
    -------------------------------------------------------------------------- */
 .badge-icon-wrap {
   position: relative;
-  width: 72px;
-  height: 72px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
+  transition: transform 150ms var(--ease);
 }
 
 .badge-icon-circle {
@@ -225,13 +232,13 @@
 /* Lock overlay on the icon */
 .badge-lock-overlay {
   position: absolute;
-  bottom: -4px;
-  right: -4px;
+  bottom: -2px;
+  right: -2px;
   background: var(--surface);
-  border: 1.5px solid var(--line);
+  border: 1px solid var(--line);
   border-radius: 50%;
-  width: 22px;
-  height: 22px;
+  width: 14px;
+  height: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -239,38 +246,50 @@
   z-index: 2;
 }
 
+/* Earned checkmark */
+.badge-earned-overlay {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 16px;
+  height: 16px;
+  background: #22c55e;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+
 /* --------------------------------------------------------------------------
    PROGRESS RING (SVG)
    -------------------------------------------------------------------------- */
-.badge-progress-ring-wrap {
-  position: absolute;
-  inset: -4px;
-  pointer-events: none;
-}
-
-.badge-progress-ring-bg {
-  stroke: var(--line);
-  fill: none;
-}
-
 .badge-progress-ring-fill {
-  fill: none;
-  stroke: var(--rarity-color, var(--badge-uncommon));
-  stroke-linecap: round;
-  transition: stroke-dashoffset 0.8s var(--ease);
+  display: none;
+}
+.badge-progress-ring-bg {
+  display: none;
+}
+.badge-progress-ring-wrap {
+  display: none;
 }
 
 /* --------------------------------------------------------------------------
    BADGE TEXT
    -------------------------------------------------------------------------- */
 .badge-name {
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  line-height: 1.2;
-  margin: 0 0 0.25rem;
+  line-height: 1.1;
+  margin: 0;
   color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .is-locked .badge-name {
@@ -278,54 +297,36 @@
 }
 
 .badge-rarity-pip {
-  display: inline-block;
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 0.15em 0.55em;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--rarity-color, var(--badge-common)) 12%, transparent);
-  color: var(--rarity-color, var(--badge-common));
-  border: 1px solid color-mix(in srgb, var(--rarity-color, var(--badge-common)) 30%, transparent);
-  margin-bottom: 0.5rem;
+  display: none;
 }
 
 .badge-progress-text {
-  font-size: 0.72rem;
+  font-size: 0.65rem;
+  font-weight: 500;
   color: var(--ink-muted);
-  margin: 0.25rem 0 0;
+  margin: 0.15rem 0 0;
 }
 
 .badge-progress-bar-wrap {
-  width: 100%;
-  height: 4px;
-  border-radius: 2px;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
   background: var(--line);
-  margin-top: 0.5rem;
   overflow: hidden;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
 }
 
 .badge-progress-bar-fill {
   height: 100%;
-  border-radius: 2px;
   background: var(--rarity-color, var(--badge-common));
   transition: width 0.8s var(--ease);
 }
 
 .badge-almost-label {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--rarity-color, var(--badge-uncommon));
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-top: 0.4rem;
-  animation: almost-pulse-text 2.5s ease-in-out infinite;
-}
-
-@keyframes almost-pulse-text {
-  0%, 100% { opacity: 0.7; }
-  50%       { opacity: 1; }
+  display: none;
 }
 
 .badge-cta-link {
@@ -697,16 +698,15 @@
    NEXT BADGE WIDGET
    -------------------------------------------------------------------------- */
 .next-badge-widget {
-  border-radius: var(--r-lg);
-  border: 1.5px solid var(--rarity-color, var(--badge-uncommon));
+  border-radius: 12px;
+  border: 1px solid var(--rarity-color, var(--badge-uncommon));
   background: var(--surface);
-  padding: 1.5rem;
+  padding: 1rem 1.25rem;
   display: flex;
-  gap: 1.5rem;
+  gap: 1rem;
   align-items: center;
   box-shadow: 0 0 0 1px var(--rarity-color, var(--badge-uncommon)),
-              0 4px 20px -6px var(--rarity-glow, var(--badge-uncommon-glow));
-  animation: widget-breathe 3s ease-in-out infinite;
+              0 2px 10px -4px var(--rarity-glow, var(--badge-uncommon-glow));
 }
 
 @media (max-width: 600px) {
@@ -724,12 +724,11 @@
 .next-badge-icon-wrap {
   flex-shrink: 0;
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: 54px;
+  height: 54px;
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: badge-float 4s ease-in-out infinite;
 }
 
 .next-badge-ring {
@@ -756,24 +755,24 @@
 }
 
 .next-badge-label {
-  font-size: 0.68rem;
+  font-size: 0.6rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-muted);
-  margin: 0 0 0.2rem;
+  margin: 0 0 0.15rem;
 }
 
 .next-badge-name {
-  font-size: 1.2rem;
+  font-size: 1rem;
   font-weight: 800;
-  margin: 0 0 0.25rem;
+  margin: 0 0 0.15rem;
 }
 
 .next-badge-tagline {
-  font-size: 0.82rem;
+  font-size: 0.75rem;
   color: var(--ink-muted);
-  margin: 0 0 0.75rem;
+  margin: 0 0 0.5rem;
 }
 
 .next-badge-bar-wrap {
@@ -886,12 +885,12 @@
    -------------------------------------------------------------------------- */
 .badges-level-bar {
   background: var(--surface);
-  border-radius: var(--r-lg);
-  border: 1.5px solid var(--line);
-  padding: 1.25rem 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  padding: 1rem 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.5rem;
 }
 
 .badges-level-row {
@@ -902,34 +901,34 @@
 }
 
 .badges-level-label {
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.05em;
   color: var(--ink-muted);
 }
 
 .badges-level-title {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: 800;
 }
 
 .badges-xp-amount {
-  font-size: 0.82rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  color: var(--badge-legendary);
+  color: var(--badge-rare);
 }
 
 .badges-level-track {
-  height: 8px;
-  border-radius: 4px;
+  height: 6px;
+  border-radius: 3px;
   background: var(--line);
   overflow: hidden;
 }
 
 .badges-level-fill {
   height: 100%;
-  border-radius: 4px;
+  border-radius: 3px;
   background: linear-gradient(90deg, var(--badge-rare), var(--badge-legendary));
   transition: width 1s var(--ease);
 }

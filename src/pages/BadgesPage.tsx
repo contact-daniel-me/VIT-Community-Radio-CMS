@@ -108,10 +108,16 @@ function UserBadgesView({ profile }: { profile: { id: string; role: string; [key
                 <p className="badges-level-label">Radio Level {levelInfo.level.level}</p>
                 <p className="badges-level-title">{levelInfo.level.title}</p>
               </div>
-              <span className="badges-xp-amount">
-                {totalXp} XP
-                {levelInfo.next && ` · ${levelInfo.next.minXp - totalXp} to next`}
-              </span>
+              <div style={{ textAlign: 'right' }}>
+                <span className="badges-xp-amount">
+                  {totalXp} XP
+                </span>
+                {levelInfo.next && (
+                  <p style={{ fontSize: '0.65rem', color: 'var(--ink-muted)', margin: '0.15rem 0 0' }}>
+                    {levelInfo.next.minXp - totalXp} XP to next level
+                  </p>
+                )}
+              </div>
             </div>
             <div className="badges-level-track">
               <div className="badges-level-fill" style={{ width: `${levelInfo.pct}%` }} />
@@ -129,9 +135,10 @@ function UserBadgesView({ profile }: { profile: { id: string; role: string; [key
           <>
             {unlockedCount > 0 && (
               <section>
-                <h2 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--ink-muted)', marginBottom: '1rem' }}>
-                  🏆 Earned ({unlockedCount})
-                </h2>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--ink-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>Earned</span>
+                  <span style={{ background: '#f1f5f9', color: '#64748b', padding: '0.1rem 0.4rem', borderRadius: '99px', fontSize: '0.6rem' }}>{unlockedCount}</span>
+                </div>
                 <div className="badges-grid">
                   {badges
                     .filter((b) => b.state === 'unlocked')
@@ -149,9 +156,10 @@ function UserBadgesView({ profile }: { profile: { id: string; role: string; [key
 
             {almostCount > 0 && (
               <section>
-                <h2 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--ink-muted)', marginBottom: '1rem' }}>
-                  🎯 Almost There ({almostCount})
-                </h2>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--ink-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>Almost There</span>
+                  <span style={{ background: '#fff7ed', color: '#f97316', padding: '0.1rem 0.4rem', borderRadius: '99px', fontSize: '0.6rem' }}>{almostCount}</span>
+                </div>
                 <div className="badges-grid">
                   {badges
                     .filter((b) => b.state === 'almost')
@@ -168,9 +176,10 @@ function UserBadgesView({ profile }: { profile: { id: string; role: string; [key
             )}
 
             <section>
-              <h2 style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--ink-muted)', marginBottom: '1rem' }}>
-                🔒 Locked ({badges.filter((b) => b.state === 'locked').length})
-              </h2>
+              <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--ink-muted)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span>Locked</span>
+                <span style={{ background: '#f1f5f9', color: '#64748b', padding: '0.1rem 0.4rem', borderRadius: '99px', fontSize: '0.6rem' }}>{badges.filter((b) => b.state === 'locked').length}</span>
+              </div>
               <div className="badges-grid">
                 {badges
                   .filter((b) => b.state === 'locked')

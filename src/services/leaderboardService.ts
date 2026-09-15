@@ -48,28 +48,36 @@ function getDateFilter(filter: LeaderboardFilter): string | null {
 export const leaderboardService = {
   async getLeaderboard(filter: LeaderboardFilter = 'all'): Promise<LeaderboardEntry[]> {
     const since = getDateFilter(filter);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
     // Fetch config and overrides concurrently with profiles and activity
     const [
       { data: profiles },
       { data: episodesRes },
       { data: bookingsRes },
+      { data: schedulesRes },
+      { data: userBadgesRes },
       { data: xpRulesData, error: xpRulesError },
       badgeDefinitions,
       { data: overridesData }
     ] = await Promise.all([
       supabase.from('profiles').select('id, full_name').eq('active', true).neq('role', 'ADMIN'),
-      supabase.from('episodes').select('created_by, status, submitted_at, created_at, reviewed_at').not('created_by', 'is', null),
-      supabase.from('studio_bookings').select('rj_id, created_at').neq('status', 'CANCELLED').not('rj_id', 'is', null),
+      supabase.from('episodes').select('id, created_by, status, submitted_at, created_at, reviewed_at, audio_file_id').not('created_by', 'is', null),
+      supabase.from('studio_bookings').select('id, rj_id, created_at').neq('status', 'CANCELLED').not('rj_id', 'is', null),
+      supabase.from('schedules').select('id, created_by').not('created_by', 'is', null),
+      supabase.from('user_badges').select('user_id, badge_key, earned_at'),
       supabase.from('gamification_xp_rules').select('action, xp_reward').eq('active', true),
       badgeService.getBadgeDefinitions(),
-      supabase.from('user_gamification_adjustments').select('user_id, xp_adjustment')
+      supabase.from('user_gamification_adjustments').select('user_id, xp_adjustment, created_at')
     ]);
 
     if (!profiles) return [];
 
     const episodeRows = episodesRes ?? [];
     const bookingRows = bookingsRes ?? [];
+    const scheduleRows = schedulesRes ?? [];
+    const userBadgeRows = userBadgesRes ?? [];
+    const overrideRows = overridesData ?? [];
     
     // Process XP Rules
     const xpRules: Record<string, number> = {};
@@ -77,52 +85,6 @@ export const leaderboardService = {
       Object.assign(xpRules, FALLBACK_XP_RULES);
     } else if (xpRulesData) {
       xpRulesData.forEach(r => { xpRules[r.action] = r.xp_reward; });
-    }
-
-    // Process Overrides
-    const overrides: Record<string, number> = {};
-    if (overridesData && overridesData.length > 0) {
-      overridesData.forEach(o => {
-        overrides[o.user_id] = (overrides[o.user_id] ?? 0) + o.xp_adjustment;
-      });
-    }
-
-    // Aggregate counts per user, applying date filter
-    const userEpisodes: Record<string, { total: number; approved: number; submitted: number; firstCreated: string | null; firstApproved: string | null; dates: string[] }> = {};
-    const userBookings: Record<string, { total: number; firstCreated: string | null; dates: string[] }> = {};
-
-    for (const ep of episodeRows) {
-      const uid = ep.created_by;
-      if (!uid) continue;
-      if (!userEpisodes[uid]) userEpisodes[uid] = { total: 0, approved: 0, submitted: 0, firstCreated: null, firstApproved: null, dates: [] };
-      userEpisodes[uid].total++;
-      if (ep.created_at) {
-        userEpisodes[uid].dates.push(ep.created_at);
-        if (!userEpisodes[uid].firstCreated || new Date(ep.created_at) < new Date(userEpisodes[uid].firstCreated!)) {
-          userEpisodes[uid].firstCreated = ep.created_at;
-        }
-      }
-      if (ep.status === 'APPROVED') {
-        userEpisodes[uid].approved++;
-        if (ep.reviewed_at && (!userEpisodes[uid].firstApproved || new Date(ep.reviewed_at) < new Date(userEpisodes[uid].firstApproved!))) {
-          userEpisodes[uid].firstApproved = ep.reviewed_at;
-        }
-      }
-      if (ep.submitted_at) userEpisodes[uid].submitted++;
-    }
-
-    for (const bk of bookingRows) {
-      const uid = bk.rj_id;
-      if (!uid) continue;
-      if (since && bk.created_at < since) continue;
-      if (!userBookings[uid]) userBookings[uid] = { total: 0, firstCreated: null, dates: [] };
-      userBookings[uid].total++;
-      if (bk.created_at) {
-        userBookings[uid].dates.push(bk.created_at);
-        if (!userBookings[uid].firstCreated || new Date(bk.created_at) < new Date(userBookings[uid].firstCreated!)) {
-          userBookings[uid].firstCreated = bk.created_at;
-        }
-      }
     }
 
     // Fetch dynamic levels
@@ -154,67 +116,162 @@ export const leaderboardService = {
 
     // Build leaderboard entries
     const entries: LeaderboardEntry[] = profiles.map((p) => {
-      const ep = userEpisodes[p.id] ?? { total: 0, approved: 0, submitted: 0, firstCreated: null, firstApproved: null, dates: [] };
-      const bk = userBookings[p.id] ?? { total: 0, firstCreated: null, dates: [] };
+      const uid = p.id;
+      
+      // All-time stats for Badges and Level
+      let epTotal = 0, epApproved = 0, epSubmitted = 0, epAudio = 0, monthlyApproved = 0;
+      let firstEpCreated: string | null = null;
+      let firstEpApproved: string | null = null;
+      const epDates: string[] = [];
+      
+      // Period stats for XP
+      let periodEpTotal = 0, periodEpApproved = 0, periodEpSubmitted = 0;
 
-      // XP from activities
-      const activityXp =
-        ep.total * (xpRules['EPISODE_CREATE'] || 0) +
-        ep.approved * (xpRules['EPISODE_QC_APPROVE'] || 0) +
-        ep.submitted * (xpRules['EPISODE_QC_SUBMIT'] || 0) +
-        bk.total * (xpRules['STUDIO_BOOKING'] || 0);
+      for (const ep of episodeRows) {
+        if (ep.created_by !== uid) continue;
+        
+        epTotal++;
+        if (ep.created_at) {
+          epDates.push(ep.created_at);
+          if (!firstEpCreated || ep.created_at < firstEpCreated) firstEpCreated = ep.created_at;
+          if (!since || ep.created_at >= since) periodEpTotal++;
+        }
+        
+        if (ep.status === 'APPROVED') {
+          epApproved++;
+          if (ep.reviewed_at) {
+            if (!firstEpApproved || ep.reviewed_at < firstEpApproved) firstEpApproved = ep.reviewed_at;
+            if (ep.reviewed_at >= thirtyDaysAgo) monthlyApproved++;
+            if (!since || ep.reviewed_at >= since) periodEpApproved++;
+          }
+        }
+        
+        if (ep.submitted_at) {
+          epSubmitted++;
+          if (!since || ep.submitted_at >= since) periodEpSubmitted++;
+        }
+        
+        if (ep.audio_file_id) {
+          epAudio++;
+        }
+      }
 
-      // Compute ComputedBadge[] 
+      let bkTotal = 0, periodBkTotal = 0;
+      let firstBkCreated: string | null = null;
+      const bkDates: string[] = [];
+
+      for (const bk of bookingRows) {
+        if (bk.rj_id !== uid) continue;
+        bkTotal++;
+        if (bk.created_at) {
+          bkDates.push(bk.created_at);
+          if (!firstBkCreated || bk.created_at < firstBkCreated) firstBkCreated = bk.created_at;
+          if (!since || bk.created_at >= since) periodBkTotal++;
+        }
+      }
+
+      let schTotal = 0;
+      for (const sch of scheduleRows) {
+        if (sch.created_by !== uid) continue;
+        schTotal++;
+      }
+
+      const explicitBadges = userBadgeRows.filter(b => b.user_id === uid);
+      const streak = computeConsecutiveWeeks([...epDates, ...bkDates]);
+
+      // Calculate Badges (All-Time)
       const computedBadges = badgeDefinitions.map((def) => {
         let current = 0;
         let unlockedAt: string | null = null;
-        if (def.metric === 'episodeCount') { current = ep.total; unlockedAt = ep.firstCreated; }
-        else if (def.metric === 'approvedCount') { current = ep.approved; unlockedAt = ep.firstApproved; }
-        else if (def.metric === 'submittedCount') { current = ep.submitted; unlockedAt = ep.firstCreated; }
-        else if (def.metric === 'bookingCount') { current = bk.total; unlockedAt = bk.firstCreated; }
+        
+        if (def.metric === 'episodeCount') { current = epTotal; unlockedAt = firstEpCreated; }
+        else if (def.metric === 'approvedCount') { current = epApproved; unlockedAt = firstEpApproved; }
+        else if (def.metric === 'submittedCount') { current = epSubmitted; unlockedAt = firstEpCreated; }
+        else if (def.metric === 'bookingCount') { current = bkTotal; unlockedAt = firstBkCreated; }
+        else if (def.metric === 'audioUploadCount') { current = epAudio; unlockedAt = firstEpCreated; }
+        else if (def.metric === 'scheduledCount') { current = schTotal; unlockedAt = firstEpCreated; }
+        else if (def.metric === 'monthlyApproved') { current = monthlyApproved; unlockedAt = new Date().toISOString(); }
+        else if (def.metric === 'consecutiveWeeks') { current = streak; unlockedAt = new Date().toISOString(); }
+
+        const explicit = explicitBadges.find((b) => b.badge_key === def.badge_key || b.badge_key === def.id);
         
         const almostAt = def.almostThreshold ?? Math.max(1, Math.floor(def.threshold * 0.8));
         let state: 'locked' | 'almost' | 'unlocked' = 'locked';
-        if (current >= def.threshold) state = 'unlocked';
-        else if (current >= almostAt) state = 'almost';
+        
+        if (explicit) {
+          state = 'unlocked';
+          unlockedAt = explicit.earned_at;
+          current = Math.max(current, def.threshold);
+        } else {
+          if (current >= def.threshold) state = 'unlocked';
+          else if (current >= almostAt) state = 'almost';
+        }
         
         return { ...def, state, current, unlockedAt: state === 'unlocked' ? unlockedAt : null };
       });
 
       const badgeCount = computedBadges.filter(b => b.state === 'unlocked').length;
-      const badgeXpTotal = computedBadges.filter(b => b.state === 'unlocked').reduce((sum, b) => sum + b.xp, 0);
 
-      const streak = computeConsecutiveWeeks([...ep.dates, ...bk.dates]);
+      // All-Time XP Calculation
+      const allTimeActivityXp =
+        epTotal * (xpRules['EPISODE_CREATE'] || 0) +
+        epApproved * (xpRules['EPISODE_QC_APPROVE'] || 0) +
+        epSubmitted * (xpRules['EPISODE_QC_SUBMIT'] || 0) +
+        bkTotal * (xpRules['STUDIO_BOOKING'] || 0);
 
-      const manualAdjustment = overrides[p.id] ?? 0;
-      const totalXp = Math.max(0, activityXp + badgeXpTotal + manualAdjustment);
+      const allTimeBadgeXp = computedBadges
+        .filter(b => b.state === 'unlocked')
+        .reduce((sum, b) => sum + b.xp, 0);
+
+      const allTimeManualAdjustment = overrideRows
+        .filter(o => o.user_id === uid)
+        .reduce((sum, o) => sum + o.xp_adjustment, 0);
+
+      const allTimeTotalXp = Math.max(0, allTimeActivityXp + allTimeBadgeXp + allTimeManualAdjustment);
+
+      // Period XP Calculation
+      const periodActivityXp =
+        periodEpTotal * (xpRules['EPISODE_CREATE'] || 0) +
+        periodEpApproved * (xpRules['EPISODE_QC_APPROVE'] || 0) +
+        periodEpSubmitted * (xpRules['EPISODE_QC_SUBMIT'] || 0) +
+        periodBkTotal * (xpRules['STUDIO_BOOKING'] || 0);
+
+      const periodBadgeXp = computedBadges
+        .filter(b => b.state === 'unlocked' && (!since || (b.unlockedAt && b.unlockedAt >= since)))
+        .reduce((sum, b) => sum + b.xp, 0);
+
+      const periodManualAdjustment = overrideRows
+        .filter(o => o.user_id === uid && (!since || (o.created_at && o.created_at >= since)))
+        .reduce((sum, o) => sum + o.xp_adjustment, 0);
+
+      const periodTotalXp = Math.max(0, periodActivityXp + periodBadgeXp + periodManualAdjustment);
       
-      // Calculate level
-      let current = levels[0];
+      // Calculate level based on ALL-TIME XP
+      let currentLevel = levels[0];
       for (const lvl of levels) {
-        if (totalXp >= lvl.minXp) current = lvl;
+        if (allTimeTotalXp >= lvl.minXp) currentLevel = lvl;
         else break;
       }
-      const idx = levels.indexOf(current);
-      const next = levels[idx + 1] ?? null;
-      const progressInLevel = totalXp - current.minXp;
-      const rangeInLevel = next ? next.minXp - current.minXp : 1;
+      const idx = levels.indexOf(currentLevel);
+      const nextLevel = levels[idx + 1] ?? null;
+      const progressInLevel = allTimeTotalXp - currentLevel.minXp;
+      const rangeInLevel = nextLevel ? nextLevel.minXp - currentLevel.minXp : 1;
       const levelPct = Math.min(100, Math.round((progressInLevel / rangeInLevel) * 100));
 
       return {
         userId: p.id,
         name: p.full_name,
-        xp: totalXp,
+        xp: periodTotalXp, // Use period XP for leaderboard ranking
         badgeCount,
-        episodeCount: ep.total,
-        approvedCount: ep.approved,
-        bookingCount: bk.total,
-        level: current.level,
-        levelTitle: current.title,
+        episodeCount: epTotal, // Keep all-time counts for display
+        approvedCount: epApproved,
+        bookingCount: bkTotal,
+        level: currentLevel.level,
+        levelTitle: currentLevel.title,
         levelPct,
-        nextLevelXp: next?.minXp ?? null,
+        nextLevelXp: nextLevel?.minXp ?? null,
         streak,
-        badges: computedBadges as any,
+        badges: computedBadges as ComputedBadge[],
       };
     });
 

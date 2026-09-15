@@ -85,7 +85,6 @@ export function UsersPage() {
     <>
       <PageHeader
         title="Users"
-        description="Roles decide what each person can do. The database enforces them, not the interface."
         actions={
           <input 
             type="search" 
@@ -105,12 +104,6 @@ export function UsersPage() {
           </strong>{' '}
           {pending.map((u) => u.full_name).join(', ')} registered and cannot see anything until
           you activate them. Set the right role first, then press Activate.
-        </Banner>
-      ) : (
-        <Banner kind="info">
-          People request access from the public homepage, or you can create them directly in
-          Supabase Auth. Either way the account starts inactive and appears here for approval,
-          as a Radio Jockey until you change the role.
         </Banner>
       )}
 

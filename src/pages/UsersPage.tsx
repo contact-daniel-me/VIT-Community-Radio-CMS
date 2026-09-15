@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { Banner, ConfirmButton, Loading, PageHeader } from '@/components/ui';
@@ -97,7 +97,7 @@ export function UsersPage() {
 
       <Banner>{error}</Banner>
       <Banner kind="success">{notice}</Banner>
-      {pending.length > 0 ? (
+      {pending.length > 0 && (
         <Banner kind="info">
           <strong>
             {pending.length} access request{pending.length === 1 ? '' : 's'} waiting.

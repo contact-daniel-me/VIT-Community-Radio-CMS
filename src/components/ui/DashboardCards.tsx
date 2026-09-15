@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-export function MetricCard({ title, value, status, icon }: { title: string; value: number | string; status?: 'booked' | 'approved' | 'audio' | 'final' | 'qc' | 'total'; icon?: React.ReactNode }) {
+export function MetricCard({ title, value, status, icon, to }: { title: string; value: number | string; status?: 'booked' | 'approved' | 'audio' | 'final' | 'qc' | 'total'; icon?: React.ReactNode; to?: string }) {
   let statusClass = 'metric-blue';
   if (status === 'booked') statusClass = 'metric-blue'; // Today's slots
   if (status === 'approved') statusClass = 'metric-orange'; // Pending QC
@@ -10,13 +10,30 @@ export function MetricCard({ title, value, status, icon }: { title: string; valu
   if (status === 'qc') statusClass = 'metric-green';
   if (status === 'total') statusClass = 'metric-purple';
 
-  return (
-    <div className={`card fade-in hover-raise ${statusClass}`} style={{ padding: '1.25rem', flex: 1, minWidth: '160px', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+  const content = (
+    <>
       {icon && <div className="icon-box">{icon}</div>}
       <div>
         <div style={{ fontSize: '2rem', fontWeight: 'bold', lineHeight: 1 }}>{value}</div>
         <div className="uppercase" style={{ fontWeight: 600, letterSpacing: '0.5px', fontSize: '0.75rem', marginTop: '0.25rem', opacity: 0.9 }}>{title}</div>
       </div>
+    </>
+  );
+
+  const className = `card fade-in hover-raise ${statusClass}`;
+  const style: React.CSSProperties = { padding: '1.25rem', flex: 1, minWidth: '160px', display: 'flex', gap: '1rem', alignItems: 'center', textDecoration: 'none', color: 'inherit' };
+
+  if (to) {
+    return (
+      <Link to={to} className={className} style={style}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className={className} style={style}>
+      {content}
     </div>
   );
 }

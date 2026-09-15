@@ -127,14 +127,14 @@ export function DashboardPage() {
 
       {/* 1. METRICS ROW */}
       <section className="row wrap spread" style={{ gap: '1rem', marginBottom: '2rem' }}>
-        <MetricCard title="Today's Slots" value={metrics.todays_slots} status="booked" icon={<CalendarIcon />} />
+        <MetricCard title="Today's Slots" value={metrics.todays_slots} status="booked" icon={<CalendarIcon />} to="/bookings" />
         {can.manageProgram(profile.role) && (
-          <MetricCard title="Pending Requests" value={pendingRequests.length} status="qc" icon={<ClockIcon />} />
+          <MetricCard title="Pending Requests" value={pendingRequests.length} status="qc" icon={<ClockIcon />} to="/bookings" />
         )}
-        <MetricCard title="Pending QC" value={metrics.pending_qc} status="approved" icon={<ClockIcon />} />
-        <MetricCard title="Final Upload" value={metrics.pipeline.final_upload} status="final" icon={<CloudUploadIcon />} />
-        <MetricCard title="QC Done" value={metrics.pipeline.qc_done} status="qc" icon={<CheckCircleIcon />} />
-        <MetricCard title="Total Episodes" value={totalEpisodes} status="total" icon={<PodcastIcon />} />
+        <MetricCard title="Pending QC" value={metrics.pending_qc} status="approved" icon={<ClockIcon />} to={can.reviewQC(profile.role) ? "/qc" : "/admin/episodes"} />
+        <MetricCard title="Final Upload" value={metrics.pipeline.final_upload} status="final" icon={<CloudUploadIcon />} to="/admin/episodes" />
+        <MetricCard title="QC Done" value={metrics.pipeline.qc_done} status="qc" icon={<CheckCircleIcon />} to="/admin/episodes" />
+        <MetricCard title="Total Episodes" value={totalEpisodes} status="total" icon={<PodcastIcon />} to="/admin/episodes" />
       </section>
 
       {/* 2. MIDDLE GRID — three independent columns, each card sizes to its own content */}

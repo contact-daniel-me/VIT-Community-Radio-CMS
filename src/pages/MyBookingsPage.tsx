@@ -263,7 +263,7 @@ export function MyBookingsPage() {
                     {!isRequest && booking.origin === 'ADMIN_OVERRIDE' && (
                       <span className="badge badge-amber">Override</span>
                     )}
-                    {canUpload && booking.rj_id === profile.id && (
+                    {canUpload && (booking.rj_id === profile.id || can.adminForceUploadAudio(profile.role)) && (
                       booking.episode_id ? (
                         <Link
                           to={`/admin/episodes/${booking.episode_id}`}

@@ -81,8 +81,8 @@ export function RecordingDialog({
         {
           program_id: programId,
           title: title.trim(),
-          host_name: profile.full_name,
-          assigned_rj: profile.id,
+          host_name: booking.rj?.full_name ?? profile.full_name,
+          assigned_rj: booking.rj_id ?? profile.id,
           description: `Recorded in the studio on ${formatBookingDate(booking.booking_date)} (${booking.reference}).`,
         },
         profile.id,

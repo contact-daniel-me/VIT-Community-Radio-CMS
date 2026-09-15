@@ -21,12 +21,12 @@ const NAV: NavItem[] = [
   { to: '/bookings', label: 'Bookings', visible: () => true },
   { to: '/admin/episodes', label: 'Episodes', visible: () => true },
   { to: '/qc', label: 'QC', visible: () => true },
-  { to: '/schedule/edit', label: 'Schedule', visible: (role) => can.schedule(role) },
   { to: '/audio', label: 'Audio Library', visible: (role) => can.viewAudioLibrary(role) },
   { to: '/users', label: 'Users', visible: (role) => can.manageUsers(role) },
   { to: '/badges', label: 'Badges', visible: () => true },
   { to: '/settings', label: 'Settings', visible: () => true },
   { to: '/programs', label: 'Programs', visible: (role) => can.manageProgram(role) },
+  { to: '/schedule/edit', label: 'Schedule', visible: (role) => can.schedule(role) },
 ];
 
 export function AppLayout() {

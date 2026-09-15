@@ -380,10 +380,6 @@ export function LeaderboardPage() {
             <h1 className="lb-title">Leaderboard</h1>
             <p className="lb-subtitle">Compete. Create. Earn. Rise to the Top.</p>
           </div>
-          
-          <div className="lb-header-graphic-wrap">
-            <img src="/images/trophy.jpg" alt="Golden Trophy" className="lb-header-graphic" style={{ mixBlendMode: 'multiply' }} />
-          </div>
         </div>
       </div>
       

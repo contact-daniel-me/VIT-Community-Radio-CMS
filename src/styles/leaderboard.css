@@ -17,23 +17,17 @@
   z-index: 1;
 }
 
-/* Background that mimics the soft purple/blue space */
+/* Background that mimics the soft space */
 .lb-hero-bg {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(145deg, #f5f3ff 0%, #ede9fe 100%);
+  background: var(--color-bg-subtle);
   z-index: -1;
 }
-.lb-hero-bg::after {
-  content: '';
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle at top right, rgba(124, 58, 237, 0.1), transparent 50%);
-}
+.lb-hero-bg::after { display: none; }
 
 .lb-inner {
   position: relative;
@@ -61,15 +55,16 @@
    -------------------------------------------------------------------------- */
 .lb-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  padding: 1.5rem 0 0.5rem;
+  text-align: center;
+  padding: 3rem 0 2rem;
   position: relative;
   gap: 2rem;
 }
 
 .lb-header-content {
-  max-width: 600px;
+  max-width: 800px;
   animation: lb-hero-fade 0.6s var(--ease) both;
 }
 
@@ -94,22 +89,7 @@
 }
 
 .lb-header-graphic-wrap {
-  flex-shrink: 0;
-  width: 250px;
-  display: flex;
-  justify-content: center;
-}
-
-.lb-header-graphic {
-  width: 100%;
-  height: auto;
-  animation: lb-hero-float 6s ease-in-out infinite;
-  pointer-events: none;
-}
-
-@keyframes lb-hero-float {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-15px); }
+  display: none;
 }
 
 /* --------------------------------------------------------------------------
@@ -149,9 +129,9 @@
 }
 
 .lb-filter-btn.is-active {
-  background: #7c3aed;
+  background: var(--brand-red);
   color: white;
-  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+  box-shadow: 0 4px 12px rgba(210, 30, 40, 0.3);
 }
 
 .lb-filter-streak {
@@ -187,7 +167,7 @@
   content: '';
   position: absolute;
   top: 0; left: 0; width: 4px; height: 100%;
-  background: #7c3aed;
+  background: var(--brand-red);
 }
 
 .lb-my-card-top {
@@ -206,13 +186,13 @@
   gap: 0.5rem;
   font-size: 0.9rem;
   font-weight: 800;
-  color: #7c3aed;
+  color: var(--brand-red);
   margin: 0 0 0.5rem;
 }
 .lb-my-rank-num {
   font-size: 3.5rem;
   font-weight: 900;
-  color: #7c3aed;
+  color: var(--brand-red);
   line-height: 1;
   margin: 0 0 0.25rem;
 }
@@ -255,7 +235,7 @@
   flex: 1;
   text-align: right;
   font-family: 'Caveat', cursive, sans-serif;
-  color: #4f46e5;
+  color: var(--brand-red);
   font-size: 1.25rem;
   transform: rotate(-3deg);
   position: relative;
@@ -282,13 +262,13 @@
 
 .lb-my-progress-bar {
   height: 8px;
-  background: #ede9fe;
+  background: var(--color-bg-subtle);
   border-radius: 4px;
   overflow: hidden;
   display: flex;
 }
 .lb-my-progress-fill {
-  background: linear-gradient(90deg, #7c3aed, #a78bfa);
+  background: var(--brand-red);
   height: 100%;
   border-radius: 4px;
 }
@@ -494,7 +474,7 @@
 /* Sticky My Position Row */
 .lb-table-my-position {
   margin-top: 1rem;
-  background: #f5f3ff;
+  background: var(--color-bg-subtle);
   border-radius: 0.5rem;
   position: relative;
   overflow: hidden;
@@ -503,7 +483,7 @@
   content: '';
   position: absolute;
   top: 0; left: 0; width: 4px; height: 100%;
-  background: #7c3aed;
+  background: var(--brand-red);
 }
 .lb-my-pos-label {
   display: flex;
@@ -512,7 +492,7 @@
   padding: 0.75rem 1rem 0;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #7c3aed;
+  color: var(--brand-red);
 }
 
 /* --------------------------------------------------------------------------
@@ -548,7 +528,7 @@
 .lb-side-link {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #7c3aed;
+  color: var(--brand-red);
   text-decoration: none;
 }
 
@@ -577,7 +557,7 @@
   display: block;
   width: 100%;
   text-align: center;
-  background: #7c3aed;
+  background: var(--brand-red);
   color: white;
   padding: 0.75rem;
   border-radius: 0.75rem;
@@ -626,7 +606,7 @@
 
 /* Promo Card */
 .lb-promo-card {
-  background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+  background: var(--color-bg-subtle);
   border-radius: 1.25rem;
   padding: 1.5rem;
   position: relative;
@@ -639,10 +619,10 @@
   max-width: 60%;
 }
 .lb-promo-content h3 {
-  font-size: 1.1rem; font-weight: 900; color: #1e1b4b; margin: 0 0 0.5rem;
+  font-size: 1.1rem; font-weight: 900; color: var(--brand-red); margin: 0 0 0.5rem;
 }
 .lb-promo-content p {
-  font-size: 0.8rem; font-weight: 600; color: #4338ca; margin: 0;
+  font-size: 0.8rem; font-weight: 600; color: var(--brand-navy); margin: 0;
 }
 .lb-promo-img {
   position: absolute;

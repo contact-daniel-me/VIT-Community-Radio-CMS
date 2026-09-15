@@ -846,6 +846,14 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: { episode_id: string; title: string; days_remaining: number }[];
       };
+      admin_attach_audio: {
+        Args: {
+          p_episode_id: string;
+          p_audio_file_id: string;
+          p_target_column: 'audio_file_id' | 'final_audio_file_id';
+        };
+        Returns: void;
+      };
     };
     Enums: {
       user_role: UserRole;

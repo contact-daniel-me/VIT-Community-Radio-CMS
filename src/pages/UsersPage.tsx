@@ -18,8 +18,7 @@ export function UsersPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [qcEmail, setQcEmail] = useState('');
-  const [addingQc, setAddingQc] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const changeRole = async (userId: string, role: UserRole) => {
     setError(null);
@@ -30,32 +29,6 @@ export function UsersPage() {
       await Promise.all([users.reload(), activity.reload()]);
     } catch (cause) {
       setError(errorMessage(cause));
-    }
-  };
-
-  // Add someone to the QC desk by email. They must already have registered --
-  // the service refuses to invent an account, and says so plainly.
-  const addQc = async (event: FormEvent) => {
-    event.preventDefault();
-    setError(null);
-    setNotice(null);
-
-    const email = qcEmail.trim();
-    if (!email.includes('@')) {
-      setError('Enter the email address they registered with.');
-      return;
-    }
-
-    setAddingQc(true);
-    try {
-      const granted = await userService.grantQcByEmail(email);
-      setNotice(`${granted.full_name} (${granted.email}) can now review QC.`);
-      setQcEmail('');
-      await Promise.all([users.reload(), activity.reload()]);
-    } catch (cause) {
-      setError(errorMessage(cause));
-    } finally {
-      setAddingQc(false);
     }
   };
 
@@ -102,6 +75,10 @@ export function UsersPage() {
     const aPending = !a.active && !a.approved_at ? 0 : 1;
     const bPending = !b.active && !b.approved_at ? 0 : 1;
     return aPending - bPending || a.full_name.localeCompare(b.full_name);
+  }).filter(u => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.role.toLowerCase().includes(q);
   });
 
   return (
@@ -109,6 +86,14 @@ export function UsersPage() {
       <PageHeader
         title="Users"
         description="Roles decide what each person can do. The database enforces them, not the interface."
+        actions={
+          <input 
+            type="search" 
+            placeholder="Search users..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        }
       />
 
       <Banner>{error}</Banner>
@@ -129,40 +114,7 @@ export function UsersPage() {
         </Banner>
       )}
 
-      <section className="card qc-add">
-        <div className="card-title">
-          <h2>Add someone to the QC desk</h2>
-        </div>
-        <p className="small muted">
-          Enter the email address they registered with. They must already have an account
-          &mdash; ask them to <strong>Request access</strong> first if they do not.
-        </p>
-        <form className="qc-add-form" onSubmit={addQc}>
-          <div className="field">
-            <label htmlFor="qc-email">Email address</label>
-            <input
-              id="qc-email"
-              type="email"
-              value={qcEmail}
-              onChange={(e) => setQcEmail(e.target.value)}
-              placeholder="name@vit.ac.in"
-              disabled={addingQc}
-            />
-          </div>
-          <button type="submit" className="btn btn-solid" disabled={addingQc}>
-            {addingQc ? 'Adding…' : 'Give QC access'}
-          </button>
-        </form>
-        <p className="small muted">
-          Current QC reviewers:{' '}
-          {(users.data ?? []).filter((u) => u.role === 'QC' && u.active).length === 0
-            ? 'nobody yet'
-            : (users.data ?? [])
-                .filter((u) => u.role === 'QC' && u.active)
-                .map((u) => u.full_name)
-                .join(', ')}
-        </p>
-      </section>
+
 
       <section className="card">
         {users.loading ? (

@@ -31,6 +31,19 @@ export function QcPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredQueue = (queue.data ?? []).filter(ep => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (ep.title || '').toLowerCase().includes(q) || (ep.program?.name || '').toLowerCase().includes(q);
+  });
+
+  const filteredMine = (mine.data ?? []).filter(ep => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (ep.title || '').toLowerCase().includes(q) || (ep.program?.name || '').toLowerCase().includes(q);
+  });
 
   const decide = async (episodeId: string, decision: 'APPROVE' | 'REJECT') => {
     setBusy(true);
@@ -58,7 +71,18 @@ export function QcPage() {
   if (!reviewer) {
     return (
       <>
-        <PageHeader title="QC status" description="Where your submitted episodes stand." />
+        <PageHeader 
+          title="QC status" 
+          description="Where your submitted episodes stand." 
+          actions={
+            <input 
+              type="search" 
+              placeholder="Search by title or program..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          }
+        />
         <section className="card">
           {mine.loading ? (
             <Loading />
@@ -76,7 +100,7 @@ export function QcPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(mine.data ?? []).map((episode) => (
+                  {filteredMine.map((episode) => (
                     <tr key={episode.id}>
                       <td>
                         <Link to={`/admin/episodes/${episode.id}`}>{episode.title}</Link>
@@ -102,6 +126,14 @@ export function QcPage() {
       <PageHeader
         title="QC queue"
         description="Oldest submission first. Approve for air, or reject with a reason the producer can act on."
+        actions={
+          <input 
+            type="search" 
+            placeholder="Search by title or program..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        }
       />
 
       <Banner>{error}</Banner>
@@ -111,12 +143,12 @@ export function QcPage() {
         <Loading />
       ) : queue.error ? (
         <Banner>{queue.error}</Banner>
-      ) : (queue.data ?? []).length === 0 ? (
+      ) : filteredQueue.length === 0 ? (
         <section className="card">
-          <Empty>Nothing waiting for review. Good work.</Empty>
+          <Empty>{searchQuery ? 'No results found.' : 'Nothing waiting for review. Good work.'}</Empty>
         </section>
       ) : (
-        (queue.data ?? []).map((episode) => {
+        filteredQueue.map((episode) => {
           const open = openId === episode.id;
           return (
             <section key={episode.id} className="card">

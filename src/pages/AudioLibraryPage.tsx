@@ -9,6 +9,7 @@ import { formatDateTime, formatDuration, formatFileSize } from '@/utils/datetime
 
 export function AudioLibraryPage() {
   const [playing, setPlaying] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const library = useAsync(async () => {
     const [files, episodes] = await Promise.all([
@@ -19,28 +20,42 @@ export function AudioLibraryPage() {
     return files.map((file) => ({ file, episode: titles.get(file.episode_id) ?? null }));
   }, []);
 
-  const total = (library.data ?? []).reduce((sum, row) => sum + row.file.file_size, 0);
+  const filteredLibrary = (library.data ?? []).filter(({ file, episode }) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return file.file_name.toLowerCase().includes(q) || (episode?.title || '').toLowerCase().includes(q);
+  });
+
+  const total = filteredLibrary.reduce((sum, row) => sum + row.file.file_size, 0);
 
   return (
     <>
       <PageHeader
         title="Audio library"
         description="Every audio file in the radio-audio bucket, with the episode it belongs to."
+        actions={
+          <input 
+            type="search" 
+            placeholder="Search by file or episode title..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        }
       />
 
       {library.loading ? (
         <Loading />
       ) : library.error ? (
         <Banner>{library.error}</Banner>
-      ) : (library.data ?? []).length === 0 ? (
+      ) : filteredLibrary.length === 0 ? (
         <section className="card">
-          <Empty>No audio has been uploaded yet.</Empty>
+          <Empty>{searchQuery ? 'No results found.' : 'No audio has been uploaded yet.'}</Empty>
         </section>
       ) : (
         <section className="card">
           <div className="card-title">
             <h2>
-              {(library.data ?? []).length} file{(library.data ?? []).length === 1 ? '' : 's'}
+              {filteredLibrary.length} file{filteredLibrary.length === 1 ? '' : 's'}
             </h2>
             <span className="small muted">{formatFileSize(total)} stored</span>
           </div>
@@ -58,7 +73,7 @@ export function AudioLibraryPage() {
                 </tr>
               </thead>
               <tbody>
-                {(library.data ?? []).map(({ file, episode }) => (
+                {filteredLibrary.map(({ file, episode }) => (
                   <tr key={file.id}>
                     <td className="small">{file.file_name}</td>
                     <td>

@@ -51,7 +51,7 @@ export const leaderboardService = {
       { data: rawData, error: rpcError },
       badgeDefinitions
     ] = await Promise.all([
-      supabase.rpc('get_leaderboard_data'),
+      (supabase as any).rpc('get_leaderboard_data'),
       badgeService.getBadgeDefinitions()
     ]);
 
@@ -59,15 +59,16 @@ export const leaderboardService = {
       console.error('Error fetching leaderboard data:', rpcError);
       return [];
     }
-    if (!rawData || !rawData.profiles) return [];
+    const rawDataAny = rawData as any;
+    if (!rawDataAny || !rawDataAny.profiles) return [];
 
-    const profiles: any[] = rawData.profiles;
-    const episodeRows: any[] = rawData.episodes ?? [];
-    const bookingRows: any[] = rawData.bookings ?? [];
-    const scheduleRows: any[] = rawData.schedules ?? [];
-    const userBadgeRows: any[] = rawData.user_badges ?? [];
-    const overrideRows: any[] = rawData.adjustments ?? [];
-    const xpRulesData: any[] = rawData.xp_rules ?? [];
+    const profiles: any[] = rawDataAny.profiles;
+    const episodeRows: any[] = rawDataAny.episodes ?? [];
+    const bookingRows: any[] = rawDataAny.bookings ?? [];
+    const scheduleRows: any[] = rawDataAny.schedules ?? [];
+    const userBadgeRows: any[] = rawDataAny.user_badges ?? [];
+    const overrideRows: any[] = rawDataAny.adjustments ?? [];
+    const xpRulesData: any[] = rawDataAny.xp_rules ?? [];
     const xpRulesError = null;
     
     // Process XP Rules

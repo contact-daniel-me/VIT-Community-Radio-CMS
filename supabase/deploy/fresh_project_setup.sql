@@ -3554,19 +3554,29 @@ grant  execute on function public.delete_episode(uuid) to authenticated;
 
 -- 1. Add program_id to studio_bookings
 alter table public.studio_bookings
-add column program_id uuid references public.programs (id) on delete restrict;
+add column if not exists program_id uuid references public.programs (id) on delete restrict;
 
 -- 2. Link existing bookings to a program based on name, or create a dummy one
 do $$
 declare
   v_dummy_id uuid;
 begin
-  -- Try to match existing bookings by show_name
-  update public.studio_bookings b
-  set program_id = p.id
-  from public.programs p
-  where lower(btrim(b.show_name)) = lower(btrim(p.name))
-    and b.program_id is null;
+  -- Try to match existing bookings by show_name, if the column exists
+  if exists (
+    select 1 
+    from information_schema.columns 
+    where table_schema = 'public' 
+      and table_name = 'studio_bookings' 
+      and column_name = 'show_name'
+  ) then
+    execute '
+      update public.studio_bookings b
+      set program_id = p.id
+      from public.programs p
+      where lower(btrim(b.show_name)) = lower(btrim(p.name))
+        and b.program_id is null;
+    ';
+  end if;
 
   -- Create a dummy program for any remaining unmatched bookings
   if exists (select 1 from public.studio_bookings where program_id is null) then
@@ -3580,8 +3590,9 @@ end;
 $$;
 
 -- 3. Make program_id NOT NULL and drop show_name (since program_id replaces it)
+-- Note: wrapping alter column set not null isn't directly 'if exists', but it should be fine if already not null.
 alter table public.studio_bookings alter column program_id set not null;
-alter table public.studio_bookings drop column show_name;
+alter table public.studio_bookings drop column if exists show_name;
 
 -- 4. Create trigger to automatically insert/cancel a schedule row
 create or replace function app.propagate_booking_to_schedule()
@@ -3663,6 +3674,704 @@ begin
       jsonb_build_object('reference', new.reference));
   end if;
   return null;
+end;
+$$;
+
+
+-- ###########################################################################
+-- SOURCE: supabase/migrations/20250101000020_public_approved_episodes.sql
+-- ###########################################################################
+
+
+create or replace view public.v_public_approved_episodes
+with (security_invoker = off) as
+select
+  e.id            as episode_id,
+  e.title,
+  e.description,
+  coalesce(e.host_name, p.host_name) as host_name,
+  e.duration_seconds,
+  p.name          as program_name,
+  p.category      as program_category,
+  a.storage_path,
+  a.file_name,
+  a.duration_seconds as audio_duration_seconds,
+  e.created_at
+from public.episodes e
+join public.programs p on p.id = e.program_id
+join public.audio_files a on a.id = e.audio_file_id
+where e.status = 'APPROVED'
+  and p.active;
+
+comment on view public.v_public_approved_episodes is
+  'All approved episodes with their audio paths, for the Whats New section.';
+
+grant select on public.v_public_approved_episodes to anon, authenticated;
+
+
+-- ###########################################################################
+-- SOURCE: supabase/migrations/20250101000021_podcast_episodes_cache.sql
+-- ###########################################################################
+
+
+-- =============================================================================
+-- VIT COMMUNITY RADIO CMS -- 21: PODCAST EPISODES CACHE
+--
+-- A dedicated cache table for episodes pulled from the public Spotify/Anchor
+-- RSS feed.  This is intentionally SEPARATE from the CMS `episodes` table:
+--   * `episodes`         = internal CMS content created by RJs/Producers
+--   * `podcast_episodes` = public RSS feed snapshot, populated by a sync job
+--
+-- The RSS GUID is the canonical identifier for deduplication.  The sync
+-- process performs an UPSERT keyed on rss_guid so it is safe to run
+-- repeatedly and incremental updates only touch changed rows.
+-- =============================================================================
+
+create table public.podcast_episodes (
+  id            uuid        primary key default gen_random_uuid(),
+  -- RSS <guid> — the canonical de-duplication key.
+  rss_guid      text        not null unique check (char_length(rss_guid) between 1 and 500),
+  title         text        not null check (char_length(title) between 1 and 500),
+  description   text,
+  -- Raw audio URL from <enclosure url="…">. Never stored locally.
+  audio_url     text        not null,
+  -- Anchor/Spotify canonical episode page.
+  spotify_url   text,
+  artwork_url   text,
+  -- HH:MM:SS or MM:SS string from <itunes:duration>.
+  duration      text,
+  pub_date      timestamptz,
+  episode_number integer,
+  -- ISO-8601 timestamp of the last successful RSS sync pass.
+  last_synced_at timestamptz not null default now(),
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+
+-- Fast ordered pagination (newest-first is the default).
+create index podcast_episodes_pub_date_idx  on public.podcast_episodes (pub_date desc nulls last);
+-- Point lookup when checking for stale episodes during sync.
+create index podcast_episodes_rss_guid_idx  on public.podcast_episodes (rss_guid);
+-- Generic PK lookup.
+create index podcast_episodes_id_idx        on public.podcast_episodes (id);
+
+comment on table public.podcast_episodes is
+  'Server-side cache of episodes from the Spotify/Anchor RSS feed. '
+  'Populated by the sync-podcast-episodes Edge Function. '
+  'Never contains audio bytes — only metadata.';
+
+-- ---------------------------------------------------------------------------
+-- Auto-update updated_at
+-- ---------------------------------------------------------------------------
+create or replace function public.touch_podcast_episodes_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+create trigger podcast_episodes_updated_at
+  before update on public.podcast_episodes
+  for each row execute function public.touch_podcast_episodes_updated_at();
+
+-- ---------------------------------------------------------------------------
+-- Row-Level Security
+-- ---------------------------------------------------------------------------
+alter table public.podcast_episodes enable row level security;
+
+-- Anyone (including anonymous visitors) can read cached episode metadata.
+create policy "podcast_episodes_public_read"
+  on public.podcast_episodes for select
+  using (true);
+
+-- Only the service-role key (used by the Edge Function) may write.
+-- The anon / authenticated roles cannot insert, update, or delete.
+-- No explicit write policy is needed: RLS denies by default for non-service roles.
+
+-- Grant read to anonymous and authenticated users.
+grant select on public.podcast_episodes to anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Manual sync trigger available to admin users via RPC.
+-- The Edge Function is the primary sync mechanism; this RPC is a convenience
+-- for admins who want to force an immediate refresh from the dashboard.
+-- ---------------------------------------------------------------------------
+create or replace function public.admin_trigger_podcast_sync()
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count integer;
+begin
+  -- Only ADMIN role may call this.
+  if (select role from public.profiles where id = auth.uid()) <> 'ADMIN' then
+    raise exception 'Permission denied: admin only';
+  end if;
+
+  -- Return last sync metadata so the caller can display it.
+  select count(*) into v_count from public.podcast_episodes;
+  return json_build_object(
+    'cached_episodes', v_count,
+    'message', 'Use the Edge Function endpoint to trigger a fresh sync.'
+  );
+end;
+$$;
+
+grant execute on function public.admin_trigger_podcast_sync() to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- pg_cron scheduled sync (runs every 20 minutes)
+-- Requires the pg_cron extension to be enabled in Supabase Dashboard
+-- (Database → Extensions → pg_cron).
+--
+-- The cron job calls the Edge Function via pg_net (also requires the pg_net
+-- extension). If either extension is not available, comment this block out —
+-- the Edge Function can still be called manually from the admin dashboard.
+-- ---------------------------------------------------------------------------
+-- SELECT cron.schedule(
+--   'sync-podcast-episodes',
+--   '*/20 * * * *',
+--   $$
+--     SELECT net.http_post(
+--       url     := current_setting('app.edge_function_url') || '/sync-podcast-episodes',
+--       headers := jsonb_build_object(
+--         'Authorization', 'Bearer ' || current_setting('app.service_role_key'),
+--         'Content-Type', 'application/json'
+--       ),
+--       body    := '{}'::jsonb
+--     );
+--   $$
+-- );
+
+
+-- ###########################################################################
+-- SOURCE: supabase/migrations/20260914000000_station_announcements.sql
+-- ###########################################################################
+
+
+-- =============================================================================
+-- Station Announcements
+-- =============================================================================
+
+create table public.announcements (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  message text not null,
+  status text not null check (status in ('DRAFT', 'PUBLISHED', 'SCHEDULED', 'ARCHIVED')),
+  published_at timestamptz,
+  scheduled_at timestamptz,
+  expires_at timestamptz,
+  created_at timestamptz default now() not null,
+  updated_at timestamptz default now() not null,
+  created_by uuid references public.profiles(id) not null
+);
+
+-- RLS
+alter table public.announcements enable row level security;
+
+-- Everyone can read announcements (the application filters out drafts/future ones)
+create policy "Announcements are readable by everyone"
+  on public.announcements for select
+  using (true);
+
+-- Only admins and producers can manage announcements
+create policy "Announcements are editable by station staff"
+  on public.announcements for all
+  using (
+    exists (
+      select 1 from public.profiles
+      where profiles.id = auth.uid()
+      and profiles.role in ('ADMIN', 'PRODUCER')
+    )
+  );
+
+-- Helper trigger for updated_at
+create or replace function update_announcements_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger set_announcements_updated_at
+  before update on public.announcements
+  for each row
+  execute function update_announcements_updated_at();
+
+
+-- ###########################################################################
+-- SOURCE: supabase/migrations/20260914000001_gamification.sql
+-- ###########################################################################
+
+
+-- 20260914000001_gamification.sql
+CREATE TYPE badge_rarity AS ENUM ('COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY');
+
+CREATE TABLE gamification_badges (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    badge_key TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    requirement TEXT NOT NULL,
+    icon TEXT NOT NULL,
+    rarity badge_rarity NOT NULL,
+    xp INTEGER NOT NULL,
+    threshold INTEGER NOT NULL,
+    metric TEXT NOT NULL,
+    almost_threshold INTEGER,
+    active BOOLEAN DEFAULT true NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+CREATE TABLE gamification_levels (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    level INTEGER UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    min_xp INTEGER NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+CREATE TABLE gamification_xp_rules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    action TEXT UNIQUE NOT NULL,
+    description TEXT NOT NULL,
+    xp_reward INTEGER NOT NULL,
+    active BOOLEAN DEFAULT true NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+CREATE TABLE user_gamification_adjustments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    admin_id UUID NOT NULL REFERENCES profiles(id),
+    xp_adjustment INTEGER DEFAULT 0 NOT NULL,
+    reason TEXT,
+    created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+);
+
+-- Insert initial Badge Definitions
+INSERT INTO gamification_badges (badge_key, name, description, requirement, icon, rarity, xp, threshold, metric, almost_threshold) VALUES
+('mic-drop', 'Mic Drop', 'You stepped up to the mic for the first time.', 'Create your first show', 'mic', 'COMMON', 50, 1, 'episodeCount', NULL),
+('slot-locked', 'Slot Locked', 'You claimed your place in the broadcast schedule.', 'Book your first studio slot', 'clock', 'COMMON', 50, 1, 'bookingCount', NULL),
+('sound-check', 'Sound Check', 'Your audio is in the system. Ready to roll.', 'Upload your first audio file', 'waveform', 'COMMON', 75, 1, 'audioUploadCount', NULL),
+('scripted', 'Scripted', 'Your show is ready for review.', 'Submit an episode for QC', 'script', 'COMMON', 50, 1, 'submittedCount', NULL),
+('green-light', 'Green Light', 'Quality checked and broadcast-ready.', 'Get your first episode approved', 'signal', 'UNCOMMON', 100, 1, 'approvedCount', NULL),
+('tuned-in', 'Tuned In', 'Five shows deep and still broadcasting.', 'Create 5 episodes', 'tuner', 'UNCOMMON', 100, 5, 'episodeCount', 4),
+('first-broadcast', 'First Broadcast', 'Your voice hit the airwaves.', 'Have an episode scheduled for broadcast', 'onair', 'UNCOMMON', 100, 1, 'scheduledCount', NULL),
+('voice-rising', 'Voice Rising', 'Your quality is consistently broadcast-ready.', 'Get 5 episodes approved', 'rising', 'UNCOMMON', 150, 5, 'approvedCount', 4),
+('first-frequency', 'First Frequency', 'Double digits. You found your frequency.', 'Create 10 episodes', 'frequency', 'RARE', 150, 10, 'episodeCount', 8),
+('on-a-roll', 'On A Roll', 'Three approved shows this month — you''re on fire.', 'Get 3 episodes approved in one month', 'fire', 'RARE', 150, 3, 'monthlyApproved', 2),
+('frequency-familiar', 'Frequency Familiar', 'The studio knows your name.', 'Book 10 studio slots', 'clock', 'RARE', 150, 10, 'bookingCount', 8),
+('request-line', 'Request Line', 'You keep submitting and the station keeps listening.', 'Submit 5 episodes for QC', 'signal', 'RARE', 200, 5, 'submittedCount', 4),
+('station-voice', 'Station Voice', 'Fifteen episodes. You''re part of the station now.', 'Create 15 episodes', 'mic', 'RARE', 200, 15, 'episodeCount', 13),
+('campus-shout', 'Campus Shout', 'Twenty shows — VIT Community Radio is louder because of you.', 'Create 20 episodes', 'broadcast', 'EPIC', 200, 20, 'episodeCount', 18),
+('frequency-hunter', 'Frequency Hunter', 'Ten approved episodes. You hunt the perfect signal.', 'Get 10 episodes approved', 'frequency', 'EPIC', 250, 10, 'approvedCount', 8),
+('locked-to-the-frequency', 'Locked To The Frequency', 'Twenty bookings. The studio slot is basically yours.', 'Book 20 studio slots', 'lock', 'EPIC', 200, 20, 'bookingCount', 18),
+('voice-of-vit', 'Voice Of VIT', 'Twenty-five shows. You ARE the voice of VIT.', 'Create 25 episodes', 'mic', 'EPIC', 250, 25, 'episodeCount', 23),
+('radio-devotion', 'Radio Devotion', 'Thirty bookings. This isn''t a hobby — it''s a calling.', 'Book 30 studio slots', 'broadcast', 'LEGENDARY', 300, 30, 'bookingCount', 27),
+('radio-legend', 'Radio Legend', 'Fifty episodes. Your legacy is woven into VIT Community Radio.', 'Create 50 episodes', 'legend', 'LEGENDARY', 500, 50, 'episodeCount', 45)
+ON CONFLICT (badge_key) DO UPDATE SET
+  name = EXCLUDED.name,
+  description = EXCLUDED.description,
+  requirement = EXCLUDED.requirement,
+  icon = EXCLUDED.icon,
+  rarity = EXCLUDED.rarity,
+  xp = EXCLUDED.xp,
+  threshold = EXCLUDED.threshold,
+  metric = EXCLUDED.metric,
+  almost_threshold = EXCLUDED.almost_threshold;
+
+-- Insert Levels
+INSERT INTO gamification_levels (level, title, min_xp) VALUES
+(1, 'Radio Newcomer', 0),
+(2, 'Signal Seeker', 100),
+(3, 'Frequency Finder', 250),
+(4, 'Radio Regular', 500),
+(5, 'Rising Voice', 850),
+(6, 'Broadcast Veteran', 1300),
+(7, 'Station Pillar', 1900),
+(8, 'Radio Legend', 2700)
+ON CONFLICT (level) DO UPDATE SET
+  title = EXCLUDED.title,
+  min_xp = EXCLUDED.min_xp;
+
+-- Insert XP Rules (based on leaderboardService.ts)
+INSERT INTO gamification_xp_rules (action, description, xp_reward) VALUES
+('EPISODE_CREATE', 'Create a new show', 10),
+('EPISODE_QC_SUBMIT', 'Submit show for QC', 5),
+('EPISODE_QC_APPROVE', 'Show is approved', 25),
+('STUDIO_BOOKING', 'Book a studio slot', 15)
+ON CONFLICT (action) DO UPDATE SET
+  description = EXCLUDED.description,
+  xp_reward = EXCLUDED.xp_reward;
+
+-- RLS
+ALTER TABLE gamification_badges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gamification_levels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE gamification_xp_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_gamification_adjustments ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+CREATE POLICY "Public read badges" ON gamification_badges FOR SELECT USING (true);
+CREATE POLICY "Admin write badges" ON gamification_badges FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'ADMIN')
+);
+
+CREATE POLICY "Public read levels" ON gamification_levels FOR SELECT USING (true);
+CREATE POLICY "Admin write levels" ON gamification_levels FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'ADMIN')
+);
+
+CREATE POLICY "Public read xp rules" ON gamification_xp_rules FOR SELECT USING (true);
+CREATE POLICY "Admin write xp rules" ON gamification_xp_rules FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'ADMIN')
+);
+
+CREATE POLICY "Public read own adjustments" ON user_gamification_adjustments FOR SELECT USING (
+  user_id = auth.uid()
+);
+CREATE POLICY "Admin read all adjustments" ON user_gamification_adjustments FOR SELECT USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'ADMIN')
+);
+CREATE POLICY "Admin write adjustments" ON user_gamification_adjustments FOR ALL USING (
+  EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'ADMIN')
+);
+
+-- Realtime replication
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE gamification_badges, gamification_levels, gamification_xp_rules;
+  END IF;
+END $$;
+
+
+-- ###########################################################################
+-- SOURCE: supabase/migrations/20260914000002_admin_schedule_delete.sql
+-- ###########################################################################
+
+
+create policy "schedules_delete_admin"
+  on public.schedules for delete to authenticated
+  using (app.has_role('ADMIN'));
+
+
+-- ###########################################################################
+-- SOURCE: supabase/migrations/20260914000003_user_badges.sql
+-- ###########################################################################
+
+
+-- 20260914000003_user_badges.sql
+CREATE TABLE user_badges (
+    user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    badge_key TEXT NOT NULL,
+    earned_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+    PRIMARY KEY (user_id, badge_key)
+);
+
+ALTER TABLE user_badges ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users read own user_badges" ON user_badges FOR SELECT USING (
+    user_id = auth.uid()
+);
+
+CREATE POLICY "Admin read all user_badges" ON user_badges FOR SELECT USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'ADMIN')
+);
+
+CREATE POLICY "Users insert own user_badges" ON user_badges FOR INSERT WITH CHECK (
+    user_id = auth.uid()
+);
+
+-- Insert the 'first-signal' badge definition if it doesn't already exist
+INSERT INTO gamification_badges (badge_key, name, description, requirement, icon, rarity, xp, threshold, metric)
+VALUES ('first-signal', 'First Signal', 'Welcome to VIT Community Radio! You signed in for the first time.', 'Sign in to the CMS', 'zap', 'COMMON', 25, 1, 'signInCount')
+ON CONFLICT (badge_key) DO NOTHING;
+
+-- Realtime replication
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE user_badges;
+  END IF;
+END $$;
+
+
+-- ###########################################################################
+-- SOURCE: supabase/migrations/20260914000004_episode_isolation.sql
+-- ###########################################################################
+
+
+-- 20260914000004_episode_isolation.sql
+
+-- Drop the old overly permissive policy
+DROP POLICY IF EXISTS "episodes_select_station_members" ON public.episodes;
+
+-- Create the new, strict policy
+CREATE POLICY "episodes_select_isolated"
+  ON public.episodes FOR SELECT TO authenticated
+  USING (
+    app.has_role('ADMIN', 'PRODUCER', 'QC')
+    OR created_by = auth.uid()
+    OR assigned_rj = auth.uid()
+  );
+
+
+-- ###########################################################################
+-- SOURCE: supabase/migrations/20260914000005_studio_booking_requests.sql
+-- ###########################################################################
+
+
+-- =============================================================================
+-- VIT COMMUNITY RADIO CMS -- STUDIO BOOKING REQUESTS
+-- =============================================================================
+
+create type public.booking_request_status as enum (
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+  'CANCELLED'
+);
+
+create table public.studio_booking_requests (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  program_id uuid not null references public.programs(id) on delete restrict,
+  booking_date date not null,
+  start_time time not null,
+  end_time time not null,
+  language public.show_language not null,
+  script_status public.script_approval not null,
+  script_approver uuid references public.profiles(id) on delete restrict,
+  self_edit boolean not null,
+  editor_id uuid references public.profiles(id) on delete restrict,
+  notes text,
+  status public.booking_request_status not null default 'PENDING',
+  rejection_reason text,
+  reviewed_by uuid references public.profiles(id) on delete restrict,
+  reviewed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Protect against duplicate pending requests for the same slot
+create unique index idx_studio_booking_requests_duplicate_pending
+  on public.studio_booking_requests (user_id, booking_date, start_time)
+  where status = 'PENDING';
+
+-- RLS
+alter table public.studio_booking_requests enable row level security;
+
+-- RJ can view their own requests
+create policy "Users can view their own booking requests"
+  on public.studio_booking_requests for select
+  using (user_id = auth.uid());
+
+-- Admin/Producer can view all requests
+create policy "Station staff can view all booking requests"
+  on public.studio_booking_requests for select
+  using (app.current_role() in ('ADMIN', 'PRODUCER'));
+
+-- RJ can insert their own requests
+create policy "Users can insert their own booking requests"
+  on public.studio_booking_requests for insert
+  with check (
+    user_id = auth.uid()
+    and status = 'PENDING'
+  );
+
+-- RJ can update their own pending requests (to cancel them)
+create policy "Users can cancel their own pending requests"
+  on public.studio_booking_requests for update
+  using (
+    user_id = auth.uid()
+    and status = 'PENDING'
+  )
+  with check (
+    status = 'CANCELLED'
+  );
+
+-- Admin/Producer can update any request
+create policy "Station staff can manage booking requests"
+  on public.studio_booking_requests for update
+  using (app.current_role() in ('ADMIN', 'PRODUCER'));
+
+
+-- ###########################################################################
+-- SOURCE: supabase/migrations/20260914000006_fix_script_approver.sql
+-- ###########################################################################
+
+
+alter table public.studio_booking_requests
+drop constraint if exists studio_booking_requests_script_approver_fkey;
+
+alter table public.studio_booking_requests
+alter column script_approver type text;
+
+
+-- ###########################################################################
+-- SOURCE: supabase/migrations/20260914000008_episode_id_sequence.sql
+-- ###########################################################################
+
+
+-- =============================================================================
+-- VIT COMMUNITY RADIO CMS
+-- Add permanent unique episode_id sequence to episodes
+-- =============================================================================
+
+-- 1. Create a sequence for the episode ID
+CREATE SEQUENCE IF NOT EXISTS public.episode_id_seq START 1;
+GRANT USAGE ON SEQUENCE public.episode_id_seq TO authenticated;
+GRANT USAGE ON SEQUENCE public.episode_id_seq TO service_role;
+
+-- 2. Add the column to the episodes table (initially allowing NULL)
+ALTER TABLE public.episodes ADD COLUMN episode_id TEXT;
+
+-- 3. Safely backfill existing episodes
+-- We process them in chronological order of creation to maintain timeline consistency
+DO $$
+DECLARE
+  ep_record RECORD;
+  seq_val INT;
+BEGIN
+  -- Bypass the episode lock trigger to backfill APPROVED/PENDING_QC episodes
+  PERFORM set_config('app.workflow', 'on', true);
+  
+  FOR ep_record IN SELECT id FROM public.episodes ORDER BY created_at ASC
+  LOOP
+    seq_val := nextval('public.episode_id_seq');
+    UPDATE public.episodes
+    SET episode_id = 'VITCR-EP-' || LPAD(seq_val::text, 4, '0')
+    WHERE id = ep_record.id;
+  END LOOP;
+END $$;
+
+-- 4. Apply constraints now that all rows have a value
+ALTER TABLE public.episodes ALTER COLUMN episode_id SET NOT NULL;
+ALTER TABLE public.episodes ADD CONSTRAINT episodes_episode_id_unique UNIQUE (episode_id);
+
+CREATE OR REPLACE FUNCTION public.assign_episode_id()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF NEW.episode_id IS NULL THEN
+    NEW.episode_id := 'VITCR-EP-' || LPAD(nextval('public.episode_id_seq')::text, 4, '0');
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+-- 6. Create the trigger
+CREATE TRIGGER tr_episodes_assign_episode_id
+BEFORE INSERT ON public.episodes
+FOR EACH ROW
+EXECUTE FUNCTION public.assign_episode_id();
+
+
+-- ###########################################################################
+-- SOURCE: supabase/migrations/20260914000009_admin_booking_delete.sql
+-- ###########################################################################
+
+
+create policy "studio_bookings_delete_admin"
+  on public.studio_bookings for delete to authenticated
+  using (app.is_admin());
+
+
+-- ###########################################################################
+-- SOURCE: supabase/migrations/20260914000010_weekend_bookings.sql
+-- ###########################################################################
+
+
+-- Drop the constraint that restricts studio bookings to weekdays
+alter table public.studio_bookings drop constraint if exists bookings_weekday_only;
+
+
+-- ###########################################################################
+-- SOURCE: supabase/migrations/20260915000001_admin_audio_upload.sql
+-- ###########################################################################
+
+
+-- Drop existing policies that restrict audio file operations to editable episodes
+drop policy if exists "audio_insert_episode_editors" on public.audio_files;
+drop policy if exists "audio_update_episode_editors" on public.audio_files;
+drop policy if exists "audio_delete_episode_editors" on public.audio_files;
+
+-- Recreate policies allowing Admins to manage audio files anytime, while restricting others
+create policy "audio_insert_episode_editors"
+  on public.audio_files for insert to authenticated
+  with check ((app.is_admin() or app.can_edit_episode(episode_id)) and uploaded_by = auth.uid());
+
+create policy "audio_update_episode_editors"
+  on public.audio_files for update to authenticated
+  using (app.is_admin() or app.can_edit_episode(episode_id))
+  with check (app.is_admin() or app.can_edit_episode(episode_id));
+
+create policy "audio_delete_episode_editors"
+  on public.audio_files for delete to authenticated
+  using (app.is_admin() or app.can_edit_episode(episode_id));
+
+-- Function for Admins to explicitly attach an audio file to a locked episode
+create or replace function public.admin_attach_audio(
+  p_episode_id uuid,
+  p_audio_file_id uuid,
+  p_target_column text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_episode_exists boolean;
+begin
+  if not app.is_admin() then
+    raise exception 'Only administrators can force-attach audio to locked episodes'
+      using errcode = '42501';
+  end if;
+
+  if p_target_column not in ('audio_file_id', 'final_audio_file_id') then
+    raise exception 'Invalid target column: %', p_target_column
+      using errcode = '22023';
+  end if;
+
+  select exists (select 1 from public.episodes where id = p_episode_id) into v_episode_exists;
+  if not v_episode_exists then
+    raise exception 'Episode not found' using errcode = 'P0002';
+  end if;
+
+  -- Bypass the content freeze trigger
+  perform set_config('app.workflow', 'on', true);
+
+  if p_target_column = 'audio_file_id' then
+    update public.episodes set audio_file_id = p_audio_file_id where id = p_episode_id;
+  else
+    update public.episodes set final_audio_file_id = p_audio_file_id where id = p_episode_id;
+  end if;
+
+  -- Log the explicit action
+  perform app.log(
+    'ADMIN_ATTACHED_AUDIO',
+    'episodes',
+    p_episode_id,
+    jsonb_build_object(
+      'audio_file_id', p_audio_file_id,
+      'target_column', p_target_column,
+      'admin_id', auth.uid()
+    )
+  );
+  
+  -- We don't strictly need to reset app.workflow because it is scoped to the transaction (true parameter above).
 end;
 $$;
 

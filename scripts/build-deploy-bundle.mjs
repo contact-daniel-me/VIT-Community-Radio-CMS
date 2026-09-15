@@ -40,7 +40,7 @@ const migrationsDir = join(repoRoot, 'supabase', 'migrations');
 const outDir = join(repoRoot, 'supabase', 'deploy');
 
 /** Migrations that make up the upgrade bundle, in dependency order. */
-const UPGRADE_RANGE = ['08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19'];
+const UPGRADE_RANGE = ['08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
 
 const banner = (source) =>
   [
@@ -66,7 +66,9 @@ function read(file) {
 // ---------------------------------------------------------------------------
 // 1. The upgrade bundle: 08 -> 14
 // ---------------------------------------------------------------------------
-const upgradeFiles = allMigrations.filter((f) => UPGRADE_RANGE.includes(sequenceOf(f)));
+const upgradeFiles = allMigrations.filter((f) => 
+  f.startsWith('202501010000') && UPGRADE_RANGE.includes(sequenceOf(f))
+);
 
 if (upgradeFiles.length !== UPGRADE_RANGE.length) {
   throw new Error(

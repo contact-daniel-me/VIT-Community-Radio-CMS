@@ -87,10 +87,10 @@ export function UnifiedStatusBadge({
     return <span className="badge badge-pink">Final Upload</span>;
   }
   if (episode?.audio_file_id) {
-    return <span className="badge badge-orange">Audio Upload</span>;
+    return <span className="badge badge-orange">Audio Uploaded</span>;
   }
   if (booking?.script_status === 'YES') {
-    return <span className="badge badge-blue">Approved</span>;
+    return <span className="badge badge-blue">Studio Booked</span>;
   }
   if (booking?.status === 'CONFIRMED' || booking?.status === 'COMPLETED') {
     return <span className="badge badge-yellow">Booked Slot</span>;

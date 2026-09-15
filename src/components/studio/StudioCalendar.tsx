@@ -5,10 +5,9 @@ import { formatBookingDate, formatDayNumber, formatSlotTime, isoDate } from '@/u
 /**
  * The weekly studio grid.
  *
- * Monday to Friday only — the studio is shut at weekends, so there is nothing
- * to draw for Saturday and Sunday and a greyed-out column would only add noise.
- * The weekday rule itself is enforced by `bookings_weekday_only` in the
- * database; this component simply never offers the days it would refuse.
+ * Monday to Sunday.
+ * The weekday rule was previously enforced by `bookings_weekday_only` in the
+ * database.
  */
 
 const STATE_LABEL: Record<SlotState, string> = {
@@ -40,11 +39,11 @@ export function StudioCalendar({
   const rows = useMemo(() => week[0]?.slots ?? [], [week]);
 
   return (
-    <div className="cal" role="group" aria-label="Studio availability, Monday to Friday">
+    <div className="cal" role="group" aria-label="Studio availability, Monday to Sunday">
       <div className="cal-scroll">
         <table className="cal-table">
           <caption className="sr-only">
-            Studio availability by day and 30-minute slot. The studio is closed at weekends.
+            Studio availability by day and 30-minute slot.
           </caption>
           <thead>
             <tr>
@@ -131,7 +130,7 @@ export function StudioCalendar({
       </div>
 
       <p className="cal-closed-note">
-        Studio closed on weekends &middot; 9:00 AM&ndash;6:00 PM &middot; 30-minute slots
+        9:00 AM&ndash;6:00 PM &middot; 30-minute slots
       </p>
     </div>
   );
@@ -203,7 +202,6 @@ export function StudioDayList({
           })}
       </ul>
 
-      <p className="cal-closed-note">Studio closed on weekends</p>
     </div>
   );
 }

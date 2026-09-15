@@ -84,13 +84,13 @@ describe('the studio grid', () => {
     expect(slots.some((s) => s.start === '13:00' || s.start === '13:30')).toBe(false);
   });
 
-  it('gives five weekdays, Monday first, never a weekend', () => {
+  it('gives seven days, Monday first', () => {
     const days = weekdaysFrom(mondayOf(new Date()));
-    expect(days).toHaveLength(5);
+    expect(days).toHaveLength(7);
     for (const day of days) {
       const dow = new Date(`${day}T12:00:00`).getDay();
-      expect(dow).toBeGreaterThanOrEqual(1);
-      expect(dow).toBeLessThanOrEqual(5);
+      expect(dow).toBeGreaterThanOrEqual(0);
+      expect(dow).toBeLessThanOrEqual(6);
     }
   });
 
@@ -171,10 +171,10 @@ describe('slot states', () => {
     expect(slot?.state).toBe('AVAILABLE');
   });
 
-  it('builds one column per weekday with the full row template', () => {
+  it('builds one column per day with the full row template', () => {
     const days = weekdaysFrom(mondayOf(new Date()));
     const week = deriveWeek(days, [], [], viewer);
-    expect(week).toHaveLength(5);
+    expect(week).toHaveLength(7);
     expect(week.every((d) => d.slots.length === 18)).toBe(true);
   });
 

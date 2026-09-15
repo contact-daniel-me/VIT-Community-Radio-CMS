@@ -26,4 +26,9 @@ VALUES ('first-signal', 'First Signal', 'Welcome to VIT Community Radio! You sig
 ON CONFLICT (badge_key) DO NOTHING;
 
 -- Realtime replication
-ALTER PUBLICATION supabase_realtime ADD TABLE user_badges;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE user_badges;
+  END IF;
+END $$;

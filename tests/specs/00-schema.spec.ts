@@ -22,16 +22,24 @@ describe('schema and constraints', () => {
     );
     expect(rows.map((r) => r.table_name)).toEqual([
       'activity_logs',
+      'announcements',
       'audio_files',
       'broadcast_state',
       'episodes',
+      'gamification_badges',
+      'gamification_levels',
+      'gamification_xp_rules',
       'homepage_featured_audio',
+      'podcast_episodes',
       'profiles',
       'programs',
       'qc_reviews',
       'schedules',
       'station_slots',
+      'studio_booking_requests',
       'studio_bookings',
+      'user_badges',
+      'user_gamification_adjustments',
     ]);
   });
 

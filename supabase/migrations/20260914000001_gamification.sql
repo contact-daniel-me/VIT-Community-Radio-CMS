@@ -135,4 +135,9 @@ CREATE POLICY "Admin write adjustments" ON user_gamification_adjustments FOR ALL
 );
 
 -- Realtime replication
-ALTER PUBLICATION supabase_realtime ADD TABLE gamification_badges, gamification_levels, gamification_xp_rules;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE gamification_badges, gamification_levels, gamification_xp_rules;
+  END IF;
+END $$;

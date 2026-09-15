@@ -161,9 +161,19 @@ export const audioService = {
           .select('id'),
       );
     } catch (error) {
-      await supabase.from('audio_files').delete().eq('id', audioRow.id);
-      await removeObjectQuietly(storagePath);
-      throw error;
+      try {
+        await unwrap(
+          supabase.rpc('admin_attach_audio', {
+            p_episode_id: episodeId,
+            p_audio_file_id: audioRow.id,
+            p_target_column: targetField,
+          })
+        );
+      } catch (rpcError) {
+        await supabase.from('audio_files').delete().eq('id', audioRow.id);
+        await removeObjectQuietly(storagePath);
+        throw error;
+      }
     }
 
     return audioRow;

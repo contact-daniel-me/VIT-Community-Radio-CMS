@@ -58,6 +58,8 @@ export const can = {
   viewAudioLibrary: (role: UserRole): boolean => role === 'ADMIN' || role === 'PRODUCER',
 
   viewFullActivity: (role: UserRole): boolean => role === 'ADMIN' || role === 'PRODUCER',
+
+  adminForceUploadAudio: (role: UserRole): boolean => role === 'ADMIN',
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {

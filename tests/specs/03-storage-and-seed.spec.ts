@@ -163,6 +163,7 @@ describe('development seed', () => {
       { email: 'qc@vitradio.dev', role: 'QC' },
       { email: 'rj.karthik@vitradio.dev', role: 'RJ' },
       { email: 'rj.sneha@vitradio.dev', role: 'RJ' },
+      { email: 'vitcr@vit.ac.in', role: 'ADMIN' },
     ]);
   });
 

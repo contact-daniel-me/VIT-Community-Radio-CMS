@@ -44,16 +44,24 @@ describe('fresh-project bundle', () => {
     );
     expect(rows.map((r) => r.table_name)).toEqual([
       'activity_logs',
+      'announcements',
       'audio_files',
       'broadcast_state',
       'episodes',
+      'gamification_badges',
+      'gamification_levels',
+      'gamification_xp_rules',
       'homepage_featured_audio',
+      'podcast_episodes',
       'profiles',
       'programs',
       'qc_reviews',
       'schedules',
       'station_slots',
+      'studio_booking_requests',
       'studio_bookings',
+      'user_badges',
+      'user_gamification_adjustments',
     ]);
   });
 
@@ -91,9 +99,9 @@ describe('fresh-project bundle', () => {
     const users = await pg.query<{ count: number }>(
       `select count(*)::int as count from public.profiles`,
     );
-    expect(users.rows[0].count).toBe(5);
+    expect(users.rows[0].count).toBe(6);
 
-    // Five development samples plus the 25 real programmes from migration 10.
+    // Six development samples plus the 25 real programmes from migration 10.
     const programs = await pg.query<{ count: number }>(
       `select count(*)::int as count from public.programs`,
     );
@@ -184,7 +192,7 @@ describe('upgrade bundle (08-18)', () => {
     const applied = readdirSync(migrationsDir)
       .filter((f) => f.endsWith('.sql'))
       .sort()
-      .filter((f) => Number(f.slice(12, 14)) <= 7);
+      .filter((f) => f.startsWith('202501010000') && Number(f.slice(12, 14)) <= 7);
 
     expect(applied).toHaveLength(7);
     for (const file of applied) {
@@ -211,6 +219,7 @@ describe('upgrade bundle (08-18)', () => {
       'broadcast_state',
       'episodes',
       'homepage_featured_audio',
+      'podcast_episodes',
       'profiles',
       'programs',
       'qc_reviews',
@@ -263,6 +272,7 @@ describe('upgrade bundle (08-18)', () => {
         order by table_name`,
     );
     expect(rows.map((r) => r.table_name)).toEqual([
+      'v_public_approved_episodes',
       'v_public_fixed_point_chart',
       'v_public_now_playing',
       'v_public_programs',
@@ -283,7 +293,7 @@ describe('upgrade bundle (08-18)', () => {
         group by table_name order by table_name`,
     );
     for (const row of rows) {
-      expect(row.table_name.startsWith('v_public')).toBe(true);
+      expect(row.table_name.startsWith('v_public') || row.table_name === 'podcast_episodes').toBe(true);
       expect(row.privs).toBe('SELECT');
     }
   });
@@ -309,9 +319,9 @@ describe('upgrade bundle (08-18)', () => {
     const upgrade = readdirSync(migrationsDir)
       .filter((f) => f.endsWith('.sql'))
       .sort()
-      .filter((f) => Number(f.slice(12, 14)) >= 8);
+      .filter((f) => f.startsWith('2025') && Number(f.slice(12, 14)) >= 8);
 
-    expect(upgrade).toHaveLength(12);
+    expect(upgrade).toHaveLength(14);
     for (const file of upgrade) {
       const body = readFileSync(join(migrationsDir, file), 'utf8');
       expect(bundle).toContain(body);

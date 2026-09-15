@@ -38,6 +38,9 @@ export function EpisodeDetailPage() {
   const [uploading, setUploading] = useState(false);
   const [rejectComment, setRejectComment] = useState('');
   const [showReject, setShowReject] = useState(false);
+  const [rawFile, setRawFile] = useState<File | null>(null);
+  const [finalFile, setFinalFile] = useState<File | null>(null);
+  const finalFileInput = useRef<HTMLInputElement>(null);
 
   const [draft, setDraft] = useState<{
     title: string;
@@ -57,6 +60,7 @@ export function EpisodeDetailPage() {
   const deletable = profile.role === 'ADMIN';
   const isReviewer = can.reviewQC(profile.role);
   const needsAudio = ep.program?.requires_audio ?? true;
+  const canAdminForceUpload = can.adminForceUploadAudio(profile.role);
 
   const refresh = async () => {
     await Promise.all([episode.reload(), reviews.reload()]);
@@ -105,14 +109,15 @@ export function EpisodeDetailPage() {
     setDraft(null);
   };
 
-  const onUpload = async (file: File | undefined) => {
-    if (!file) return;
+  const onUpload = async () => {
+    if (!rawFile) return;
     setUploading(true);
     setError(null);
     setNotice(null);
     try {
-      await audioService.replaceAudio(ep.id, file, profile.id, ep.audio_file_id);
-      setNotice(`Uploaded raw audio ${file.name}.`);
+      await audioService.replaceAudio(ep.id, rawFile, profile.id, ep.audio_file_id);
+      setNotice(`Uploaded raw audio ${rawFile.name}.`);
+      setRawFile(null);
       await refresh();
     } catch (cause) {
       setError(errorMessage(cause));
@@ -122,20 +127,21 @@ export function EpisodeDetailPage() {
     }
   };
 
-  const onFinalUpload = async (file: File | undefined, e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!file) return;
+  const onFinalUpload = async () => {
+    if (!finalFile) return;
     setUploading(true);
     setError(null);
     setNotice(null);
     try {
-      await audioService.replaceAudio(ep.id, file, profile.id, ep.final_audio_file_id, 'final_audio_file_id');
-      setNotice(`Uploaded final audio ${file.name}.`);
+      await audioService.replaceAudio(ep.id, finalFile, profile.id, ep.final_audio_file_id, 'final_audio_file_id');
+      setNotice(`Uploaded final audio ${finalFile.name}.`);
+      setFinalFile(null);
       await refresh();
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
       setUploading(false);
-      e.target.value = ''; // clear input
+      if (finalFileInput.current) finalFileInput.current.value = '';
     }
   };
 
@@ -309,20 +315,30 @@ export function EpisodeDetailPage() {
                       : 'No audio. This program allows live slots without a file.'}
                   </Empty>
                 )}
-                {(editable || ep.audio_file) && (
+                {(editable || canAdminForceUpload || ep.audio_file) && (
                   <div className="actions-row">
-                    {editable && (
-                      <>
+                    {(editable || canAdminForceUpload) && (
+                      <div className="row align-center" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
                         <input
                           ref={fileInput}
                           type="file"
                           accept="audio/mpeg,.mp3"
                           disabled={uploading}
-                          onChange={(e) => void onUpload(e.target.files?.[0])}
+                          onChange={(e) => setRawFile(e.target.files?.[0] ?? null)}
                           aria-label="Upload raw audio file"
                         />
+                        {rawFile && (
+                          <button
+                            type="button"
+                            className="btn btn-outline small"
+                            onClick={() => void onUpload()}
+                            disabled={uploading}
+                          >
+                            Upload {rawFile.name}
+                          </button>
+                        )}
                         {uploading && <span className="small muted">Uploading...</span>}
-                      </>
+                      </div>
                     )}
                     {ep.audio_file && !ep.audio_file.deleted_at && (
                       <button
@@ -333,7 +349,7 @@ export function EpisodeDetailPage() {
                         Download Raw
                       </button>
                     )}
-                    {editable && ep.audio_file && !uploading && (
+                    {(editable || canAdminForceUpload) && ep.audio_file && !uploading && (
                       <ConfirmButton
                         className="small"
                         confirmLabel="Delete raw audio?"
@@ -372,16 +388,29 @@ export function EpisodeDetailPage() {
                   <Empty>No final edited audio uploaded yet.</Empty>
                 )}
                 
-                {(editable || ep.final_audio_file) && (
+                {(editable || canAdminForceUpload || ep.final_audio_file) && (
                   <div className="actions-row">
-                    {editable && (
-                      <input
-                        type="file"
-                        accept="audio/mpeg,.mp3"
-                        disabled={uploading}
-                        onChange={(e) => void onFinalUpload(e.target.files?.[0], e)}
-                        aria-label="Upload final audio file"
-                      />
+                    {(editable || canAdminForceUpload) && (
+                      <div className="row align-center" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <input
+                          ref={finalFileInput}
+                          type="file"
+                          accept="audio/mpeg,.mp3"
+                          disabled={uploading}
+                          onChange={(e) => setFinalFile(e.target.files?.[0] ?? null)}
+                          aria-label="Upload final audio file"
+                        />
+                        {finalFile && (
+                          <button
+                            type="button"
+                            className="btn btn-solid small"
+                            onClick={() => void onFinalUpload()}
+                            disabled={uploading}
+                          >
+                            Upload {finalFile.name}
+                          </button>
+                        )}
+                      </div>
                     )}
                     {ep.final_audio_file && (
                       <button
@@ -392,7 +421,7 @@ export function EpisodeDetailPage() {
                         Download Final
                       </button>
                     )}
-                    {editable && ep.final_audio_file && !uploading && (
+                    {(editable || canAdminForceUpload) && ep.final_audio_file && !uploading && (
                       <ConfirmButton
                         className="small"
                         confirmLabel="Delete final audio?"

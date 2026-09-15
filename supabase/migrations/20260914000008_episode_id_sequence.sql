@@ -5,6 +5,8 @@
 
 -- 1. Create a sequence for the episode ID
 CREATE SEQUENCE IF NOT EXISTS public.episode_id_seq START 1;
+GRANT USAGE ON SEQUENCE public.episode_id_seq TO authenticated;
+GRANT USAGE ON SEQUENCE public.episode_id_seq TO service_role;
 
 -- 2. Add the column to the episodes table (initially allowing NULL)
 ALTER TABLE public.episodes ADD COLUMN episode_id TEXT;
@@ -32,16 +34,19 @@ END $$;
 ALTER TABLE public.episodes ALTER COLUMN episode_id SET NOT NULL;
 ALTER TABLE public.episodes ADD CONSTRAINT episodes_episode_id_unique UNIQUE (episode_id);
 
--- 5. Create a function to auto-assign the ID on new inserts
 CREATE OR REPLACE FUNCTION public.assign_episode_id()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 BEGIN
   IF NEW.episode_id IS NULL THEN
     NEW.episode_id := 'VITCR-EP-' || LPAD(nextval('public.episode_id_seq')::text, 4, '0');
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- 6. Create the trigger
 CREATE TRIGGER tr_episodes_assign_episode_id

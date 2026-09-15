@@ -90,9 +90,9 @@ export function addDays(iso: string, days: number): string {
   return isoDate(d);
 }
 
-/** The five working days of the week starting at `monday`. */
+/** The seven days of the week starting at `monday`. */
 export function weekdaysFrom(monday: string): string[] {
-  return [0, 1, 2, 3, 4].map((i) => addDays(monday, i));
+  return [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(monday, i));
 }
 
 /** Station-local instant for a slot, as a Date. */

@@ -103,14 +103,13 @@ describe('studio bookings', () => {
     }
   });
 
-  it('refuses weekends', async () => {
+  it('accepts weekends', async () => {
     const saturday = new Date();
     saturday.setDate(saturday.getDate() + ((6 - saturday.getDay() + 7) % 7 || 7) + 7);
     expect(saturday.getDay()).toBe(6);
-    await expectFailure(
-      () => book(rj, { date: saturday.toISOString().slice(0, 10), start: '10:00' }),
-      /weekday_only|violates check constraint/i,
-    );
+    const rows = await book(rj, { date: saturday.toISOString().slice(0, 10), start: '10:00' });
+    expect(rows).toHaveLength(1);
+    expect(String((rows[0] as { reference: string }).reference)).toMatch(/^VCR-\d{4}-\d{6}$/);
   });
 
   // ------------------------------------------------------- the 24-hour rule

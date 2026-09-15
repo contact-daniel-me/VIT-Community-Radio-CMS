@@ -72,7 +72,7 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
             <h2 className="section-title">Studio availability</h2>
           </div>
           <p className="section-note">
-            Monday&ndash;Friday &middot; 9:00 AM&ndash;6:00 PM &middot; 30-minute slots
+            Monday&ndash;Sunday &middot; 9:00 AM&ndash;6:00 PM &middot; 30-minute slots
           </p>
         </div>
       )}
@@ -82,7 +82,7 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
           <div className="studio-range">
             <h3 className="studio-week">
               {formatBookingDate(days[0], { short: true })} &ndash;{' '}
-              {formatBookingDate(days[4], { short: true })}
+              {formatBookingDate(days[6], { short: true })}
             </h3>
             {monday === thisWeek && <span className="badge badge-red">This week</span>}
           </div>

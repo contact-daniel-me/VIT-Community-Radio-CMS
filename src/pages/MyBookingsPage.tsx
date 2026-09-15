@@ -24,6 +24,7 @@ export function MyBookingsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [uploadFor, setUploadFor] = useState<BookingWithPeople | null>(null);
   const [cancelReason, setCancelReason] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Admins and producers oversee the whole studio; everyone else sees their own.
   const oversees = can.manageProgram(profile.role);
@@ -151,7 +152,19 @@ export function MyBookingsPage() {
     }
   };
 
-  const list = groups[tab];
+  const filteredList = useMemo(() => {
+    const list = groups[tab];
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase();
+    return list.filter((item: any) => {
+      const b = item as BookingWithPeople;
+      const r = item as (StudioBookingRequestRow & { program?: { name: string }, user?: { full_name: string } });
+      const programName = (r.program?.name || b.program?.name || '').toLowerCase();
+      const ref = (b.reference || '').toLowerCase();
+      const rjName = (r.user?.full_name || b.rj?.full_name || '').toLowerCase();
+      return programName.includes(q) || ref.includes(q) || rjName.includes(q);
+    });
+  }, [groups, tab, searchQuery]);
 
   return (
     <>
@@ -172,27 +185,38 @@ export function MyBookingsPage() {
       <Banner>{error}</Banner>
       <Banner kind="success">{notice}</Banner>
 
-      <div className="tabs" role="tablist" aria-label="Booking groups">
-        {(['upcoming', 'requests', 'past', 'cancelled'] as Tab[]).map((key) => (
-          <button
-            key={key}
-            role="tab"
-            type="button"
-            aria-selected={tab === key}
-            className={`tab ${tab === key ? 'is-active' : ''}`}
-            onClick={() => setTab(key)}
-          >
-            {key[0].toUpperCase() + key.slice(1)}
-            <span className="tab-count">{groups[key].length}</span>
-          </button>
-        ))}
+      <div className="row spread align-center wrap" style={{ gap: '1rem', marginBottom: '1rem' }}>
+        <div className="tabs" role="tablist" aria-label="Booking groups" style={{ margin: 0 }}>
+          {(['upcoming', 'requests', 'past', 'cancelled'] as Tab[]).map((key) => (
+            <button
+              key={key}
+              role="tab"
+              type="button"
+              aria-selected={tab === key}
+              className={`tab ${tab === key ? 'is-active' : ''}`}
+              onClick={() => setTab(key)}
+            >
+              {key[0].toUpperCase() + key.slice(1)}
+              <span className="tab-count">{groups[key].length}</span>
+            </button>
+          ))}
+        </div>
+        <div style={{ flex: '1 1 300px', maxWidth: '400px' }}>
+          <input
+            type="search"
+            placeholder="Search by program, RJ, or reference..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ width: '100%' }}
+          />
+        </div>
       </div>
 
       {bookings.loading ? (
         <Loading label="Loading bookings…" />
       ) : bookings.error ? (
         <Banner>{bookings.error}</Banner>
-      ) : list.length === 0 ? (
+      ) : filteredList.length === 0 ? (
         <section className="card">
           <Empty>
             {tab === 'upcoming' ? (
@@ -210,7 +234,7 @@ export function MyBookingsPage() {
         </section>
       ) : (
         <div className="booking-list">
-          {list.map((item: any) => {
+          {filteredList.map((item: any) => {
             const isRequest = item.status === 'PENDING' || item.status === 'REJECTED';
             const booking = item as BookingWithPeople;
             const request = item as (StudioBookingRequestRow & { program?: { name: string }, user?: { full_name: string } });

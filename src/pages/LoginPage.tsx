@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { Banner, Loading } from '@/components/ui';
+import { Banner, Loading, PoweredByGrowiota } from '@/components/ui';
 import { AuthShell } from '@/components/site/AuthShell';
 import { errorMessage } from '@/lib/errors';
 
@@ -40,9 +40,12 @@ export function LoginPage() {
       title="Sign in"
       subtitle="For producers, RJs and the QC desk."
       footer={
-        <p className="auth-alt" style={{ marginTop: '2rem', textAlign: 'center' }}>
-          <span style={{ color: 'var(--muted)' }}>New here?</span> <Link to="/register" style={{ fontWeight: 600, color: 'var(--brand-red)', textDecoration: 'none' }}>Request access</Link>
-        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', marginTop: '2rem' }}>
+          <p className="auth-alt" style={{ textAlign: 'center', margin: 0 }}>
+            <span style={{ color: 'var(--muted)' }}>New here?</span> <Link to="/register" style={{ fontWeight: 600, color: 'var(--brand-red)', textDecoration: 'none' }}>Request access</Link>
+          </p>
+          <PoweredByGrowiota />
+        </div>
       }
     >
       <Banner>{error ?? authError}</Banner>

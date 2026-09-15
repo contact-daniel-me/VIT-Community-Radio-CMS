@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { Banner } from '@/components/ui';
+import { Banner, PoweredByGrowiota } from '@/components/ui';
 import { AuthShell } from '@/components/site/AuthShell';
 import { authService } from '@/services/authService';
 import { errorMessage } from '@/lib/errors';
@@ -59,6 +59,14 @@ export function RegisterPage() {
       <AuthShell
         title="Request sent"
         subtitle={`Thanks, ${fullName.trim().split(' ')[0]}. The station team will take a look.`}
+        footer={
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', marginTop: '2rem' }}>
+            <p className="auth-alt" style={{ textAlign: 'center', margin: 0 }}>
+              <span style={{ color: 'var(--muted)' }}>Already on the team?</span> <Link to="/login" style={{ fontWeight: 600, color: 'var(--brand-red)', textDecoration: 'none' }}>Sign in</Link>
+            </p>
+            <PoweredByGrowiota />
+          </div>
+        }
       >
         <Banner kind="success">
           Your account exists but is <strong>not active yet</strong>. An administrator has to
@@ -87,9 +95,12 @@ export function RegisterPage() {
       title="Request access"
       subtitle="For station members. An administrator approves every account."
       footer={
-        <p className="auth-alt" style={{ marginTop: '2rem', textAlign: 'center' }}>
-          <span style={{ color: 'var(--muted)' }}>Already on the team?</span> <Link to="/login" style={{ fontWeight: 600, color: 'var(--brand-red)', textDecoration: 'none' }}>Sign in</Link>
-        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', marginTop: '2rem' }}>
+          <p className="auth-alt" style={{ textAlign: 'center', margin: 0 }}>
+            <span style={{ color: 'var(--muted)' }}>Already on the team?</span> <Link to="/login" style={{ fontWeight: 600, color: 'var(--brand-red)', textDecoration: 'none' }}>Sign in</Link>
+          </p>
+          <PoweredByGrowiota />
+        </div>
       }
     >
       <Banner>{error}</Banner>

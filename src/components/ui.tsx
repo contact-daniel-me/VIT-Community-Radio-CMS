@@ -171,3 +171,27 @@ export function ConfirmButton({
     </button>
   );
 }
+
+export function PoweredByGrowiota() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--ink-faint)', fontSize: '0.85em' }}>
+      <span>Powered by</span>
+      <a 
+        href="https://www.growiota.in" 
+        target="_blank" 
+        rel="noopener noreferrer"
+        style={{ 
+          color: 'var(--ink-muted)', 
+          fontWeight: 500, 
+          textDecoration: 'none',
+          transition: 'color var(--t-fast) var(--ease)'
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ink)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-muted)')}
+        aria-label="Powered by Growiota (opens in a new tab)"
+      >
+        Growiota
+      </a>
+    </div>
+  );
+}

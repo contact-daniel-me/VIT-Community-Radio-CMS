@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Logo } from './Logo';
+import { PoweredByGrowiota } from '@/components/ui';
 
 export function CommunityCTA() {
   return (
@@ -93,7 +94,10 @@ export function SiteFooter() {
       </div>
 
       <div className="site-footer-base">
-        <span>&copy; {new Date().getFullYear()} VIT Community Radio &middot; 90.8 FM</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          <span>&copy; {new Date().getFullYear()} VIT Community Radio &middot; 90.8 FM</span>
+          <PoweredByGrowiota />
+        </div>
         <span className="footer-made">MADE BY STUDENTS, FOR THE COMMUNITY</span>
       </div>
     </footer>

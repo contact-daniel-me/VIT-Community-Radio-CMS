@@ -9,7 +9,8 @@ export type LeaderboardFilter = 'all' | 'month' | 'week';
 export interface LeaderboardEntry {
   userId: string;
   name: string;
-  xp: number;
+  xp: number; // ALWAYS Authoritative All-Time XP
+  periodXp: number; // XP earned during the specified filter period (used for sorting)
   badgeCount: number;
   episodeCount: number;
   approvedCount: number;
@@ -22,12 +23,7 @@ export interface LeaderboardEntry {
   badges: ComputedBadge[];
 }
 
-const FALLBACK_XP_RULES: Record<string, number> = {
-  'EPISODE_CREATE': 10,
-  'EPISODE_QC_APPROVE': 25,
-  'EPISODE_QC_SUBMIT': 5,
-  'STUDIO_BOOKING': 15,
-};
+
 
 function getDateFilter(filter: LeaderboardFilter): string | null {
   if (filter === 'all') return null;
@@ -81,8 +77,8 @@ export const leaderboardService = {
     
     // Process XP Rules
     const xpRules: Record<string, number> = {};
-    if (xpRulesError && xpRulesError.code === '42P01') {
-      Object.assign(xpRules, FALLBACK_XP_RULES);
+    if (xpRulesError) {
+      console.error('Error fetching xp rules:', xpRulesError);
     } else if (xpRulesData) {
       xpRulesData.forEach(r => { xpRules[r.action] = r.xp_reward; });
     }
@@ -261,7 +257,8 @@ export const leaderboardService = {
       return {
         userId: p.id,
         name: p.full_name,
-        xp: periodTotalXp, // Use period XP for leaderboard ranking
+        xp: allTimeTotalXp, // ALWAYS All-Time XP for source-of-truth consistency
+        periodXp: periodTotalXp, // Period XP strictly for Leaderboard sorting
         badgeCount,
         episodeCount: epTotal, // Keep all-time counts for display
         approvedCount: epApproved,
@@ -275,9 +272,9 @@ export const leaderboardService = {
       };
     });
 
-    // Sort by XP descending, then name ascending for ties
+    // Sort by Period XP descending for the current filter, then name ascending for ties
     return entries
       .filter((e) => e.xp > 0 || true) // include all users (even 0 XP)
-      .sort((a, b) => b.xp - a.xp || a.name.localeCompare(b.name));
+      .sort((a, b) => b.periodXp - a.periodXp || a.name.localeCompare(b.name));
   },
 };

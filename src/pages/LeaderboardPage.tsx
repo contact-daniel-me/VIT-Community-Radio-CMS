@@ -201,7 +201,7 @@ function MyProgressCard({ entry, rank, nextEntry }: { entry: LeaderboardEntry; r
           </div>
           <div className="lb-my-stat-col">
             <span className="lb-my-stat-icon">🔥</span>
-            <span className="lb-my-stat-val">0</span>
+            <span className="lb-my-stat-val">{entry.streak}</span>
             <span className="lb-my-stat-label">Streak</span>
           </div>
         </div>

@@ -48,32 +48,27 @@ export const leaderboardService = {
 
     // Fetch config and overrides concurrently with profiles and activity
     const [
-      { data: profiles },
-      { data: episodesRes },
-      { data: bookingsRes },
-      { data: schedulesRes },
-      { data: userBadgesRes },
-      { data: xpRulesData, error: xpRulesError },
-      badgeDefinitions,
-      { data: overridesData }
+      { data: rawData, error: rpcError },
+      badgeDefinitions
     ] = await Promise.all([
-      supabase.from('profiles').select('id, full_name').eq('active', true).neq('role', 'ADMIN'),
-      supabase.from('episodes').select('id, created_by, status, submitted_at, created_at, reviewed_at, audio_file_id').not('created_by', 'is', null),
-      supabase.from('studio_bookings').select('id, rj_id, created_at').neq('status', 'CANCELLED').not('rj_id', 'is', null),
-      supabase.from('schedules').select('id, created_by').not('created_by', 'is', null),
-      supabase.from('user_badges').select('user_id, badge_key, earned_at'),
-      supabase.from('gamification_xp_rules').select('action, xp_reward').eq('active', true),
-      badgeService.getBadgeDefinitions(),
-      supabase.from('user_gamification_adjustments').select('user_id, xp_adjustment, created_at')
+      supabase.rpc('get_leaderboard_data'),
+      badgeService.getBadgeDefinitions()
     ]);
 
-    if (!profiles) return [];
+    if (rpcError) {
+      console.error('Error fetching leaderboard data:', rpcError);
+      return [];
+    }
+    if (!rawData || !rawData.profiles) return [];
 
-    const episodeRows = episodesRes ?? [];
-    const bookingRows = bookingsRes ?? [];
-    const scheduleRows = schedulesRes ?? [];
-    const userBadgeRows = userBadgesRes ?? [];
-    const overrideRows = overridesData ?? [];
+    const profiles: any[] = rawData.profiles;
+    const episodeRows: any[] = rawData.episodes ?? [];
+    const bookingRows: any[] = rawData.bookings ?? [];
+    const scheduleRows: any[] = rawData.schedules ?? [];
+    const userBadgeRows: any[] = rawData.user_badges ?? [];
+    const overrideRows: any[] = rawData.adjustments ?? [];
+    const xpRulesData: any[] = rawData.xp_rules ?? [];
+    const xpRulesError = null;
     
     // Process XP Rules
     const xpRules: Record<string, number> = {};

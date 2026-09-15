@@ -84,7 +84,7 @@ export function UnifiedStatusBadge({
     return <span className="badge badge-green">QC Done</span>;
   }
   if (episode?.final_audio_file_id) {
-    return <span className="badge badge-pink">Final Upload</span>;
+    return <span className="badge badge-pink">Final Uploaded</span>;
   }
   if (episode?.audio_file_id) {
     return <span className="badge badge-orange">Audio Uploaded</span>;

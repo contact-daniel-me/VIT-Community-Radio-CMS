@@ -65,7 +65,7 @@ export function PipelineVisual({ metrics }: { metrics: { booked: number, approve
     { label: 'Booked', value: metrics.booked, color: 'var(--status-booked-border)', bg: 'var(--status-booked-bg)', desc: 'Slots reserved' },
     { label: 'Approved', value: metrics.approved, color: 'var(--status-approved-border)', bg: 'var(--status-approved-bg)', desc: 'Ready to record' },
     { label: 'Audio Upload', value: metrics.audio_upload, color: 'var(--status-audio-upload-border)', bg: 'var(--status-audio-upload-bg)', desc: 'Audio submitted' },
-    { label: 'Final Upload', value: metrics.final_upload, color: 'var(--status-final-upload-border)', bg: 'var(--status-final-upload-bg)', desc: 'Awaiting final' },
+    { label: 'Final Uploaded', value: metrics.final_upload, color: 'var(--status-final-upload-border)', bg: 'var(--status-final-upload-bg)', desc: 'Awaiting final' },
     { label: 'QC Done', value: metrics.qc_done, color: 'var(--status-qc-done-border)', bg: 'var(--status-qc-done-bg)', desc: 'Completed' },
   ];
 

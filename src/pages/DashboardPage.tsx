@@ -132,7 +132,7 @@ export function DashboardPage() {
           <MetricCard title="Pending Requests" value={pendingRequests.length} status="qc" icon={<ClockIcon />} to="/bookings" />
         )}
         <MetricCard title="Pending QC" value={metrics.pending_qc} status="approved" icon={<ClockIcon />} to={can.reviewQC(profile.role) ? "/qc" : "/admin/episodes"} />
-        <MetricCard title="Final Upload" value={metrics.pipeline.final_upload} status="final" icon={<CloudUploadIcon />} to="/admin/episodes" />
+        <MetricCard title="Final Uploaded" value={metrics.pipeline.final_upload} status="final" icon={<CloudUploadIcon />} to="/admin/episodes" />
         <MetricCard title="QC Done" value={metrics.pipeline.qc_done} status="qc" icon={<CheckCircleIcon />} to="/admin/episodes" />
         <MetricCard title="Total Episodes" value={totalEpisodes} status="total" icon={<PodcastIcon />} to="/admin/episodes" />
       </section>
@@ -188,7 +188,7 @@ export function DashboardPage() {
             <div className="row wrap" style={{ gap: '0.75rem' }}>
               <QuickAction to="/bookings" label="Book Studio" icon={<CalendarIcon />} colorClass="metric-red" />
               <QuickAction to="/bookings" label="Upload Audio" icon={<CloudUploadIcon />} colorClass="metric-pink" />
-              <QuickAction to="/admin/episodes" label="Final Upload" icon={<FolderIcon />} colorClass="metric-pink" />
+              <QuickAction to="/admin/episodes" label="Final Uploaded" icon={<FolderIcon />} colorClass="metric-pink" />
               {can.reviewQC(profile.role) && <QuickAction to="/admin/qc" label="Review QC" icon={<CheckCircleIcon />} colorClass="metric-green" /> }
               <QuickAction to="/admin/episodes" label="Audio Library" icon={<FolderIcon />} colorClass="metric-blue" />
               <QuickAction to="/admin/episodes" label="Manage Episodes" icon={<MusicIcon />} colorClass="metric-purple" />

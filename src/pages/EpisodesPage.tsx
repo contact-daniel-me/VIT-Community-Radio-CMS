@@ -340,7 +340,56 @@ export function EpisodesPage() {
                         : <span className="muted">None</span>}
                     </td>
                     <td>
-                      <UnifiedStatusBadge episode={episode} />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
+                        <UnifiedStatusBadge episode={episode} />
+                        {episode.status === 'APPROVED' && (
+                          (() => {
+                            if (!episode.show_on_homepage) {
+                              return (
+                                <span
+                                  className="badge badge-grey"
+                                  style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem', opacity: 0.75 }}
+                                  title="Not scheduled on homepage"
+                                >
+                                  Homepage: Off
+                                </span>
+                              );
+                            }
+                            const now = new Date();
+                            if (episode.homepage_publish_at && new Date(episode.homepage_publish_at) > now) {
+                              return (
+                                <span
+                                  className="badge badge-purple"
+                                  style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}
+                                  title={`Scheduled for homepage: ${episode.homepage_publish_at}`}
+                                >
+                                  Homepage: Scheduled
+                                </span>
+                              );
+                            }
+                            if (episode.homepage_expires_at && new Date(episode.homepage_expires_at) <= now) {
+                              return (
+                                <span
+                                  className="badge badge-grey"
+                                  style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}
+                                  title={`Expired from homepage: ${episode.homepage_expires_at}`}
+                                >
+                                  Homepage: Expired
+                                </span>
+                              );
+                            }
+                            return (
+                              <span
+                                className="badge badge-green"
+                                style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}
+                                title="Currently live on public homepage"
+                              >
+                                Homepage: Live
+                              </span>
+                            );
+                          })()
+                        )}
+                      </div>
                     </td>
                     <td className="small muted">{formatDate(episode.updated_at)}</td>
                     <td style={{ textAlign: 'right' }}>

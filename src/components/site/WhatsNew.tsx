@@ -52,7 +52,14 @@ export function WhatsNew() {
     async function fetchEpisodes() {
       try {
         const approvedEpisodes = await publicService.getApprovedEpisodes();
-        setEpisodes(approvedEpisodes);
+        const now = new Date();
+        const activeEpisodes = approvedEpisodes.filter((ep) => {
+          if (ep.show_on_homepage === false) return false;
+          if (ep.homepage_publish_at && new Date(ep.homepage_publish_at) > now) return false;
+          if (ep.homepage_expires_at && new Date(ep.homepage_expires_at) <= now) return false;
+          return true;
+        });
+        setEpisodes(activeEpisodes);
       } catch (err) {
         console.error('Failed to fetch newest episodes for WhatsNew', err);
       } finally {
@@ -117,7 +124,7 @@ export function WhatsNew() {
     return (
       <div className="whats-new-panel">
         <div className="whats-new-head">WHAT'S NEW</div>
-        <div className="whats-new-subtitle">No episodes available yet.</div>
+        <div className="whats-new-subtitle">No episodes scheduled on the homepage right now. Stay tuned!</div>
       </div>
     );
   }

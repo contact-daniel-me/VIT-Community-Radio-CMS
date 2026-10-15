@@ -183,6 +183,9 @@ export type EpisodeRow = {
   reviewed_at: string | null;
   raw_file_delete_at: string | null;
   archived_at: string | null;
+  show_on_homepage?: boolean;
+  homepage_publish_at?: string | null;
+  homepage_expires_at?: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -390,6 +393,9 @@ export type PublicApprovedEpisodeRow = {
   file_name: string;
   audio_duration_seconds: number | null;
   created_at: string;
+  show_on_homepage?: boolean;
+  homepage_publish_at?: string | null;
+  homepage_expires_at?: string | null;
 };
 
 /** A cached podcast episode from the Spotify/Anchor RSS feed. */
@@ -853,6 +859,15 @@ export type Database = {
           p_target_column: 'audio_file_id' | 'final_audio_file_id';
         };
         Returns: void;
+      };
+      schedule_episode_homepage: {
+        Args: {
+          p_episode_id: string;
+          p_show_on_homepage: boolean;
+          p_homepage_publish_at?: string | null;
+          p_homepage_expires_at?: string | null;
+        };
+        Returns: EpisodeRow;
       };
     };
     Enums: {

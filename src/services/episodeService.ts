@@ -156,4 +156,38 @@ export const episodeService = {
   async getSchedulableEpisodes(programId?: string): Promise<EpisodeWithRelations[]> {
     return this.getEpisodes({ status: 'APPROVED', programId });
   },
+
+  /** Schedule or publish an approved episode to appear on the homepage (Spotify-style release scheduling). */
+  async scheduleHomepageEpisode(
+    episodeId: string,
+    showOnHomepage: boolean,
+    publishAt: string | null = null,
+    expiresAt: string | null = null,
+  ): Promise<EpisodeRow> {
+    try {
+      return await unwrap(
+        supabase.rpc('schedule_episode_homepage', {
+          p_episode_id: episodeId,
+          p_show_on_homepage: showOnHomepage,
+          p_homepage_publish_at: publishAt,
+          p_homepage_expires_at: expiresAt,
+        }),
+      );
+    } catch {
+      // Fallback in case direct update or workflow setting is used
+      const { data, error } = await supabase
+        .from('episodes')
+        .update({
+          show_on_homepage: showOnHomepage,
+          homepage_publish_at: showOnHomepage ? publishAt : null,
+          homepage_expires_at: showOnHomepage ? expiresAt : null,
+        })
+        .eq('id', episodeId)
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      return data as EpisodeRow;
+    }
+  },
 };

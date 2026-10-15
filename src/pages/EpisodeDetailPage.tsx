@@ -12,6 +12,7 @@ import {
 } from '@/components/ui';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { DeleteEpisodeDialog } from '@/components/DeleteEpisodeDialog';
+import { HomepageScheduleDialog } from '@/components/studio/HomepageScheduleDialog';
 import { episodeService } from '@/services/episodeService';
 import { audioService } from '@/services/audioService';
 import { qcService } from '@/services/qcService';
@@ -26,6 +27,7 @@ export function EpisodeDetailPage() {
   const profile = useCurrentUser();
   const navigate = useNavigate();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showHomepageSchedule, setShowHomepageSchedule] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const episode = useAsync(() => episodeService.getEpisode(episodeId), [episodeId]);
@@ -616,6 +618,97 @@ export function EpisodeDetailPage() {
             )}
           </section>
 
+          {ep.status === 'APPROVED' && (profile.role === 'ADMIN' || profile.role === 'PRODUCER') && (
+            <section className="card" style={{ borderLeft: '4px solid var(--accent, #e50914)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                <h2 style={{ margin: 0 }}>Homepage Release</h2>
+                {(() => {
+                  if (!ep.show_on_homepage) {
+                    return <span className="badge badge-grey">Off</span>;
+                  }
+                  const now = new Date();
+                  if (ep.homepage_publish_at && new Date(ep.homepage_publish_at) > now) {
+                    return <span className="badge badge-purple">Scheduled</span>;
+                  }
+                  if (ep.homepage_expires_at && new Date(ep.homepage_expires_at) <= now) {
+                    return <span className="badge badge-grey">Expired</span>;
+                  }
+                  return <span className="badge badge-green">Live on Homepage</span>;
+                })()}
+              </div>
+
+              <p className="small muted" style={{ marginTop: 0 }}>
+                After QC is done, episodes do not show on the homepage automatically. Schedule when this episode appears and disappears like Spotify.
+              </p>
+
+              <div className="stack small" style={{ marginBottom: '1rem' }}>
+                {ep.show_on_homepage ? (
+                  <>
+                    <div>
+                      <strong>Release time:</strong>{' '}
+                      {ep.homepage_publish_at
+                        ? formatDateTime(ep.homepage_publish_at)
+                        : 'Immediate'}
+                    </div>
+                    <div>
+                      <strong>Disappear time:</strong>{' '}
+                      {ep.homepage_expires_at
+                        ? formatDateTime(ep.homepage_expires_at)
+                        : 'Never (Indefinite until removed)'}
+                    </div>
+                  </>
+                ) : (
+                  <div className="muted">
+                    Not scheduled. Hidden from public homepage.
+                  </div>
+                )}
+              </div>
+
+              <div className="actions-row" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="small primary"
+                  disabled={busy}
+                  onClick={() => setShowHomepageSchedule(true)}
+                >
+                  {ep.show_on_homepage ? 'Edit Homepage Schedule' : 'Schedule for Homepage'}
+                </button>
+
+                {!ep.show_on_homepage && (
+                  <button
+                    type="button"
+                    className="small"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(
+                        () => episodeService.scheduleHomepageEpisode(ep.id, true, new Date().toISOString(), null),
+                        `"${ep.title}" is now published on the homepage.`,
+                      )
+                    }
+                  >
+                    Publish Now
+                  </button>
+                )}
+
+                {ep.show_on_homepage && (
+                  <ConfirmButton
+                    className="small danger"
+                    confirmLabel="Remove from homepage?"
+                    disabled={busy}
+                    onConfirm={() =>
+                      void run(
+                        () => episodeService.scheduleHomepageEpisode(ep.id, false, null, null),
+                        `"${ep.title}" was removed from the homepage.`,
+                      )
+                    }
+                  >
+                    Remove from Homepage
+                  </ConfirmButton>
+                )}
+              </div>
+            </section>
+          )}
+
           {ep.status === 'APPROVED' && can.schedule(profile.role) && (
             <section className="card">
               <h2>Ready to schedule</h2>
@@ -640,6 +733,18 @@ export function EpisodeDetailPage() {
               replace: true,
               state: { notice: `"${title}" was deleted.` },
             });
+          }}
+        />
+      )}
+
+      {showHomepageSchedule && (
+        <HomepageScheduleDialog
+          episode={ep}
+          onClose={() => setShowHomepageSchedule(false)}
+          onSaved={(msg) => {
+            setShowHomepageSchedule(false);
+            setNotice(msg);
+            void refresh();
           }}
         />
       )}

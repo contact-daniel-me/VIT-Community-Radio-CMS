@@ -300,6 +300,7 @@ export function EpisodesPage() {
                   <th>Audio</th>
                   <th>Status</th>
                   <th>Updated</th>
+                  <th style={{ textAlign: 'right' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -342,6 +343,15 @@ export function EpisodesPage() {
                       <UnifiedStatusBadge episode={episode} />
                     </td>
                     <td className="small muted">{formatDate(episode.updated_at)}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <Link
+                        to={`/admin/episodes/${episode.id}`}
+                        className="btn btn-outline small"
+                        style={{ padding: '0.25rem 0.6rem', fontSize: '0.82rem', textDecoration: 'none', display: 'inline-block' }}
+                      >
+                        Manage
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -220,12 +220,21 @@ export function DashboardPage() {
               <div className="stack" style={{ gap: '0.25rem' }}>
                 {upcomingBookings.map(b => (
                   <div key={b.id} className="row spread align-center list-item small" style={{ padding: '0.75rem 0' }}>
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, minWidth: 0, paddingRight: '0.75rem' }}>
                       <div className="muted small" style={{ marginBottom: '0.2rem' }}>{formatDate(b.booking_date)} &middot; {formatTime(b.booking_date + 'T' + b.start_time)} – {formatTime(b.booking_date + 'T' + b.end_time)}</div>
                       <strong style={{ display: 'block', fontSize: '0.95rem' }}>{getShowTitle(b.program?.name, b.notes)}</strong>
                       {b.episode && <div className="muted small" style={{ marginTop: '0.2rem' }}>{b.episode.status}</div>}
                     </div>
-                    <UnifiedStatusBadge booking={b} episode={b.episode} />
+                    <div className="row align-center" style={{ gap: '0.5rem', flexShrink: 0 }}>
+                      <UnifiedStatusBadge booking={b} episode={b.episode} />
+                      <Link
+                        to="/bookings"
+                        className="btn btn-outline small"
+                        style={{ padding: '0.2rem 0.55rem', fontSize: '0.8rem', textDecoration: 'none', display: 'inline-block' }}
+                      >
+                        Manage
+                      </Link>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -276,13 +285,22 @@ export function DashboardPage() {
               <div className="stack" style={{ gap: '0.5rem' }}>
                 {recentEpisodes.map(ep => (
                   <div key={ep.id} className="list-item small row spread align-center" style={{ padding: '0.5rem 0' }}>
-                    <div style={{ flex: 1, minWidth: 0, paddingRight: '1rem' }}>
+                    <div style={{ flex: 1, minWidth: 0, paddingRight: '0.75rem' }}>
                       <Link to={`/admin/episodes/${ep.id}`} style={{ display: 'block', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none', color: 'var(--text)' }}>
                         {ep.title}
                       </Link>
                       <span className="muted" style={{ fontSize: '0.75rem' }}>{formatDate(ep.created_at)} &middot; {ep.duration_seconds ? new Date(ep.duration_seconds * 1000).toISOString().substr(11, 8) : '--:--:--'}</span>
                     </div>
-                    <UnifiedStatusBadge episode={ep} />
+                    <div className="row align-center" style={{ gap: '0.5rem', flexShrink: 0 }}>
+                      <UnifiedStatusBadge episode={ep} />
+                      <Link
+                        to={`/admin/episodes/${ep.id}`}
+                        className="btn btn-outline small"
+                        style={{ padding: '0.2rem 0.55rem', fontSize: '0.8rem', textDecoration: 'none', display: 'inline-block' }}
+                      >
+                        Manage
+                      </Link>
+                    </div>
                   </div>
                 ))}
               </div>

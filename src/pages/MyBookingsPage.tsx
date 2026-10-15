@@ -324,11 +324,11 @@ export function MyBookingsPage() {
 
                     <button
                       type="button"
-                      className="btn btn-ghost small"
+                      className="btn btn-outline small"
                       aria-expanded={open}
                       onClick={() => setOpenId(open ? null : item.id)}
                     >
-                      {open ? 'Hide' : 'Details'}
+                      {open ? 'Hide details' : 'Manage'}
                     </button>
                   </div>
                 </div>

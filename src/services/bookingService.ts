@@ -145,11 +145,12 @@ export const bookingService = {
     );
   },
 
-  /** Every booking, for the admin view or scoped to RJ. RLS still decides what comes back. */
+  /** Every active upcoming booking, for the admin view or scoped to RJ. Excludes CANCELLED. */
   async getUpcomingBookings(limit = 5, userId?: string): Promise<BookingWithPeople[]> {
     let query = supabase
       .from('studio_bookings')
       .select(BOOKING_SELECT)
+      .neq('status', 'CANCELLED')
       .gte('booking_date', new Date().toISOString().split('T')[0])
       .order('booking_date', { ascending: true })
       .order('start_time', { ascending: true })

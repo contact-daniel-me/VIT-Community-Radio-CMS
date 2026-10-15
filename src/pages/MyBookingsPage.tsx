@@ -13,7 +13,19 @@ import type { StudioBookingRequestRow } from '@/types/database';
 
 type Tab = 'upcoming' | 'past' | 'cancelled' | 'requests';
 
+function getDisplayShowName(programName?: string | null, notes?: string | null): string {
+  if (notes) {
+    const match = notes.match(/^\[(?:Show|Other Show|Special Link):\s*([^\]]+)\]/i);
+    if (match) return match[1].trim();
+  }
+  return programName ?? 'Unknown Show';
+}
 
+function getDisplayNotes(notes?: string | null): string | null {
+  if (!notes) return null;
+  const cleaned = notes.replace(/^\[(?:Show|Other Show|Special Link):\s*[^\]]+\]\n?/i, '').trim();
+  return cleaned || null;
+}
 
 export function MyBookingsPage() {
   const profile = useCurrentUser();
@@ -262,7 +274,11 @@ export function MyBookingsPage() {
                   </div>
 
                   <div className="booking-what">
-                    <h3 className="booking-show">{isRequest ? (request.program?.name ?? 'Unknown Show') : (booking.program?.name ?? 'Unknown Show')}</h3>
+                    <h3 className="booking-show">
+                      {isRequest
+                        ? getDisplayShowName(request.program?.name, request.notes)
+                        : getDisplayShowName(booking.program?.name, booking.notes)}
+                    </h3>
                     <p className="booking-meta">
                       {!isRequest && <span className="booking-ref">{booking.reference}</span>}
                       {!isRequest && <span className="dot">&middot;</span>}
@@ -358,7 +374,7 @@ export function MyBookingsPage() {
                               : 'Not approved'
                         }
                       />
-                      {item.notes && <Detail label="Notes" value={item.notes} />}
+                      {getDisplayNotes(item.notes) && <Detail label="Notes" value={getDisplayNotes(item.notes)!} />}
                       {!isRequest && booking.override_reason && (
                         <Detail label="Override reason" value={booking.override_reason} />
                       )}

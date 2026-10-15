@@ -49,8 +49,11 @@ export function RecordingDialog({
   const [progress, setProgress] = useState<string>('');
   const [episode, setEpisode] = useState<EpisodeRow | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const customMatch = (booking.notes ?? '').match(/^\[(?:Show|Other Show|Special Link):\s*([^\]]+)\]/i);
+  const displayShowName = customMatch ? customMatch[1].trim() : (booking.program?.name ?? '');
+
   const [programId, setProgramId] = useState(booking.program_id);
-  const [title, setTitle] = useState(booking.program?.name ?? '');
+  const [title, setTitle] = useState(displayShowName);
 
   const programs = useAsync(async () => {
     const list = await programService.getPrograms({ activeOnly: true });
@@ -116,7 +119,7 @@ export function RecordingDialog({
               {stage === 'done' ? 'Uploaded' : 'Upload your recording'}
             </p>
             <h2 id="rec-title" className="dialog-title">
-              {booking.program?.name}
+              {displayShowName || booking.program?.name || 'Recording'}
             </h2>
             <p className="dialog-slot">
               {formatBookingDate(booking.booking_date)}

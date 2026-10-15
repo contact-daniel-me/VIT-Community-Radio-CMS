@@ -4853,3 +4853,225 @@
 .whats-new-play-btn:hover {
   background: color-mix(in srgb, var(--accent) 80%, black);
 }
+
+/* ---------- What's New Empty State (No Feeds) ---------- */
+.whats-new-empty-card {
+  width: 82%;
+  max-width: 620px;
+  min-height: 200px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 2rem 1.5rem;
+  margin: 0 auto;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.whats-new-empty-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: glowScan 3.5s ease-in-out infinite;
+}
+
+@keyframes glowScan {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scaleX(0.4);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+.whats-new-beacon {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.whats-new-beacon-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent);
+  opacity: 0;
+  animation: beaconPulse 2.8s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
+}
+
+.whats-new-beacon-ring:nth-child(2) {
+  animation-delay: 0.9s;
+}
+
+.whats-new-beacon-ring:nth-child(3) {
+  animation-delay: 1.8s;
+}
+
+@keyframes beaconPulse {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.85;
+  }
+  70% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+.whats-new-beacon-core {
+  position: relative;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  border: 1.5px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.whats-new-beacon-icon {
+  width: 22px;
+  height: 22px;
+  animation: beaconFloat 3s ease-in-out infinite alternate;
+}
+
+@keyframes beaconFloat {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-2px);
+  }
+}
+
+.whats-new-equalizer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  height: 14px;
+  margin-top: 0.6rem;
+}
+
+.whats-new-eq-bar {
+  width: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  opacity: 0.7;
+  animation: eqBounce 1.4s ease-in-out infinite alternate;
+}
+
+.whats-new-eq-bar:nth-child(1) { height: 4px; animation-delay: 0.1s; }
+.whats-new-eq-bar:nth-child(2) { height: 10px; animation-delay: 0.4s; }
+.whats-new-eq-bar:nth-child(3) { height: 6px; animation-delay: 0.2s; }
+.whats-new-eq-bar:nth-child(4) { height: 12px; animation-delay: 0.6s; }
+.whats-new-eq-bar:nth-child(5) { height: 8px; animation-delay: 0.3s; }
+
+@keyframes eqBounce {
+  0% {
+    height: 3px;
+    opacity: 0.4;
+  }
+  100% {
+    height: 14px;
+    opacity: 1;
+  }
+}
+
+.whats-new-empty-title {
+  margin: 0.25rem 0 0.35rem 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.whats-new-empty-desc {
+  margin: 0 0 0.85rem 0;
+  font-size: 0.86rem;
+  color: var(--ink-muted);
+  max-width: 380px;
+  line-height: 1.45;
+}
+
+.whats-new-empty-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+}
+
+.whats-new-empty-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+  animation: liveDotPulse 2s infinite;
+}
+
+@keyframes liveDotPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+
+.whats-new-admin-shortcut {
+  margin-top: 0.9rem;
+  font-size: 0.78rem;
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  transition: all 0.2s ease;
+}
+
+.whats-new-admin-shortcut:hover {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+

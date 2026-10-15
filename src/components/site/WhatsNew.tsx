@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { publicService } from '@/services/publicService';
 import type { PublicApprovedEpisodeRow } from '@/types/database';
 import { useGlobalAudio } from '@/hooks/GlobalAudioContext';
@@ -54,7 +55,7 @@ export function WhatsNew() {
         const approvedEpisodes = await publicService.getApprovedEpisodes();
         const now = new Date();
         const activeEpisodes = approvedEpisodes.filter((ep) => {
-          if (ep.show_on_homepage === false) return false;
+          if (ep.show_on_homepage !== true) return false;
           if (ep.homepage_publish_at && new Date(ep.homepage_publish_at) > now) return false;
           if (ep.homepage_expires_at && new Date(ep.homepage_expires_at) <= now) return false;
           return true;
@@ -121,10 +122,65 @@ export function WhatsNew() {
   }
 
   if (episodes.length === 0) {
+    const isAdmin = profile?.role === 'ADMIN' || profile?.role === 'PRODUCER';
     return (
       <div className="whats-new-panel">
-        <div className="whats-new-head">WHAT'S NEW</div>
-        <div className="whats-new-subtitle">No episodes scheduled on the homepage right now. Stay tuned!</div>
+        <div className="whats-new-header-container">
+          <h2 className="whats-new-head">WHAT'S NEW</h2>
+          <p className="whats-new-subtitle">Catch the latest episodes from 90.8 FM</p>
+        </div>
+
+        <div style={{ padding: '0 1.5rem', width: '100%' }}>
+          <div className="whats-new-empty-card">
+            {/* Animated Radio Beacon */}
+            <div className="whats-new-beacon">
+              <span className="whats-new-beacon-ring" />
+              <span className="whats-new-beacon-ring" />
+              <span className="whats-new-beacon-ring" />
+              <div className="whats-new-beacon-core">
+                <svg
+                  className="whats-new-beacon-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="2" />
+                  <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14" />
+                </svg>
+              </div>
+            </div>
+
+            <h3 className="whats-new-empty-title">No feeds available right now</h3>
+            <p className="whats-new-empty-desc">
+              Our frequency is ready. Scheduled shows and podcast episodes will appear here once live on air.
+            </p>
+
+            {/* Subtle animated equalizer bars */}
+            <div className="whats-new-equalizer" aria-hidden="true">
+              <span className="whats-new-eq-bar" />
+              <span className="whats-new-eq-bar" />
+              <span className="whats-new-eq-bar" />
+              <span className="whats-new-eq-bar" />
+              <span className="whats-new-eq-bar" />
+            </div>
+
+            <div style={{ marginTop: '0.85rem' }}>
+              <span className="whats-new-empty-pill">
+                <span className="whats-new-empty-dot" />
+                90.8 FM · Frequency Ready
+              </span>
+            </div>
+
+            {isAdmin && (
+              <Link to="/admin/episodes" className="whats-new-admin-shortcut">
+                <span>⚡</span> Manage & Schedule Feeds →
+              </Link>
+            )}
+          </div>
+        </div>
       </div>
     );
   }

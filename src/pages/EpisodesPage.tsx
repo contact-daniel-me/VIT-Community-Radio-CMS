@@ -3,7 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { Banner, Empty, UnifiedStatusBadge, Loading, PageHeader } from '@/components/ui';
-import { episodeService, type EpisodeInput } from '@/services/episodeService';
+import { HomepageScheduleDialog } from '@/components/studio/HomepageScheduleDialog';
+import { episodeService, type EpisodeInput, type EpisodeWithRelations } from '@/services/episodeService';
 import { programService } from '@/services/programService';
 import { userService } from '@/services/userService';
 import { can } from '@/lib/permissions';
@@ -49,6 +50,8 @@ export function EpisodesPage() {
   const [saving, setSaving] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [schedulingEpisode, setSchedulingEpisode] = useState<EpisodeWithRelations | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const activePrograms = (programs.data ?? []).filter((p) => p.active);
@@ -111,6 +114,7 @@ export function EpisodesPage() {
       />
 
       <Banner>{error}</Banner>
+      {notice && <Banner kind="info">{notice}</Banner>}
       {activePrograms.length === 0 && !programs.loading && (
         <Banner kind="info">
           There are no active programs yet.{' '}
@@ -344,48 +348,79 @@ export function EpisodesPage() {
                         <UnifiedStatusBadge episode={episode} />
                         {episode.status === 'APPROVED' && (
                           (() => {
+                            const isAdminOrProducer = profile.role === 'ADMIN' || profile.role === 'PRODUCER';
                             if (!episode.show_on_homepage) {
                               return (
-                                <span
+                                <button
+                                  type="button"
                                   className="badge badge-grey"
-                                  style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem', opacity: 0.75 }}
-                                  title="Not scheduled on homepage"
+                                  style={{
+                                    fontSize: '0.68rem',
+                                    padding: '0.1rem 0.4rem',
+                                    opacity: 0.85,
+                                    cursor: isAdminOrProducer ? 'pointer' : 'default',
+                                    border: 'none',
+                                    background: 'var(--surface-sunken)',
+                                  }}
+                                  title={isAdminOrProducer ? 'Click to schedule on homepage' : 'Not scheduled on homepage'}
+                                  onClick={() => isAdminOrProducer && setSchedulingEpisode(episode)}
                                 >
-                                  Homepage: Off
-                                </span>
+                                  Homepage: Off {isAdminOrProducer ? '✎' : ''}
+                                </button>
                               );
                             }
                             const now = new Date();
                             if (episode.homepage_publish_at && new Date(episode.homepage_publish_at) > now) {
                               return (
-                                <span
+                                <button
+                                  type="button"
                                   className="badge badge-purple"
-                                  style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}
-                                  title={`Scheduled for homepage: ${episode.homepage_publish_at}`}
+                                  style={{
+                                    fontSize: '0.68rem',
+                                    padding: '0.1rem 0.4rem',
+                                    cursor: isAdminOrProducer ? 'pointer' : 'default',
+                                    border: 'none',
+                                  }}
+                                  title={isAdminOrProducer ? 'Click to manage homepage schedule' : `Scheduled for homepage: ${episode.homepage_publish_at}`}
+                                  onClick={() => isAdminOrProducer && setSchedulingEpisode(episode)}
                                 >
-                                  Homepage: Scheduled
-                                </span>
+                                  Homepage: Scheduled {isAdminOrProducer ? '✎' : ''}
+                                </button>
                               );
                             }
                             if (episode.homepage_expires_at && new Date(episode.homepage_expires_at) <= now) {
                               return (
-                                <span
+                                <button
+                                  type="button"
                                   className="badge badge-grey"
-                                  style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}
-                                  title={`Expired from homepage: ${episode.homepage_expires_at}`}
+                                  style={{
+                                    fontSize: '0.68rem',
+                                    padding: '0.1rem 0.4rem',
+                                    cursor: isAdminOrProducer ? 'pointer' : 'default',
+                                    border: 'none',
+                                  }}
+                                  title={isAdminOrProducer ? 'Click to manage homepage schedule' : `Expired from homepage: ${episode.homepage_expires_at}`}
+                                  onClick={() => isAdminOrProducer && setSchedulingEpisode(episode)}
                                 >
-                                  Homepage: Expired
-                                </span>
+                                  Homepage: Expired {isAdminOrProducer ? '✎' : ''}
+                                </button>
                               );
                             }
                             return (
-                              <span
+                              <button
+                                type="button"
                                 className="badge badge-green"
-                                style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}
-                                title="Currently live on public homepage"
+                                style={{
+                                  fontSize: '0.68rem',
+                                  padding: '0.1rem 0.4rem',
+                                  cursor: isAdminOrProducer ? 'pointer' : 'default',
+                                  border: 'none',
+                                }}
+                                title={isAdminOrProducer ? 'Click to manage homepage schedule' : 'Currently live on public homepage'}
+                                onClick={() => isAdminOrProducer && setSchedulingEpisode(episode)}
                               >
-                                Homepage: Live
-                              </span>
+                                Homepage: Live {isAdminOrProducer ? '✎' : ''}
+                              </button>
                             );
                           })()
                         )}
@@ -529,6 +564,18 @@ export function EpisodesPage() {
           </div>
         )}
       </section>
+
+      {schedulingEpisode && (
+        <HomepageScheduleDialog
+          episode={schedulingEpisode}
+          onClose={() => setSchedulingEpisode(null)}
+          onSaved={(msg) => {
+            setSchedulingEpisode(null);
+            setNotice(msg);
+            void episodes.reload();
+          }}
+        />
+      )}
     </>
   );
 }

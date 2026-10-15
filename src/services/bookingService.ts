@@ -323,6 +323,15 @@ export const bookingService = {
     if (error) throw translateBookingError(error);
   },
 
+  async permanentlyDeleteRequest(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('studio_booking_requests')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw translateBookingError(error);
+  },
+
   /**
    * Tie a recording to the session it came from (RJ -> show -> booking -> audio).
    *

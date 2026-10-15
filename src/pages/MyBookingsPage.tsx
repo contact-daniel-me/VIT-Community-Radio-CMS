@@ -164,6 +164,21 @@ export function MyBookingsPage() {
     }
   };
 
+  const permanentlyDeleteRequest = async (request: StudioBookingRequestRow) => {
+    setBusyId(request.id);
+    setError(null);
+    setNotice(null);
+    try {
+      await bookingService.permanentlyDeleteRequest(request.id);
+      setNotice(`Request has been permanently deleted.`);
+      await requests.reload();
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const filteredList = useMemo(() => {
     const list = groups[tab];
     if (!searchQuery.trim()) return list;
@@ -330,6 +345,17 @@ export function MyBookingsPage() {
                     >
                       {open ? 'Hide details' : 'Manage'}
                     </button>
+
+                    {(item.status === 'CANCELLED' || item.status === 'REJECTED') && (
+                      <ConfirmButton
+                        className="small danger"
+                        confirmLabel="Delete permanently?"
+                        disabled={busyId === item.id}
+                        onConfirm={() => void (isRequest ? permanentlyDeleteRequest(request) : permanentlyDelete(booking))}
+                      >
+                        {busyId === item.id ? 'Deleting…' : 'Delete permanently'}
+                      </ConfirmButton>
+                    )}
                   </div>
                 </div>
 
@@ -459,16 +485,18 @@ export function MyBookingsPage() {
                       <p className="small muted">
                         This booking has already started and can no longer be cancelled from here.
                       </p>
-                    ) : !isRequest && booking.status === 'CANCELLED' && oversees ? (
-                      <div className="dialog-actions" style={{ marginTop: '1.2rem', gap: '0.5rem' }}>
-                        <ConfirmButton
-                          className="small"
-                          confirmLabel="Reapprove this booking?"
-                          disabled={busyId === booking.id}
-                          onConfirm={() => void reapprove(booking)}
-                        >
-                          {busyId === booking.id ? 'Reapproving…' : 'Reapprove booking'}
-                        </ConfirmButton>
+                    ) : !isRequest && booking.status === 'CANCELLED' ? (
+                      <div className="dialog-actions" style={{ marginTop: '1.2rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {oversees && (
+                          <ConfirmButton
+                            className="small"
+                            confirmLabel="Reapprove this booking?"
+                            disabled={busyId === booking.id}
+                            onConfirm={() => void reapprove(booking)}
+                          >
+                            {busyId === booking.id ? 'Reapproving…' : 'Reapprove booking'}
+                          </ConfirmButton>
+                        )}
                         <ConfirmButton
                           className="small danger"
                           confirmLabel="Delete permanently?"
@@ -476,6 +504,17 @@ export function MyBookingsPage() {
                           onConfirm={() => void permanentlyDelete(booking)}
                         >
                           {busyId === booking.id ? 'Deleting…' : 'Delete permanently'}
+                        </ConfirmButton>
+                      </div>
+                    ) : isRequest && (request.status === 'CANCELLED' || request.status === 'REJECTED') ? (
+                      <div className="dialog-actions" style={{ marginTop: '1.2rem', gap: '0.5rem' }}>
+                        <ConfirmButton
+                          className="small danger"
+                          confirmLabel="Delete permanently?"
+                          disabled={busyId === request.id}
+                          onConfirm={() => void permanentlyDeleteRequest(request)}
+                        >
+                          {busyId === request.id ? 'Deleting…' : 'Delete permanently'}
                         </ConfirmButton>
                       </div>
                     ) : null}

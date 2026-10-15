@@ -80,6 +80,12 @@ export function UnifiedStatusBadge({
   booking?: { status: string; script_status: string } | null;
   episode?: { status: string; audio_file_id: string | null; final_audio_file_id?: string | null } | null;
 }) {
+  if (booking?.status === 'CANCELLED') {
+    return <span className="badge badge-grey">Cancelled</span>;
+  }
+  if (booking?.status === 'NO_SHOW') {
+    return <span className="badge badge-grey">No Show</span>;
+  }
   if (episode?.status === 'APPROVED') {
     return <span className="badge badge-green">QC Done</span>;
   }

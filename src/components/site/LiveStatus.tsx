@@ -52,8 +52,14 @@ export function LiveStatus({ now }: { now: PublicNowPlayingRow | null }) {
         <span className="freq-tag">90.8 FM</span>
       </div>
 
-      <p className="live-show">{now.program_name}</p>
-      {now.episode_title && <p className="live-episode">{now.episode_title}</p>}
+      <p className="live-show">
+        {now.program_name === 'Legacy Bookings' && now.episode_title
+          ? now.episode_title
+          : now.program_name}
+      </p>
+      {now.episode_title && now.program_name !== 'Legacy Bookings' && (
+        <p className="live-episode">{now.episode_title}</p>
+      )}
 
       <Waveform active bars={22} className="live-wave" label="Broadcast audio level" />
 

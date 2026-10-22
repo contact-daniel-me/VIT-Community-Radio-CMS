@@ -58,8 +58,14 @@ export function ScheduleTimeline({ slots }: { slots: PublicScheduleRow[] }) {
             <span className="timeline-marker" aria-hidden="true" />
 
             <div className="timeline-body">
-              <h3 className="timeline-show">{slot.program_name}</h3>
-              {slot.episode_title && <p className="timeline-episode">{slot.episode_title}</p>}
+              <h3 className="timeline-show">
+                {slot.program_name === 'Legacy Bookings' && slot.episode_title
+                  ? slot.episode_title
+                  : slot.program_name}
+              </h3>
+              {slot.episode_title && slot.program_name !== 'Legacy Bookings' && (
+                <p className="timeline-episode">{slot.episode_title}</p>
+              )}
               {slot.host_name && <p className="timeline-host">with {slot.host_name}</p>}
             </div>
 

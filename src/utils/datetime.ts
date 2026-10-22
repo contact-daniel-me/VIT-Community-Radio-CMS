@@ -36,16 +36,47 @@ const isoDayFormatter = new Intl.DateTimeFormat('en-CA', {
   day: '2-digit',
 });
 
+/**
+ * Parse any date/time string, ensuring that strings without timezone
+ * offsets (e.g. "2026-10-22T17:00:00" or "17:00:00") are interpreted in
+ * station time (+05:30) rather than the local browser's timezone.
+ */
+export function parseStationDate(iso: string): Date {
+  if (!iso) return new Date(NaN);
+  const trimmed = iso.trim();
+  // Plain time string: 'HH:MM' or 'HH:MM:SS'
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(trimmed)) {
+    const today = stationDay();
+    const timeWithSec = trimmed.length === 5 ? `${trimmed}:00` : trimmed;
+    return new Date(`${today}T${timeWithSec}${IST_OFFSET}`);
+  }
+  // Check if string ends with timezone offset (+HH:MM, -HH:MM, or Z)
+  if (/([+-]\d{2}:\d{2}|Z)$/i.test(trimmed)) {
+    return new Date(trimmed);
+  }
+  // If string has space separator like '2026-10-22 17:00:00', normalize to T
+  const formatted = trimmed.replace(' ', 'T');
+  // If time is missing seconds like '2026-10-22T17:00'
+  const withSec = /T\d{2}:\d{2}$/.test(formatted) ? `${formatted}:00` : formatted;
+  return new Date(`${withSec}${IST_OFFSET}`);
+}
+
 export function formatTime(iso: string | null | undefined): string {
-  return iso ? timeFormatter.format(new Date(iso)) : '--:--';
+  if (!iso) return '--:--';
+  const d = parseStationDate(iso);
+  return isNaN(d.getTime()) ? '--:--' : timeFormatter.format(d);
 }
 
 export function formatDate(iso: string | null | undefined): string {
-  return iso ? dateFormatter.format(new Date(iso)) : '--';
+  if (!iso) return '--';
+  const d = parseStationDate(iso);
+  return isNaN(d.getTime()) ? '--' : dateFormatter.format(d);
 }
 
 export function formatDateTime(iso: string | null | undefined): string {
-  return iso ? dateTimeFormatter.format(new Date(iso)) : '--';
+  if (!iso) return '--';
+  const d = parseStationDate(iso);
+  return isNaN(d.getTime()) ? '--' : dateTimeFormatter.format(d);
 }
 
 /** Station-local day as YYYY-MM-DD, which is what the date inputs use. */
@@ -62,7 +93,9 @@ export function stationDayRange(day: string = stationDay()): { start: string; en
 
 /** Convert a datetime-local input value (station time) to a UTC ISO string. */
 export function stationLocalToIso(value: string): string {
-  return new Date(`${value}:00${IST_OFFSET}`).toISOString();
+  if (!value) return '';
+  const d = parseStationDate(value);
+  return isNaN(d.getTime()) ? '' : d.toISOString();
 }
 
 /** Convert a UTC ISO string to the value a datetime-local input expects. */

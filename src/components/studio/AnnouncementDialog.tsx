@@ -3,6 +3,7 @@ import { announcementService } from '@/services/announcementService';
 import { errorMessage } from '@/lib/errors';
 import { Banner } from '@/components/ui';
 import type { AnnouncementRow } from '@/types/database';
+import { stationLocalToIso } from '@/utils/datetime';
 
 export function AnnouncementDialog({
   existing,
@@ -68,14 +69,14 @@ export function AnnouncementDialog({
           published_at = existing?.published_at || new Date().toISOString();
         } else {
           if (!scheduledDate || !scheduledTime) throw new Error('Please select a schedule date and time.');
-          scheduled_at = new Date(`${scheduledDate}T${scheduledTime}:00`).toISOString();
+          scheduled_at = stationLocalToIso(`${scheduledDate}T${scheduledTime}`);
           status = 'SCHEDULED';
         }
       }
 
       if (hasExpiry) {
         if (!expiryDate || !expiryTime) throw new Error('Please select an expiry date and time.');
-        expires_at = new Date(`${expiryDate}T${expiryTime}:00`).toISOString();
+        expires_at = stationLocalToIso(`${expiryDate}T${expiryTime}`);
       }
 
       const payload = {

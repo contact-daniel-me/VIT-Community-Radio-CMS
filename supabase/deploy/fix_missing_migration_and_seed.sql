@@ -90,12 +90,18 @@ set search_path = public, pg_temp
 as $$
 declare
   v_episode_id uuid;
+  v_start_time timestamptz;
+  v_end_time timestamptz;
 begin
+  -- Convert date + time in station timezone (Asia/Kolkata) to timestamptz
+  v_start_time := (new.booking_date + new.start_time) at time zone 'Asia/Kolkata';
+  v_end_time := (new.booking_date + new.end_time) at time zone 'Asia/Kolkata';
+
   if tg_op = 'UPDATE' and new.status = 'CANCELLED' and old.status <> 'CANCELLED' 
   then
     delete from public.schedules
      where program_id = new.program_id
-       and start_time = new.booking_date + new.start_time;
+       and (start_time = v_start_time or notes like '%' || new.reference);
     return new;
   end if;
 
@@ -105,21 +111,29 @@ begin
     select id into v_episode_id
       from public.episodes
      where program_id = new.program_id
-       and status = 'APPROVED'
+        and status = 'APPROVED'
      order by created_at desc
      limit 1;
 
-    insert into public.schedules
-      (program_id, episode_id, start_time, end_time, status, notes, created_by)
-    values
-      (new.program_id,
-       v_episode_id,
-       new.booking_date + new.start_time,
-       new.booking_date + new.end_time,
-       'SCHEDULED',
-       'Auto-scheduled from Studio Booking ' || new.reference,
-       new.created_by)
-    on conflict on constraint schedules_no_overlap do nothing;
+    if not exists (
+      select 1 from public.schedules
+       where program_id = new.program_id
+         and start_time = v_start_time
+         and end_time = v_end_time
+         and status <> 'CANCELLED'
+    ) then
+      insert into public.schedules
+        (program_id, episode_id, start_time, end_time, status, notes, created_by)
+      values
+        (new.program_id,
+         v_episode_id,
+         v_start_time,
+         v_end_time,
+         'SCHEDULED',
+         'Auto-scheduled from Studio Booking ' || new.reference,
+         new.created_by)
+      on conflict on constraint schedules_no_overlap do nothing;
+    end if;
   end if;
 
   return new;

@@ -12,7 +12,7 @@ import { scheduleService } from '@/services/scheduleService';
 import { dashboardMetricsService } from '@/services/dashboardMetricsService';
 import { isStudioTourBooking, slotStartsAt } from '@/utils/studio';
 import { can } from '@/lib/permissions';
-import { formatTime, formatDate } from '@/utils/datetime';
+import { formatTime, formatDate, stationDay } from '@/utils/datetime';
 import { MetricCard, CompactEmptyState, QuickAction, PipelineVisual } from '@/components/ui/DashboardCards';
 import { supabase } from '@/lib/supabase';
 
@@ -38,7 +38,7 @@ export function DashboardPage() {
   const station = useStationStatus();
 
   const dashboard = useAsync(async () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = stationDay();
     const [
       pendingQc,
       recentEpisodes,

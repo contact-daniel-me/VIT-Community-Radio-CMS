@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { episodeService, type EpisodeWithRelations } from '@/services/episodeService';
 import { AppError, errorMessage } from '@/lib/errors';
 import { Banner } from '@/components/ui';
+import { stationLocalToIso } from '@/utils/datetime';
 
 function toLocalDateString(d: Date): string {
   const year = d.getFullYear();
@@ -118,11 +119,10 @@ export function HomepageScheduleDialog({
         if (!startDate || !startTime) {
           throw new AppError('VALIDATION', 'Please select both a start date and time for the schedule.');
         }
-        const publishDate = new Date(`${startDate}T${startTime}:00`);
-        if (isNaN(publishDate.getTime())) {
+        publishAtIso = stationLocalToIso(`${startDate}T${startTime}`);
+        if (!publishAtIso) {
           throw new AppError('VALIDATION', 'Invalid schedule start date or time.');
         }
-        publishAtIso = publishDate.toISOString();
       } else {
         // Immediate: record current time
         publishAtIso = new Date().toISOString();
@@ -132,16 +132,15 @@ export function HomepageScheduleDialog({
         if (!endDate || !endTime) {
           throw new AppError('VALIDATION', 'Please select both an expiration date and time.');
         }
-        const expiryDate = new Date(`${endDate}T${endTime}:00`);
-        if (isNaN(expiryDate.getTime())) {
+        expiresAtIso = stationLocalToIso(`${endDate}T${endTime}`);
+        if (!expiresAtIso) {
           throw new AppError('VALIDATION', 'Invalid expiration date or time.');
         }
 
         const baseTimestamp = publishAtIso ? new Date(publishAtIso).getTime() : Date.now();
-        if (expiryDate.getTime() <= baseTimestamp) {
+        if (new Date(expiresAtIso).getTime() <= baseTimestamp) {
           throw new AppError('VALIDATION', 'The expiration time must be after the publish / release time.');
         }
-        expiresAtIso = expiryDate.toISOString();
       }
 
       await episodeService.scheduleHomepageEpisode(

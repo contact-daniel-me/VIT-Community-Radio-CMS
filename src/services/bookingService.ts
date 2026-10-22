@@ -16,6 +16,7 @@ import {
   type CalendarDay,
   type GridSlot,
 } from '@/utils/studio';
+import { stationDay } from '@/utils/datetime';
 
 // Re-exported so callers keep importing calendar types from the service they
 // already use. The derivation itself lives in utils/studio.ts because it is
@@ -151,7 +152,7 @@ export const bookingService = {
       .from('studio_bookings')
       .select(BOOKING_SELECT)
       .neq('status', 'CANCELLED')
-      .gte('booking_date', new Date().toISOString().split('T')[0])
+      .gte('booking_date', stationDay())
       .order('booking_date', { ascending: true })
       .order('start_time', { ascending: true })
       .limit(limit);
@@ -206,7 +207,7 @@ export const bookingService = {
         .select('editor_id')
         .not('editor_id', 'is', null)
         .eq('status', 'CONFIRMED')
-        .gte('booking_date', new Date().toISOString().slice(0, 10)),
+        .gte('booking_date', stationDay()),
     );
 
     const load: Record<string, number> = {};

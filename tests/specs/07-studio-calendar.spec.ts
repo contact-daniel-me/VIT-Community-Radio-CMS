@@ -15,6 +15,7 @@ import {
   deriveWeek,
   buildGrid,
   formatSlotTime,
+  isStudioTourBooking,
   isoDate,
   mondayOf,
   weekdaysFrom,
@@ -188,5 +189,31 @@ describe('slot states', () => {
     );
     expect(day.slots.some((s) => s.state === 'MINE')).toBe(false);
     expect(day.slots.find((s) => s.start === '10:00')?.state).toBe('BOOKED');
+  });
+
+  describe('isStudioTourBooking', () => {
+    it('detects studio tour from notes prefix', () => {
+      expect(isStudioTourBooking({ notes: '[Studio Tour: Sample]' })).toBe(true);
+      expect(isStudioTourBooking({ notes: '[Studio Tour: Trail]' })).toBe(true);
+    });
+
+    it('detects studio tour from script_approver', () => {
+      expect(isStudioTourBooking({ script_approver: 'Studio Tour' })).toBe(true);
+      expect(isStudioTourBooking({ script_approver: 'studio tour' })).toBe(true);
+    });
+
+    it('detects studio tour from program name', () => {
+      expect(isStudioTourBooking({ program: { name: 'Studio Tour' } })).toBe(true);
+    });
+
+    it('returns false for regular recordings or custom shows', () => {
+      expect(isStudioTourBooking(null)).toBe(false);
+      expect(isStudioTourBooking(undefined)).toBe(false);
+      expect(isStudioTourBooking({ notes: null, script_approver: null })).toBe(false);
+      expect(isStudioTourBooking({ notes: '[Show: Morning Coffee]' })).toBe(false);
+      expect(isStudioTourBooking({ notes: '[Other Show: Debate]' })).toBe(false);
+      expect(isStudioTourBooking({ notes: '[Special Link: Tech Talk]' })).toBe(false);
+      expect(isStudioTourBooking({ script_approver: 'Section head' })).toBe(false);
+    });
   });
 });

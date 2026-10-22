@@ -8,7 +8,7 @@ import { RecordingDialog } from '@/components/studio/RecordingDialog';
 import { errorMessage } from '@/lib/errors';
 import { can } from '@/lib/permissions';
 import { formatDateTime } from '@/utils/datetime';
-import { formatBookingDate, formatSlotTime, slotStartsAt } from '@/utils/studio';
+import { formatBookingDate, formatSlotTime, isStudioTourBooking, slotStartsAt } from '@/utils/studio';
 import type { StudioBookingRequestRow } from '@/types/database';
 
 type Tab = 'upcoming' | 'past' | 'cancelled' | 'requests';
@@ -336,7 +336,7 @@ export function MyBookingsPage() {
                     {!isRequest && booking.origin === 'ADMIN_OVERRIDE' && (
                       <span className="badge badge-amber">Override</span>
                     )}
-                    {canUpload && (booking.rj_id === profile.id || can.adminForceUploadAudio(profile.role)) && (
+                    {canUpload && !isRequest && !isStudioTourBooking(booking) && (booking.rj_id === profile.id || can.adminForceUploadAudio(profile.role)) && (
                       booking.episode_id ? (
                         <Link
                           to={`/admin/episodes/${booking.episode_id}`}
@@ -400,24 +400,30 @@ export function MyBookingsPage() {
                           )}
                         </dd>
                       </div>
-                      <Detail
-                        label="Editor"
-                        value={
-                          item.self_edit
-                            ? 'Editing it themselves'
-                            : (!isRequest && booking.editor?.full_name ? booking.editor.full_name : 'Not assigned yet')
-                        }
-                      />
-                      <Detail
-                        label="Script"
-                        value={
-                          item.script_status === 'YES'
-                            ? `Approved${item.script_approver ? ` by ${item.script_approver}` : ''}`
-                            : item.script_status === 'PENDING'
-                              ? 'Pending approval'
-                              : 'Not approved'
-                        }
-                      />
+                      {!isRequest && isStudioTourBooking(booking) ? (
+                        <Detail label="Booking type" value="Studio Tour" />
+                      ) : (
+                        <>
+                          <Detail
+                            label="Editor"
+                            value={
+                              item.self_edit
+                                ? 'Editing it themselves'
+                                : (!isRequest && booking.editor?.full_name ? booking.editor.full_name : 'Not assigned yet')
+                            }
+                          />
+                          <Detail
+                            label="Script"
+                            value={
+                              item.script_status === 'YES'
+                                ? `Approved${item.script_approver ? ` by ${item.script_approver}` : ''}`
+                                : item.script_status === 'PENDING'
+                                  ? 'Pending approval'
+                                  : 'Not approved'
+                            }
+                          />
+                        </>
+                      )}
                       {(() => {
                         const script = getDisplayScript(item.notes);
                         if (!script) return null;

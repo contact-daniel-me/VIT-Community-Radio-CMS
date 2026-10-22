@@ -10,7 +10,7 @@ import { activityService } from '@/services/activityService';
 import { bookingService } from '@/services/bookingService';
 import { scheduleService } from '@/services/scheduleService';
 import { dashboardMetricsService } from '@/services/dashboardMetricsService';
-import { slotStartsAt } from '@/utils/studio';
+import { isStudioTourBooking, slotStartsAt } from '@/utils/studio';
 import { can } from '@/lib/permissions';
 import { formatTime, formatDate } from '@/utils/datetime';
 import { MetricCard, CompactEmptyState, QuickAction, PipelineVisual } from '@/components/ui/DashboardCards';
@@ -69,7 +69,7 @@ export function DashboardPage() {
     ]);
 
     const awaitingUpload = myBookings.filter(
-      (b) => b.status !== 'CANCELLED' && !b.episode_id && slotStartsAt(b.booking_date, b.start_time.slice(0, 5)).getTime() <= Date.now()
+      (b) => b.status !== 'CANCELLED' && !b.episode_id && !isStudioTourBooking(b) && slotStartsAt(b.booking_date, b.start_time.slice(0, 5)).getTime() <= Date.now()
     );
 
     const activeUpcoming = upcomingBookings.filter((b) => b.status !== 'CANCELLED');

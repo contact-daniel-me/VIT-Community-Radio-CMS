@@ -214,3 +214,20 @@ export function deriveWeek(
   }));
 }
 
+/**
+ * Detects whether a booking is for a Studio Tour rather than a recording session.
+ * Studio Tours do not require or produce audio recordings.
+ */
+export function isStudioTourBooking(booking?: {
+  notes?: string | null;
+  script_approver?: string | null;
+  program?: { name?: string | null } | null;
+} | null): boolean {
+  if (!booking) return false;
+  if (booking.notes && /\[Studio Tour:/i.test(booking.notes)) return true;
+  if (booking.script_approver && booking.script_approver.trim().toLowerCase() === 'studio tour') return true;
+  if (booking.program?.name && booking.program.name.trim().toLowerCase() === 'studio tour') return true;
+  if (booking.notes && /^\s*\[?Studio Tour\]?/i.test(booking.notes)) return true;
+  return false;
+}
+

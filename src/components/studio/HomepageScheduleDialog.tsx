@@ -1,7 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { episodeService, type EpisodeWithRelations } from '@/services/episodeService';
-import { errorMessage } from '@/lib/errors';
+import { AppError, errorMessage } from '@/lib/errors';
 import { Banner } from '@/components/ui';
+
+function toLocalDateString(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function toLocalTimeString(d: Date): string {
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
 
 interface HomepageScheduleDialogProps {
   episode: EpisodeWithRelations;
@@ -27,7 +40,10 @@ export function HomepageScheduleDialog({
   const [startDate, setStartDate] = useState('');
   const [startTime, setStartTime] = useState('');
 
-  const [hasExpiry, setHasExpiry] = useState(!!episode.homepage_expires_at);
+  const [hasExpiry, setHasExpiry] = useState(() => {
+    if (!episode.homepage_expires_at) return false;
+    return new Date(episode.homepage_expires_at) > new Date();
+  });
   const [endDate, setEndDate] = useState('');
   const [endTime, setEndTime] = useState('');
 
@@ -36,25 +52,35 @@ export function HomepageScheduleDialog({
 
   // Initialize dates
   useEffect(() => {
+    const now = new Date();
     if (episode.homepage_publish_at) {
       const d = new Date(episode.homepage_publish_at);
-      setStartDate(d.toISOString().split('T')[0]);
-      setStartTime(d.toTimeString().slice(0, 5));
+      setStartDate(toLocalDateString(d));
+      setStartTime(toLocalTimeString(d));
     } else {
-      const now = new Date();
-      setStartDate(now.toISOString().split('T')[0]);
-      setStartTime(now.toTimeString().slice(0, 5));
+      setStartDate(toLocalDateString(now));
+      setStartTime(toLocalTimeString(now));
     }
 
     if (episode.homepage_expires_at) {
-      const d = new Date(episode.homepage_expires_at);
-      setEndDate(d.toISOString().split('T')[0]);
-      setEndTime(d.toTimeString().slice(0, 5));
+      const expDate = new Date(episode.homepage_expires_at);
+      if (expDate > now) {
+        setEndDate(toLocalDateString(expDate));
+        setEndTime(toLocalTimeString(expDate));
+        setHasExpiry(true);
+      } else {
+        // Was expired: default to 7 days in future and leave expiry untoggled unless user enables it
+        const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+        setEndDate(toLocalDateString(nextWeek));
+        setEndTime(toLocalTimeString(nextWeek));
+        setHasExpiry(false);
+      }
     } else {
       // Default expiry 7 days later
       const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      setEndDate(nextWeek.toISOString().split('T')[0]);
-      setEndTime(nextWeek.toTimeString().slice(0, 5));
+      setEndDate(toLocalDateString(nextWeek));
+      setEndTime(toLocalTimeString(nextWeek));
+      setHasExpiry(false);
     }
   }, [episode]);
 
@@ -73,11 +99,11 @@ export function HomepageScheduleDialog({
     let baseTime = Date.now();
     if (mode === 'schedule' && startDate && startTime) {
       const parsed = new Date(`${startDate}T${startTime}:00`).getTime();
-      if (!isNaN(parsed)) baseTime = parsed;
+      if (!isNaN(parsed) && parsed > baseTime) baseTime = parsed;
     }
     const target = new Date(baseTime + days * 24 * 60 * 60 * 1000);
-    setEndDate(target.toISOString().split('T')[0]);
-    setEndTime(target.toTimeString().slice(0, 5));
+    setEndDate(toLocalDateString(target));
+    setEndTime(toLocalTimeString(target));
   };
 
   const handleSave = async () => {
@@ -90,11 +116,11 @@ export function HomepageScheduleDialog({
 
       if (mode === 'schedule') {
         if (!startDate || !startTime) {
-          throw new Error('Please select both a start date and time for the schedule.');
+          throw new AppError('VALIDATION', 'Please select both a start date and time for the schedule.');
         }
         const publishDate = new Date(`${startDate}T${startTime}:00`);
         if (isNaN(publishDate.getTime())) {
-          throw new Error('Invalid schedule start date or time.');
+          throw new AppError('VALIDATION', 'Invalid schedule start date or time.');
         }
         publishAtIso = publishDate.toISOString();
       } else {
@@ -104,16 +130,16 @@ export function HomepageScheduleDialog({
 
       if (hasExpiry) {
         if (!endDate || !endTime) {
-          throw new Error('Please select both an expiration date and time.');
+          throw new AppError('VALIDATION', 'Please select both an expiration date and time.');
         }
         const expiryDate = new Date(`${endDate}T${endTime}:00`);
         if (isNaN(expiryDate.getTime())) {
-          throw new Error('Invalid expiration date or time.');
+          throw new AppError('VALIDATION', 'Invalid expiration date or time.');
         }
 
         const baseTimestamp = publishAtIso ? new Date(publishAtIso).getTime() : Date.now();
         if (expiryDate.getTime() <= baseTimestamp) {
-          throw new Error('The expiration time must be after the publish / release time.');
+          throw new AppError('VALIDATION', 'The expiration time must be after the publish / release time.');
         }
         expiresAtIso = expiryDate.toISOString();
       }

@@ -173,8 +173,15 @@ export const episodeService = {
           p_homepage_expires_at: expiresAt,
         }),
       );
-    } catch {
-      // Fallback in case direct update or workflow setting is used
+    } catch (rpcErr) {
+      const msg = rpcErr instanceof Error ? rpcErr.message : String(rpcErr);
+      const isMissingRpc = /function .*schedule_episode_homepage.* does not exist|could not find the function .*schedule_episode_homepage/i.test(msg);
+
+      if (!isMissingRpc) {
+        throw rpcErr;
+      }
+
+      // Fallback only if the RPC function is not yet installed in Supabase schema
       const { data, error } = await supabase
         .from('episodes')
         .update({
@@ -186,7 +193,13 @@ export const episodeService = {
         .select('*')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        throw new AppError(
+          'PERMISSION',
+          'Failed to schedule episode. Please ensure migration 20260915000005_episode_homepage_schedule.sql has been executed in Supabase SQL Editor.',
+          error,
+        );
+      }
       return data as EpisodeRow;
     }
   },

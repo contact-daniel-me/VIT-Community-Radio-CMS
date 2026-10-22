@@ -4465,6 +4465,7 @@ create policy "studio_booking_requests_delete"
 
 -- 1. Add homepage scheduling columns to episodes table
 alter table public.episodes
+  add column if not exists final_audio_file_id uuid references public.audio_files(id) on delete set null,
   add column if not exists show_on_homepage boolean not null default false,
   add column if not exists homepage_publish_at timestamptz,
   add column if not exists homepage_expires_at timestamptz;
@@ -4500,7 +4501,7 @@ select
   e.homepage_expires_at
 from public.episodes e
 join public.programs p on p.id = e.program_id
-join public.audio_files a on a.id = coalesce(e.final_audio_file_id, e.audio_file_id)
+left join public.audio_files a on a.id = coalesce(e.final_audio_file_id, e.audio_file_id)
 where e.status = 'APPROVED'
   and p.active
   and e.show_on_homepage = true

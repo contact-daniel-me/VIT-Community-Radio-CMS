@@ -92,7 +92,8 @@ export function toAppError(error: unknown): AppError {
 
   if (error instanceof Error) {
     if (import.meta.env.DEV) console.error('[app]', error);
-    return new AppError('UNKNOWN', FRIENDLY_BY_KIND.UNKNOWN, error);
+    const message = isAuthoredMessage(error.message) ? error.message : FRIENDLY_BY_KIND.UNKNOWN;
+    return new AppError('UNKNOWN', message, error);
   }
 
   return new AppError('UNKNOWN', FRIENDLY_BY_KIND.UNKNOWN, error);

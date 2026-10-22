@@ -27,4 +27,38 @@ describe('datetime and timezone handling', () => {
     expect(stationLocalToIso('2026-10-22T17:00:00')).toBe('2026-10-22T11:30:00.000Z');
     expect(stationLocalToIso('2026-10-22T17:30')).toBe('2026-10-22T12:00:00.000Z');
   });
+
+  it('safely re-syncs studio bookings into schedules without exclusion constraint violations', async () => {
+    const { createTestDb } = await import('../harness/db');
+    const db = await createTestDb({ seed: true });
+
+    // Step 1: Delete auto-scheduled rows
+    await db.sql(`
+      delete from public.schedules
+      where notes like 'Auto-scheduled from booking%'
+         or notes like 'Auto-scheduled from Studio Booking%';
+    `);
+
+    // Step 2: Re-populate with ON CONFLICT DO NOTHING
+    await db.sql(`
+      insert into public.schedules (program_id, episode_id, start_time, end_time, status, notes, created_by)
+      select
+        b.program_id,
+        (
+          select id from public.episodes e 
+          where e.program_id = b.program_id and e.status = 'APPROVED'
+          order by e.created_at desc limit 1
+        ),
+        (b.booking_date + b.start_time) at time zone 'Asia/Kolkata',
+        (b.booking_date + b.end_time) at time zone 'Asia/Kolkata',
+        'SCHEDULED',
+        'Auto-scheduled from booking ' || b.reference,
+        b.created_by
+      from public.studio_bookings b
+      where b.status = 'CONFIRMED'
+      on conflict on constraint schedules_no_overlap do nothing;
+    `);
+
+    await db.close();
+  });
 });

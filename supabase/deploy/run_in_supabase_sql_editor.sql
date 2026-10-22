@@ -180,15 +180,31 @@ create trigger studio_bookings_to_schedule
   after insert or update on public.studio_bookings
   for each row execute function public.app_propagate_booking_to_schedule();
 
--- Correct existing schedules that were shifted by +5:30 due to missing timezone conversion
-update public.schedules s
-set 
-  start_time = (b.booking_date + b.start_time) at time zone 'Asia/Kolkata',
-  end_time   = (b.booking_date + b.end_time)   at time zone 'Asia/Kolkata'
-from public.studio_bookings b
-where s.notes like '%' || b.reference;
-
 -- Clean up any leftover test schedules from prior helper scripts
 delete from public.schedules
 where notes in ('Live Test Schedule', 'Next Up Test Schedule');
+
+-- Safely re-sync all confirmed bookings into schedules without exclusion constraint conflicts:
+-- Delete previous auto-scheduled rows that had wrong UTC timestamps
+delete from public.schedules
+where notes like 'Auto-scheduled from booking%'
+   or notes like 'Auto-scheduled from Studio Booking%';
+
+-- Re-populate schedules with correct Asia/Kolkata timestamps
+insert into public.schedules (program_id, episode_id, start_time, end_time, status, notes, created_by)
+select
+  b.program_id,
+  (
+    select id from public.episodes e 
+    where e.program_id = b.program_id and e.status = 'APPROVED'
+    order by e.created_at desc limit 1
+  ),
+  (b.booking_date + b.start_time) at time zone 'Asia/Kolkata',
+  (b.booking_date + b.end_time)   at time zone 'Asia/Kolkata',
+  'SCHEDULED',
+  'Auto-scheduled from booking ' || b.reference,
+  b.created_by
+from public.studio_bookings b
+where b.status = 'CONFIRMED'
+on conflict on constraint schedules_no_overlap do nothing;
 

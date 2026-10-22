@@ -14,7 +14,7 @@ import type { StudioBookingRow } from '@/types/database';
  */
 
 export const STUDIO_OPEN = '09:00';
-export const STUDIO_CLOSE = '18:00';
+export const STUDIO_CLOSE = '20:00';
 export const SLOT_MINUTES = 30;
 export const LUNCH_START = '13:00';
 export const LUNCH_END = '14:00';

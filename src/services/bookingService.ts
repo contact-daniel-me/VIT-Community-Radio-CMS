@@ -538,7 +538,7 @@ function translateBookingError(error: unknown): AppError {
     ],
     [
       /bookings_operating_hours/i,
-      'The studio is open from 9:00 AM to 6:00 PM.',
+      'The studio is open from 9:00 AM to 8:00 PM.',
     ],
     [/bookings_not_lunch/i, 'The studio is closed for lunch between 1:00 PM and 2:00 PM.'],
     [/bookings_on_grid|bookings_half_hour/i, 'Bookings run in 30-minute slots starting on the half hour.'],

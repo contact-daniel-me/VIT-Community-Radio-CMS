@@ -36,7 +36,7 @@ export function StudioPublicPage() {
           <div className="studio-hero-facts">
             <div>
               <dt>Open</dt>
-              <dd>Mon&ndash;Fri, 9:00 AM&ndash;6:00 PM</dd>
+              <dd>9:00 AM&ndash;8:00 PM</dd>
             </div>
             <div>
               <dt>Slot length</dt>

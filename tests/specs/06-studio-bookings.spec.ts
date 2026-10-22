@@ -73,13 +73,18 @@ describe('studio bookings', () => {
     expect(String((rows[0] as { reference: string }).reference)).toMatch(/^VCR-\d{4}-\d{6}$/);
   });
 
-  it('refuses slots outside 09:00-18:00', async () => {
-    for (const start of ['08:00', '08:30', '18:00', '19:00']) {
+  it('refuses slots outside 09:00-20:00', async () => {
+    for (const start of ['08:00', '08:30', '20:00', '20:30']) {
       await expectFailure(
         () => book(rj, { date: weekdayFromNow(4), start }),
         /operating_hours|bookings_time_order|violates check constraint/i,
       );
     }
+  });
+
+  it('accepts evening slots up to 20:00', async () => {
+    const rows = await book(rj, { date: weekdayFromNow(4), start: '19:30' });
+    expect(rows).toHaveLength(1);
   });
 
   it('refuses the 13:00-14:00 lunch break', async () => {

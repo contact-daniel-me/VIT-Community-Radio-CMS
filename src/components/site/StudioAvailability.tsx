@@ -72,7 +72,7 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
             <h2 className="section-title">Studio availability</h2>
           </div>
           <p className="section-note">
-            Monday&ndash;Sunday &middot; 9:00 AM&ndash;6:00 PM &middot; 30-minute slots
+            Monday&ndash;Sunday &middot; 9:00 AM&ndash;8:00 PM &middot; 30-minute slots
           </p>
         </div>
       )}

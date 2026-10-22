@@ -20,7 +20,7 @@ export function StudioPage() {
     <>
       <PageHeader
         title="Studio"
-        description="Book a 30-minute recording slot. Monday to Friday, 9:00 AM to 6:00 PM."
+        description="Book a 30-minute recording slot. 9:00 AM to 8:00 PM."
         actions={
           <Link to="/bookings" className="btn btn-outline small">
             My bookings

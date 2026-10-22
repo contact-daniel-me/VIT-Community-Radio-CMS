@@ -130,7 +130,7 @@ export function StudioCalendar({
       </div>
 
       <p className="cal-closed-note">
-        9:00 AM&ndash;6:00 PM &middot; 30-minute slots
+        9:00 AM&ndash;8:00 PM &middot; 30-minute slots
       </p>
     </div>
   );

@@ -64,13 +64,13 @@ function booking(date: string, start: string, over: Partial<StudioBookingRow> = 
 }
 
 describe('the studio grid', () => {
-  it('runs 09:00 to 18:00 in 30-minute rows', () => {
+  it('runs 09:00 to 20:00 in 30-minute rows', () => {
     const grid = buildGrid();
-    expect(grid).toHaveLength(18);
+    expect(grid).toHaveLength(22);
     expect(grid[0].start).toBe('09:00');
     expect(grid[0].end).toBe('09:30');
-    expect(grid.at(-1)?.start).toBe('17:30');
-    expect(grid.at(-1)?.end).toBe('18:00');
+    expect(grid.at(-1)?.start).toBe('19:30');
+    expect(grid.at(-1)?.end).toBe('20:00');
   });
 
   it('marks exactly the two lunch rows', () => {
@@ -78,9 +78,9 @@ describe('the studio grid', () => {
     expect(lunch.map((s) => s.start)).toEqual(['13:00', '13:30']);
   });
 
-  it('offers 16 bookable slots, none of them at lunch', () => {
+  it('offers 20 bookable slots, none of them at lunch', () => {
     const slots = bookableSlots();
-    expect(slots).toHaveLength(16);
+    expect(slots).toHaveLength(20);
     expect(slots.some((s) => s.isLunch)).toBe(false);
     expect(slots.some((s) => s.start === '13:00' || s.start === '13:30')).toBe(false);
   });
@@ -99,6 +99,8 @@ describe('the studio grid', () => {
     expect(formatSlotTime('09:00')).toBe('9:00 AM');
     expect(formatSlotTime('12:30')).toBe('12:30 PM');
     expect(formatSlotTime('17:30')).toBe('5:30 PM');
+    expect(formatSlotTime('19:30')).toBe('7:30 PM');
+    expect(formatSlotTime('20:00')).toBe('8:00 PM');
   });
 });
 
@@ -176,7 +178,7 @@ describe('slot states', () => {
     const days = weekdaysFrom(mondayOf(new Date()));
     const week = deriveWeek(days, [], [], viewer);
     expect(week).toHaveLength(7);
-    expect(week.every((d) => d.slots.length === 18)).toBe(true);
+    expect(week.every((d) => d.slots.length === 22)).toBe(true);
   });
 
   it('shows nothing as MINE for a signed-out visitor', () => {

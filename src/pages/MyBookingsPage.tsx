@@ -13,7 +13,8 @@ import type { StudioBookingRequestRow } from '@/types/database';
 
 type Tab = 'upcoming' | 'past' | 'cancelled' | 'requests';
 
-function getDisplayShowName(programName?: string | null, notes?: string | null): string {
+function getDisplayShowName(programName?: string | null, notes?: string | null, episodeTitle?: string | null): string {
+  if (episodeTitle?.trim()) return episodeTitle.trim();
   if (notes) {
     const match = notes.match(/^\[(?:Show|Other Show|Special Link|Studio Tour):\s*([^\]]+)\]/i);
     if (match) return match[1].trim();
@@ -309,7 +310,7 @@ export function MyBookingsPage() {
                     <h3 className="booking-show">
                       {isRequest
                         ? getDisplayShowName(request.program?.name, request.notes)
-                        : getDisplayShowName(booking.program?.name, booking.notes)}
+                        : getDisplayShowName(booking.program?.name, booking.notes, booking.episode?.title)}
                     </h3>
                     <p className="booking-meta">
                       {!isRequest && <span className="booking-ref">{booking.reference}</span>}

@@ -24,7 +24,8 @@ const PodcastIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentC
 const FolderIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>);
 const MusicIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>);
 
-function getShowTitle(programName?: string | null, notes?: string | null): string {
+function getShowTitle(programName?: string | null, notes?: string | null, episodeTitle?: string | null): string {
+  if (episodeTitle?.trim()) return episodeTitle.trim();
   if (notes) {
     const match = notes.match(/^\[(?:Show|Other Show|Special Link|Studio Tour):\s*([^\]]+)\]/i);
     if (match) return match[1].trim();
@@ -222,7 +223,7 @@ export function DashboardPage() {
                   <div key={b.id} className="row spread align-center list-item small" style={{ padding: '0.75rem 0' }}>
                     <div style={{ flex: 1, minWidth: 0, paddingRight: '0.75rem' }}>
                       <div className="muted small" style={{ marginBottom: '0.2rem' }}>{formatDate(b.booking_date)} &middot; {formatTime(b.booking_date + 'T' + b.start_time)} – {formatTime(b.booking_date + 'T' + b.end_time)}</div>
-                      <strong style={{ display: 'block', fontSize: '0.95rem' }}>{getShowTitle(b.program?.name, b.notes)}</strong>
+                      <strong style={{ display: 'block', fontSize: '0.95rem' }}>{getShowTitle(b.program?.name, b.notes, b.episode?.title)}</strong>
                       {b.episode && <div className="muted small" style={{ marginTop: '0.2rem' }}>{b.episode.status}</div>}
                     </div>
                     <div className="row align-center" style={{ gap: '0.5rem', flexShrink: 0 }}>

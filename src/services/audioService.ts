@@ -152,11 +152,17 @@ export const audioService = {
       throw error;
     }
 
+    const showName = file.name.replace(/\.[^/.]+$/, '').trim();
+
     try {
       await unwrap(
         supabase
           .from('episodes')
-          .update({ [targetField]: audioRow.id, duration_seconds: durationSeconds } as Partial<import('@/types/database').EpisodeRow>)
+          .update({
+            [targetField]: audioRow.id,
+            duration_seconds: durationSeconds,
+            ...(showName ? { title: showName } : {}),
+          } as Partial<import('@/types/database').EpisodeRow>)
           .eq('id', episodeId)
           .select('id'),
       );
@@ -169,10 +175,46 @@ export const audioService = {
             p_target_column: targetField,
           })
         );
+        if (showName) {
+          await supabase.from('episodes').update({ title: showName }).eq('id', episodeId);
+        }
       } catch (rpcError) {
         await supabase.from('audio_files').delete().eq('id', audioRow.id);
         await removeObjectQuietly(storagePath);
         throw error;
+      }
+    }
+
+    // Keep any linked studio booking's show tag in notes updated with the new show name
+    if (showName) {
+      try {
+        const { data: bookings } = await supabase
+          .from('studio_bookings')
+          .select('id, notes')
+          .eq('episode_id', episodeId);
+
+        if (bookings && bookings.length > 0) {
+          for (const b of bookings) {
+            const currentNotes = b.notes || '';
+            const hasTag = /^\[(?:Show|Other Show|Special Link|Studio Tour):\s*([^\]]+)\]/i.test(currentNotes);
+            let newNotes = '';
+            if (hasTag) {
+              newNotes = currentNotes.replace(
+                /^\[(?:Show|Other Show|Special Link|Studio Tour):\s*[^\]]+\]/i,
+                `[Show: ${showName}]`,
+              );
+            } else {
+              newNotes = currentNotes.trim()
+                ? `[Show: ${showName}]\n${currentNotes.trim()}`
+                : `[Show: ${showName}]`;
+            }
+            await supabase.from('studio_bookings').update({ notes: newNotes }).eq('id', b.id);
+          }
+        }
+      } catch (bookingErr) {
+        if (import.meta.env.DEV) {
+          console.warn('[audioService] could not update linked booking notes', bookingErr);
+        }
       }
     }
 

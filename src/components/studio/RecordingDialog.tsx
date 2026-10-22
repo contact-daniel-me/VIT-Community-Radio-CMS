@@ -79,11 +79,12 @@ export function RecordingDialog({
 
     setStage('working');
     try {
+      const showName = (file ? file.name.replace(/\.[^/.]+$/, '').trim() : '') || title.trim();
       setProgress('Creating the episode…');
       const created = await episodeService.createEpisode(
         {
           program_id: programId,
-          title: title.trim(),
+          title: showName,
           host_name: booking.rj?.full_name ?? profile.full_name,
           assigned_rj: booking.rj_id ?? profile.id,
           description: `Recorded in the studio on ${formatBookingDate(booking.booking_date)} (${booking.reference}).`,
@@ -119,7 +120,7 @@ export function RecordingDialog({
               {stage === 'done' ? 'Uploaded' : 'Upload your recording'}
             </p>
             <h2 id="rec-title" className="dialog-title">
-              {displayShowName || booking.program?.name || 'Recording'}
+              {title || displayShowName || booking.program?.name || 'Recording'}
             </h2>
             <p className="dialog-slot">
               {formatBookingDate(booking.booking_date)}
@@ -214,7 +215,16 @@ export function RecordingDialog({
                   type="file"
                   accept="audio/mpeg,.mp3"
                   disabled={stage === 'working'}
-                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  onChange={(e) => {
+                    const picked = e.target.files?.[0] ?? null;
+                    setFile(picked);
+                    if (picked) {
+                      const nameWithoutExt = picked.name.replace(/\.[^/.]+$/, '').trim();
+                      if (nameWithoutExt) {
+                        setTitle(nameWithoutExt);
+                      }
+                    }
+                  }}
                 />
                 {file && (
                   <p className="small muted">

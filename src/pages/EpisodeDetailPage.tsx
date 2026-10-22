@@ -113,12 +113,16 @@ export function EpisodeDetailPage() {
 
   const onUpload = async () => {
     if (!rawFile) return;
+    const newShowName = rawFile.name.replace(/\.[^/.]+$/, '').trim();
     setUploading(true);
     setError(null);
     setNotice(null);
     try {
       await audioService.replaceAudio(ep.id, rawFile, profile.id, ep.audio_file_id);
-      setNotice(`Uploaded raw audio ${rawFile.name}.`);
+      if (draft && newShowName) {
+        setDraft({ ...draft, title: newShowName });
+      }
+      setNotice(`Uploaded raw audio "${rawFile.name}". Show name updated to "${newShowName}".`);
       setRawFile(null);
       await refresh();
     } catch (cause) {
@@ -131,12 +135,16 @@ export function EpisodeDetailPage() {
 
   const onFinalUpload = async () => {
     if (!finalFile) return;
+    const newShowName = finalFile.name.replace(/\.[^/.]+$/, '').trim();
     setUploading(true);
     setError(null);
     setNotice(null);
     try {
       await audioService.replaceAudio(ep.id, finalFile, profile.id, ep.final_audio_file_id, 'final_audio_file_id');
-      setNotice(`Uploaded final audio ${finalFile.name}.`);
+      if (draft && newShowName) {
+        setDraft({ ...draft, title: newShowName });
+      }
+      setNotice(`Uploaded final audio "${finalFile.name}". Show name updated to "${newShowName}".`);
       setFinalFile(null);
       await refresh();
     } catch (cause) {
@@ -330,14 +338,19 @@ export function EpisodeDetailPage() {
                           aria-label="Upload raw audio file"
                         />
                         {rawFile && (
-                          <button
-                            type="button"
-                            className="btn btn-outline small"
-                            onClick={() => void onUpload()}
-                            disabled={uploading}
-                          >
-                            Upload {rawFile.name}
-                          </button>
+                          <div className="row align-center" style={{ gap: '0.6rem', flexWrap: 'wrap', width: '100%', marginTop: '0.35rem' }}>
+                            <span className="small muted">
+                              Show name will update to: <strong style={{ color: 'var(--ink)' }}>{rawFile.name.replace(/\.[^/.]+$/, '').trim()}</strong>
+                            </span>
+                            <button
+                              type="button"
+                              className="btn btn-outline small"
+                              onClick={() => void onUpload()}
+                              disabled={uploading}
+                            >
+                              Upload &amp; update show name
+                            </button>
+                          </div>
                         )}
                         {uploading && <span className="small muted">Uploading...</span>}
                       </div>
@@ -403,14 +416,19 @@ export function EpisodeDetailPage() {
                           aria-label="Upload final audio file"
                         />
                         {finalFile && (
-                          <button
-                            type="button"
-                            className="btn btn-solid small"
-                            onClick={() => void onFinalUpload()}
-                            disabled={uploading}
-                          >
-                            Upload {finalFile.name}
-                          </button>
+                          <div className="row align-center" style={{ gap: '0.6rem', flexWrap: 'wrap', width: '100%', marginTop: '0.35rem' }}>
+                            <span className="small muted">
+                              Show name will update to: <strong style={{ color: 'var(--ink)' }}>{finalFile.name.replace(/\.[^/.]+$/, '').trim()}</strong>
+                            </span>
+                            <button
+                              type="button"
+                              className="btn btn-solid small"
+                              onClick={() => void onFinalUpload()}
+                              disabled={uploading}
+                            >
+                              Upload &amp; update show name
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}

@@ -221,13 +221,14 @@ export function deriveWeek(
 export function isStudioTourBooking(booking?: {
   notes?: string | null;
   script_approver?: string | null;
-  program?: { name?: string | null } | null;
+  program?: { name?: string | null; requires_audio?: boolean } | null;
 } | null): boolean {
   if (!booking) return false;
+  if (booking.program?.requires_audio === false) return true;
   if (booking.notes && /\[Studio Tour:/i.test(booking.notes)) return true;
   if (booking.script_approver && booking.script_approver.trim().toLowerCase() === 'studio tour') return true;
-  if (booking.program?.name && booking.program.name.trim().toLowerCase() === 'studio tour') return true;
-  if (booking.notes && /^\s*\[?Studio Tour\]?/i.test(booking.notes)) return true;
+  if (booking.program?.name && booking.program.name.trim().toLowerCase().includes('tour')) return true;
+  if (booking.notes && /\bStudio Tour\b/i.test(booking.notes)) return true;
   return false;
 }
 

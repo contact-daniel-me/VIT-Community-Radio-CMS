@@ -4,6 +4,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { Banner, ConfirmButton, Empty, Loading, PageHeader, UnifiedStatusBadge, getUnifiedStatusClass } from '@/components/ui';
 import { bookingService, type BookingWithPeople } from '@/services/bookingService';
+import { RecordingDialog } from '@/components/studio/RecordingDialog';
 import { errorMessage } from '@/lib/errors';
 import { can } from '@/lib/permissions';
 import { formatDateTime } from '@/utils/datetime';
@@ -51,6 +52,7 @@ export function MyBookingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [uploadFor, setUploadFor] = useState<BookingWithPeople | null>(null);
   const [cancelReason, setCancelReason] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -284,6 +286,7 @@ export function MyBookingsPage() {
             
             const open = openId === item.id;
             const startsAt = slotStartsAt(item.booking_date, item.start_time.slice(0, 5));
+            const canUpload = !isRequest && booking.status !== 'CANCELLED';
             const cancellable =
               !isRequest &&
               booking.status === 'CONFIRMED' &&
@@ -333,13 +336,34 @@ export function MyBookingsPage() {
                     {!isRequest && booking.origin === 'ADMIN_OVERRIDE' && (
                       <span className="badge badge-amber">Override</span>
                     )}
-                    {!isRequest && booking.episode_id && (
-                      <Link
-                        to={`/admin/episodes/${booking.episode_id}`}
-                        className="btn btn-outline small"
-                      >
-                        Open recording
-                      </Link>
+                    {!isRequest && isStudioTourBooking(booking) ? (
+                      booking.episode_id ? (
+                        <Link
+                          to={`/admin/episodes/${booking.episode_id}`}
+                          className="btn btn-outline small"
+                        >
+                          Open recording
+                        </Link>
+                      ) : null
+                    ) : (
+                      canUpload && (booking.rj_id === profile.id || can.adminForceUploadAudio(profile.role)) && (
+                        booking.episode_id ? (
+                          <Link
+                            to={`/admin/episodes/${booking.episode_id}`}
+                            className="btn btn-outline small"
+                          >
+                            Open recording
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-solid small"
+                            onClick={() => setUploadFor(booking)}
+                          >
+                            Upload audio
+                          </button>
+                        )
+                      )
                     )}
 
                     <button
@@ -568,6 +592,14 @@ export function MyBookingsPage() {
             );
           })}
         </div>
+      )}
+      {uploadFor && (
+        <RecordingDialog
+          booking={uploadFor}
+          profile={profile}
+          onClose={() => setUploadFor(null)}
+          onUploaded={() => void bookings.reload()}
+        />
       )}
     </>
   );

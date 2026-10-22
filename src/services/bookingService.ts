@@ -32,7 +32,7 @@ export {
 export type BookingWithPeople = StudioBookingRow & {
   rj: Pick<ProfileRow, 'id' | 'full_name' | 'email'> | null;
   editor: Pick<ProfileRow, 'id' | 'full_name'> | null;
-  program: { id: string; name: string } | null;
+  program: { id: string; name: string; requires_audio?: boolean } | null;
   episode: { id: string; title?: string | null; status: string; audio_file_id: string | null; final_audio_file_id: string | null } | null;
 };
 
@@ -40,7 +40,7 @@ const BOOKING_SELECT = `
   *,
   rj:profiles!studio_bookings_rj_id_fkey (id, full_name, email),
   editor:profiles!studio_bookings_editor_id_fkey (id, full_name),
-  program:programs!studio_bookings_program_id_fkey (id, name),
+  program:programs!studio_bookings_program_id_fkey (id, name, requires_audio),
   episode:episodes!studio_bookings_episode_id_fkey (id, title, status, audio_file_id, final_audio_file_id)
 `;
 

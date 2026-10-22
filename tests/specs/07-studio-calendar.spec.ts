@@ -202,8 +202,10 @@ describe('slot states', () => {
       expect(isStudioTourBooking({ script_approver: 'studio tour' })).toBe(true);
     });
 
-    it('detects studio tour from program name', () => {
+    it('detects studio tour from program name or requires_audio', () => {
       expect(isStudioTourBooking({ program: { name: 'Studio Tour' } })).toBe(true);
+      expect(isStudioTourBooking({ program: { name: 'Sample', requires_audio: false } })).toBe(true);
+      expect(isStudioTourBooking({ program: { name: 'Sample', requires_audio: true } })).toBe(false);
     });
 
     it('returns false for regular recordings or custom shows', () => {

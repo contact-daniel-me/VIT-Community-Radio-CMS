@@ -55,7 +55,9 @@ describe('datetime and timezone handling', () => {
         'Auto-scheduled from booking ' || b.reference,
         b.created_by
       from public.studio_bookings b
+      join public.programs p on p.id = b.program_id
       where b.status = 'CONFIRMED'
+        and p.active = true
       on conflict on constraint schedules_no_overlap do nothing;
     `);
 

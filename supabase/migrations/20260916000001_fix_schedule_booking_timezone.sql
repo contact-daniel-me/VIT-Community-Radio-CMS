@@ -27,6 +27,11 @@ begin
   if (tg_op = 'INSERT' and new.status = 'CONFIRMED') or
      (tg_op = 'UPDATE' and new.status = 'CONFIRMED' and old.status <> 'CONFIRMED') then
     
+    -- Inactive programs cannot receive schedule slots (business rule 9)
+    if not exists (select 1 from public.programs where id = new.program_id and active = true) then
+      return new;
+    end if;
+
     select id into v_episode_id
       from public.episodes
      where program_id = new.program_id
@@ -84,6 +89,11 @@ begin
   if (tg_op = 'INSERT' and new.status = 'CONFIRMED') or
      (tg_op = 'UPDATE' and new.status = 'CONFIRMED' and old.status <> 'CONFIRMED') then
     
+    -- Inactive programs cannot receive schedule slots (business rule 9)
+    if not exists (select 1 from public.programs where id = new.program_id and active = true) then
+      return new;
+    end if;
+
     select id into v_episode_id
       from public.episodes
      where program_id = new.program_id
@@ -126,7 +136,7 @@ create trigger studio_bookings_to_schedule
 delete from public.schedules
 where notes in ('Live Test Schedule', 'Next Up Test Schedule');
 
--- 5. Safely re-sync all confirmed bookings into schedules without exclusion constraint conflicts:
+-- 5. Safely re-sync all confirmed bookings for active programs into schedules:
 -- Delete previous auto-scheduled rows that had wrong UTC timestamps
 delete from public.schedules
 where notes like 'Auto-scheduled from booking%'
@@ -147,5 +157,7 @@ select
   'Auto-scheduled from booking ' || b.reference,
   b.created_by
 from public.studio_bookings b
+join public.programs p on p.id = b.program_id
 where b.status = 'CONFIRMED'
+  and p.active = true
 on conflict on constraint schedules_no_overlap do nothing;

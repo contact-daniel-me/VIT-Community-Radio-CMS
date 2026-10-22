@@ -17,6 +17,14 @@ export const qcService = {
     );
   },
 
+  /** Most recently approved first: episodes that have completed quality checks. */
+  async getCompletedQC(): Promise<EpisodeWithRelations[]> {
+    const episodes = await episodeService.getEpisodes({ status: 'APPROVED' });
+    return [...episodes].sort((a, b) =>
+      (b.reviewed_at ?? b.updated_at ?? '').localeCompare(a.reviewed_at ?? a.updated_at ?? ''),
+    );
+  },
+
   async getPendingCount(): Promise<number> {
     const { count, error } = await supabase
       .from('episodes')

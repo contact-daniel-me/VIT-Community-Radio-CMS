@@ -146,9 +146,12 @@ function AudioSection({
   );
 }
 
+type AudioFilter = 'all' | 'raw' | 'final';
+
 export function AudioLibraryPage() {
   const [playing, setPlaying] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState<AudioFilter>('all');
 
   const library = useAsync(async () => {
     const [files, episodes] = await Promise.all([
@@ -181,12 +184,38 @@ export function AudioLibraryPage() {
         title="Audio library"
         description="Every audio file in the radio-audio bucket, with the episode it belongs to."
         actions={
-          <input 
-            type="search" 
-            placeholder="Search by file or episode title..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <div className="row align-center wrap" style={{ gap: '0.6rem' }}>
+            <div className="row align-center" role="group" aria-label="Filter audio files by type" style={{ gap: '0.35rem' }}>
+              <button
+                type="button"
+                className={`small ${filter === 'all' ? 'primary' : ''}`}
+                onClick={() => setFilter('all')}
+              >
+                All files ({filteredLibrary.length})
+              </button>
+              <button
+                type="button"
+                className={`small ${filter === 'raw' ? 'primary' : ''}`}
+                onClick={() => setFilter('raw')}
+              >
+                Raw files ({rawFiles.length})
+              </button>
+              <button
+                type="button"
+                className={`small ${filter === 'final' ? 'primary' : ''}`}
+                onClick={() => setFilter('final')}
+              >
+                Final files ({finalFiles.length})
+              </button>
+            </div>
+            <input 
+              type="search" 
+              placeholder="Search by file or episode title..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ minWidth: '220px' }}
+            />
+          </div>
         }
       />
 
@@ -204,27 +233,31 @@ export function AudioLibraryPage() {
         </section>
       ) : (
         <>
-          <AudioSection
-            title="Raw Audio Files"
-            badge="Raw Audio"
-            badgeClass="badge-orange"
-            items={rawFiles}
-            totalSize={rawTotal}
-            searchActive={Boolean(searchQuery.trim())}
-            playing={playing}
-            onTogglePlay={(id) => setPlaying((current) => (current === id ? null : id))}
-          />
+          {(filter === 'all' || filter === 'raw') && (
+            <AudioSection
+              title="Raw Audio Files"
+              badge="Raw Audio"
+              badgeClass="badge-orange"
+              items={rawFiles}
+              totalSize={rawTotal}
+              searchActive={Boolean(searchQuery.trim())}
+              playing={playing}
+              onTogglePlay={(id) => setPlaying((current) => (current === id ? null : id))}
+            />
+          )}
 
-          <AudioSection
-            title="Final Audio Files"
-            badge="Final Audio"
-            badgeClass="badge-pink"
-            items={finalFiles}
-            totalSize={finalTotal}
-            searchActive={Boolean(searchQuery.trim())}
-            playing={playing}
-            onTogglePlay={(id) => setPlaying((current) => (current === id ? null : id))}
-          />
+          {(filter === 'all' || filter === 'final') && (
+            <AudioSection
+              title="Final Audio Files"
+              badge="Final Audio"
+              badgeClass="badge-pink"
+              items={finalFiles}
+              totalSize={finalTotal}
+              searchActive={Boolean(searchQuery.trim())}
+              playing={playing}
+              onTogglePlay={(id) => setPlaying((current) => (current === id ? null : id))}
+            />
+          )}
         </>
       )}
     </>

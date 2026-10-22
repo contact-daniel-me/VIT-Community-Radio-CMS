@@ -15,7 +15,7 @@ type Tab = 'upcoming' | 'past' | 'cancelled' | 'requests';
 
 function getDisplayShowName(programName?: string | null, notes?: string | null): string {
   if (notes) {
-    const match = notes.match(/^\[(?:Show|Other Show|Special Link):\s*([^\]]+)\]/i);
+    const match = notes.match(/^\[(?:Show|Other Show|Special Link|Studio Tour):\s*([^\]]+)\]/i);
     if (match) return match[1].trim();
   }
   return programName ?? 'Unknown Show';
@@ -23,7 +23,7 @@ function getDisplayShowName(programName?: string | null, notes?: string | null):
 
 function getDisplayNotes(notes?: string | null): string | null {
   if (!notes) return null;
-  const cleaned = notes.replace(/^\[(?:Show|Other Show|Special Link):\s*[^\]]+\]\n?/i, '').trim();
+  const cleaned = notes.replace(/^\[(?:Show|Other Show|Special Link|Studio Tour):\s*[^\]]+\]\n?/i, '').trim();
   return cleaned || null;
 }
 

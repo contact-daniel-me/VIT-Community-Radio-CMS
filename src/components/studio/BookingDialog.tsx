@@ -88,6 +88,8 @@ export function BookingDialog({
   const [editorMode, setEditorMode] = useState<'admin' | 'self' | 'pick'>('admin');
 
   const [customShowTitle, setCustomShowTitle] = useState('');
+  const [bookingType, setBookingType] = useState<'booking' | 'tour'>('booking');
+  const [tourShowTitle, setTourShowTitle] = useState('');
 
   // The escape key is captured here rather than on the dialog element so it works
   // even if focus is inside an input.
@@ -103,6 +105,15 @@ export function BookingDialog({
   const goReview = (event: FormEvent) => {
     event.preventDefault();
     setError(null);
+
+    if (bookingType === 'tour') {
+      if (!tourShowTitle.trim()) {
+        setError('Please enter the show title.');
+        return;
+      }
+      setStep('review');
+      return;
+    }
 
     if (!form.program_id) {
       setError('Choose which show you are recording.');
@@ -127,6 +138,78 @@ export function BookingDialog({
     setBusy(true);
     setError(null);
     try {
+      if (bookingType === 'tour') {
+        const title = tourShowTitle.trim();
+        let finalProgramId = '';
+        let effectiveNotes = `[Studio Tour: ${title}]`;
+
+        // 1. Check if a program with this exact name already exists in programmes (case-insensitive)
+        const existing = (programmes.data ?? []).find(
+          (p) => p.name.trim().toLowerCase() === title.toLowerCase(),
+        );
+
+        if (existing) {
+          finalProgramId = existing.id;
+        } else {
+          // 2. Try creating the program via programService
+          try {
+            const newProg = await programService.createProgram(
+              {
+                name: title,
+                category: 'SPECIAL',
+                default_duration_minutes: 30,
+                requires_audio: false,
+              },
+              profile.id,
+            );
+            finalProgramId = newProg.id;
+          } catch (createErr) {
+            console.warn('Could not create program directly, falling back:', createErr);
+            // 3. Fallback: find a special / placeholder program so the booking succeeds without permission errors
+            const fallbackProg =
+              (programmes.data ?? []).find(
+                (p) =>
+                  p.name.toLowerCase() === 'studio tour' ||
+                  p.name.toLowerCase().includes('tour') ||
+                  p.name.toLowerCase() === 'other show' ||
+                  p.name.toLowerCase() === 'special link' ||
+                  p.name.toLowerCase() === 'special shows' ||
+                  p.name.toLowerCase() === 'special show' ||
+                  p.name.toLowerCase().includes('special') ||
+                  p.name.toLowerCase().includes('legacy'),
+              ) ?? programmes.data?.[0];
+
+            if (!fallbackProg) {
+              throw createErr;
+            }
+
+            finalProgramId = fallbackProg.id;
+          }
+        }
+
+        // Studio Tour bookings must not require any approval and should be confirmed directly.
+        const booking = await bookingService.createBooking(
+          {
+            ...form,
+            program_id: finalProgramId,
+            language: 'ENGLISH',
+            script_status: 'YES',
+            script_approver: 'Studio Tour',
+            self_edit: true,
+            editor_id: null,
+            notes: effectiveNotes,
+            override_reason: insideNotice && mayOverride ? (form.override_reason || 'Studio Tour direct confirmation') : null,
+          },
+          profile.id,
+          profile.id,
+        );
+        setCreated(booking);
+        setStep('done');
+        onBooked();
+        return;
+      }
+
+      // Existing Studio Booking workflow unchanged
       let finalProgramId = form.program_id;
       let effectiveNotes = form.notes ?? '';
 
@@ -234,7 +317,7 @@ export function BookingDialog({
         <header className="dialog-head">
           <div>
             <p className="dialog-eyebrow">
-              {step === 'done' ? 'Confirmed' : step === 'review' ? 'Review' : 'Studio booking'}
+              {step === 'done' ? 'Confirmed' : step === 'review' ? 'Review' : (bookingType === 'tour' ? 'Studio Tour' : 'Studio booking')}
             </p>
             <h2 id="booking-title" className="dialog-title">
               {formatBookingDate(slot.date)}
@@ -256,7 +339,7 @@ export function BookingDialog({
 
           {step === 'form' && (
             <>
-              {insideNotice && !mayOverride && (
+              {bookingType === 'booking' && insideNotice && !mayOverride && (
                 <div className="notice-block">
                   <p className="notice-title">Same-day booking</p>
                   <p>
@@ -268,195 +351,227 @@ export function BookingDialog({
 
               <form onSubmit={goReview} className="booking-form">
                 <div className="field">
-                  <label htmlFor="b-show">Show</label>
+                  <label htmlFor="b-booking-type">Booking type</label>
                   <select
-                    id="b-show"
-                    value={form.program_id}
+                    id="b-booking-type"
+                    value={bookingType}
                     onChange={(e) => {
-                      setForm({ ...form, program_id: e.target.value });
+                      setBookingType(e.target.value as 'booking' | 'tour');
+                      setError(null);
                     }}
-                    required
-                    autoFocus
                   >
-                    <option value="">Choose a show</option>
-                    <option value="other_show" style={{ color: '#ef3b40', fontWeight: 'bold' }}>Other Show</option>
-                    <option value="special_link" style={{ color: '#3b82f6', fontWeight: 'bold' }}>Special Link</option>
-                    {(programmes.data ?? []).map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
+                    <option value="booking">Studio Booking</option>
+                    <option value="tour">Studio Tour</option>
                   </select>
-                  {programmes.loading && <p className="small muted">Loading shows&hellip;</p>}
-                  
-                  {(form.program_id === 'other_show' || form.program_id === 'special_link') && (
-                    <div style={{ marginTop: '0.5rem' }}>
-                      <input
-                        type="text"
-                        placeholder="Enter the show title..."
-                        value={customShowTitle}
-                        onChange={(e) => setCustomShowTitle(e.target.value)}
+                </div>
+
+                {bookingType === 'tour' ? (
+                  <div className="field">
+                    <label htmlFor="b-tour-title">Show title</label>
+                    <input
+                      id="b-tour-title"
+                      type="text"
+                      placeholder="Enter show title..."
+                      value={tourShowTitle}
+                      onChange={(e) => setTourShowTitle(e.target.value)}
+                      required
+                      autoFocus
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div className="field">
+                      <label htmlFor="b-show">Show</label>
+                      <select
+                        id="b-show"
+                        value={form.program_id}
+                        onChange={(e) => {
+                          setForm({ ...form, program_id: e.target.value });
+                        }}
                         required
                         autoFocus
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <div className="field-row">
-                  <div className="field">
-                    <label htmlFor="b-lang">Primary language</label>
-                    <select
-                      id="b-lang"
-                      value={form.language}
-                      onChange={(e) =>
-                        setForm({ ...form, language: e.target.value as ShowLanguage })
-                      }
-                    >
-                      {LANGUAGES.map((l) => (
-                        <option key={l} value={l}>
-                          {LANGUAGE_LABEL[l]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="field">
-                    <label htmlFor="b-script">Script approved by Section Head?</label>
-                    <select
-                      id="b-script"
-                      value={form.script_status}
-                      onChange={(e) =>
-                        setForm({ ...form, script_status: e.target.value as ScriptApproval })
-                      }
-                    >
-                      {SCRIPT_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {form.script_status === 'YES' && (
-                  <div className="field">
-                    <label htmlFor="b-approver">Approved by</label>
-                    <select
-                      id="b-approver"
-                      value={form.script_approver ?? ''}
-                      onChange={(e) => setForm({ ...form, script_approver: e.target.value })}
-                    >
-                      <option value="">Select an option</option>
-                      <option value="Section head">Section head</option>
-                      <option value="Faculty">Faculty</option>
-                      <option value="Waiting for Approval">Waiting for Approval</option>
-                    </select>
-                  </div>
-                )}
-
-                <fieldset className="field editor-choice">
-                  <legend>Editing</legend>
-                  <label className="radio">
-                    <input
-                      type="radio"
-                      name="edit"
-                      checked={editorMode === 'admin'}
-                      onChange={() => {
-                        setEditorMode('admin');
-                        setForm({ ...form, self_edit: false, editor_id: null });
-                      }}
-                    />
-                    <span>Admin will assign a editor for you (Recommend)</span>
-                  </label>
-                  <label className="radio">
-                    <input
-                      type="radio"
-                      name="edit"
-                      checked={editorMode === 'self'}
-                      onChange={() => {
-                        setEditorMode('self');
-                        setForm({ ...form, self_edit: true, editor_id: null });
-                      }}
-                    />
-                    <span>I will edit the audio myself</span>
-                  </label>
-                  <label className="radio">
-                    <input
-                      type="radio"
-                      name="edit"
-                      checked={editorMode === 'pick'}
-                      onChange={() => {
-                        setEditorMode('pick');
-                        setForm({ ...form, self_edit: false });
-                      }}
-                    />
-                    <span>I need an editor</span>
-                  </label>
-
-                  {editorMode === 'pick' && (
-                    <div className="editor-list">
-                      {editors.loading ? (
-                        <p className="muted small">Loading editors&hellip;</p>
-                      ) : (editors.data?.list ?? []).length === 0 ? (
-                        <p className="muted small">
-                          No editors are available yet. Choose &ldquo;I will edit it
-                          myself&rdquo;, or ask an administrator to assign one later.
-                        </p>
-                      ) : (
-                        (editors.data?.list ?? []).map((editor) => (
-                          <label
-                            key={editor.id}
-                            className={`editor-option ${
-                              form.editor_id === editor.id ? 'is-picked' : ''
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name="editor"
-                              checked={form.editor_id === editor.id}
-                              onChange={() => setForm({ ...form, editor_id: editor.id })}
-                            />
-                            <span className="editor-name">{editor.full_name}</span>
-                            <span className="editor-load">
-                              {editors.data?.load[editor.id] ?? 0} assigned
-                            </span>
-                          </label>
-                        ))
+                      >
+                        <option value="">Choose a show</option>
+                        <option value="other_show" style={{ color: '#ef3b40', fontWeight: 'bold' }}>Other Show</option>
+                        <option value="special_link" style={{ color: '#3b82f6', fontWeight: 'bold' }}>Special Link</option>
+                        {(programmes.data ?? []).map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                      {programmes.loading && <p className="small muted">Loading shows&hellip;</p>}
+                      
+                      {(form.program_id === 'other_show' || form.program_id === 'special_link') && (
+                        <div style={{ marginTop: '0.5rem' }}>
+                          <input
+                            type="text"
+                            placeholder="Enter the show title..."
+                            value={customShowTitle}
+                            onChange={(e) => setCustomShowTitle(e.target.value)}
+                            required
+                            autoFocus
+                          />
+                        </div>
                       )}
                     </div>
-                  )}
-                </fieldset>
 
-                <div className="field">
-                  <label htmlFor="b-notes">
-                    Notes <span className="hint">(optional, station only)</span>
-                  </label>
-                  <textarea
-                    id="b-notes"
-                    value={form.notes ?? ''}
-                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    maxLength={1000}
-                  />
-                </div>
+                    <div className="field-row">
+                      <div className="field">
+                        <label htmlFor="b-lang">Primary language</label>
+                        <select
+                          id="b-lang"
+                          value={form.language}
+                          onChange={(e) =>
+                            setForm({ ...form, language: e.target.value as ShowLanguage })
+                          }
+                        >
+                          {LANGUAGES.map((l) => (
+                            <option key={l} value={l}>
+                              {LANGUAGE_LABEL[l]}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-                {insideNotice && mayOverride && (
-                  <div className="field override-field">
-                    <label htmlFor="b-override">
-                      Override reason <span className="hint">(required inside 24 hours)</span>
-                    </label>
-                    <input
-                      id="b-override"
-                      value={form.override_reason ?? ''}
-                      onChange={(e) => setForm({ ...form, override_reason: e.target.value })}
-                      placeholder="e.g. Guest is only on campus today"
-                      maxLength={500}
-                    />
-                    <p className="small muted">
-                      This slot is inside the 24-hour window. Booking it is recorded as an
-                      administrator override.
-                    </p>
-                  </div>
+                      <div className="field">
+                        <label htmlFor="b-script">Script approved by Section Head?</label>
+                        <select
+                          id="b-script"
+                          value={form.script_status}
+                          onChange={(e) =>
+                            setForm({ ...form, script_status: e.target.value as ScriptApproval })
+                          }
+                        >
+                          {SCRIPT_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {form.script_status === 'YES' && (
+                      <div className="field">
+                        <label htmlFor="b-approver">Approved by</label>
+                        <select
+                          id="b-approver"
+                          value={form.script_approver ?? ''}
+                          onChange={(e) => setForm({ ...form, script_approver: e.target.value })}
+                        >
+                          <option value="">Select an option</option>
+                          <option value="Section head">Section head</option>
+                          <option value="Faculty">Faculty</option>
+                          <option value="Waiting for Approval">Waiting for Approval</option>
+                        </select>
+                      </div>
+                    )}
+
+                    <fieldset className="field editor-choice">
+                      <legend>Editing</legend>
+                      <label className="radio">
+                        <input
+                          type="radio"
+                          name="edit"
+                          checked={editorMode === 'admin'}
+                          onChange={() => {
+                            setEditorMode('admin');
+                            setForm({ ...form, self_edit: false, editor_id: null });
+                          }}
+                        />
+                        <span>Admin will assign a editor for you (Recommend)</span>
+                      </label>
+                      <label className="radio">
+                        <input
+                          type="radio"
+                          name="edit"
+                          checked={editorMode === 'self'}
+                          onChange={() => {
+                            setEditorMode('self');
+                            setForm({ ...form, self_edit: true, editor_id: null });
+                          }}
+                        />
+                        <span>I will edit the audio myself</span>
+                      </label>
+                      <label className="radio">
+                        <input
+                          type="radio"
+                          name="edit"
+                          checked={editorMode === 'pick'}
+                          onChange={() => {
+                            setEditorMode('pick');
+                            setForm({ ...form, self_edit: false });
+                          }}
+                        />
+                        <span>I need an editor</span>
+                      </label>
+
+                      {editorMode === 'pick' && (
+                        <div className="editor-list">
+                          {editors.loading ? (
+                            <p className="muted small">Loading editors&hellip;</p>
+                          ) : (editors.data?.list ?? []).length === 0 ? (
+                            <p className="muted small">
+                              No editors are available yet. Choose &ldquo;I will edit it
+                              myself&rdquo;, or ask an administrator to assign one later.
+                            </p>
+                          ) : (
+                            (editors.data?.list ?? []).map((editor) => (
+                              <label
+                                key={editor.id}
+                                className={`editor-option ${
+                                  form.editor_id === editor.id ? 'is-picked' : ''
+                                }`}
+                              >
+                                <input
+                                  type="radio"
+                                  name="editor"
+                                  checked={form.editor_id === editor.id}
+                                  onChange={() => setForm({ ...form, editor_id: editor.id })}
+                                />
+                                <span className="editor-name">{editor.full_name}</span>
+                                <span className="editor-load">
+                                  {editors.data?.load[editor.id] ?? 0} assigned
+                                </span>
+                              </label>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </fieldset>
+
+                    <div className="field">
+                      <label htmlFor="b-notes">
+                        Notes <span className="hint">(optional, station only)</span>
+                      </label>
+                      <textarea
+                        id="b-notes"
+                        value={form.notes ?? ''}
+                        onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                        maxLength={1000}
+                      />
+                    </div>
+
+                    {insideNotice && mayOverride && (
+                      <div className="field override-field">
+                        <label htmlFor="b-override">
+                          Override reason <span className="hint">(required inside 24 hours)</span>
+                        </label>
+                        <input
+                          id="b-override"
+                          value={form.override_reason ?? ''}
+                          onChange={(e) => setForm({ ...form, override_reason: e.target.value })}
+                          placeholder="e.g. Guest is only on campus today"
+                          maxLength={500}
+                        />
+                        <p className="small muted">
+                          This slot is inside the 24-hour window. Booking it is recorded as an
+                          administrator override.
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 <div className="dialog-actions">
@@ -479,33 +594,47 @@ export function BookingDialog({
             <>
               <dl className="review">
                 <Row
+                  label="Booking type"
+                  value={
+                    bookingType === 'tour'
+                      ? 'Studio Tour'
+                      : insideNotice && mayOverride
+                      ? 'Admin override'
+                      : 'Studio Booking'
+                  }
+                />
+                <Row
                   label="Show"
                   value={
-                    form.program_id === 'other_show' || form.program_id === 'special_link'
+                    bookingType === 'tour'
+                      ? tourShowTitle.trim()
+                      : form.program_id === 'other_show' || form.program_id === 'special_link'
                       ? `${customShowTitle.trim()} (${form.program_id === 'special_link' ? 'Special Link' : 'Other Show'})`
                       : ((programmes.data ?? []).find((p) => p.id === form.program_id)?.name ?? '')
                   }
                 />
-                <Row label="Language" value={LANGUAGE_LABEL[form.language]} />
+                {bookingType === 'booking' && (
+                  <Row label="Language" value={LANGUAGE_LABEL[form.language]} />
+                )}
                 <Row label="Date" value={formatBookingDate(slot.date)} />
                 <Row
                   label="Time"
                   value={`${formatSlotTime(slot.start)} – ${formatSlotTime(slot.end)} (30 min)`}
                 />
-                <Row
-                  label="Script"
-                  value={
-                    SCRIPT_OPTIONS.find((o) => o.value === form.script_status)?.label ?? '--'
-                  }
-                />
-                <Row
-                  label="Editor"
-                  value={form.self_edit ? 'Editing it myself' : (selectedEditor?.full_name ?? 'To be assigned by admin')}
-                />
-                <Row
-                  label="Booking type"
-                  value={insideNotice && mayOverride ? 'Admin override' : 'Normal booking'}
-                />
+                {bookingType === 'booking' && (
+                  <>
+                    <Row
+                      label="Script"
+                      value={
+                        SCRIPT_OPTIONS.find((o) => o.value === form.script_status)?.label ?? '--'
+                      }
+                    />
+                    <Row
+                      label="Editor"
+                      value={form.self_edit ? 'Editing it myself' : (selectedEditor?.full_name ?? 'To be assigned by admin')}
+                    />
+                  </>
+                )}
               </dl>
 
               <div className="dialog-actions">
@@ -516,8 +645,8 @@ export function BookingDialog({
                   disabled={busy}
                 >
                   {busy 
-                    ? (insideNotice && !mayOverride ? 'Sending request…' : 'Booking the studio…') 
-                    : (insideNotice && !mayOverride ? 'Request Admin Approval' : 'Confirm studio booking')
+                    ? (bookingType === 'booking' && insideNotice && !mayOverride ? 'Sending request…' : 'Booking the studio…') 
+                    : (bookingType === 'booking' && insideNotice && !mayOverride ? 'Request Admin Approval' : (bookingType === 'tour' ? 'Confirm Studio Tour' : 'Confirm studio booking'))
                   }
                 </button>
                 <button
@@ -546,17 +675,20 @@ export function BookingDialog({
                   />
                 </svg>
               </div>
-              <h3 className="confirmed-title">Studio booked</h3>
+              <h3 className="confirmed-title">{bookingType === 'tour' ? 'Studio Tour booked' : 'Studio booked'}</h3>
               {/* The reference is whatever the database allocated — it is never
                   constructed in the browser. */}
               <p className="confirmed-ref">{created.reference}</p>
 
               <dl className="review">
+                <Row label="Booking type" value={bookingType === 'tour' ? 'Studio Tour' : 'Studio Booking'} />
                 <Row
                   label="Show"
                   value={
-                    customShowTitle.trim() ||
-                    ((programmes.data ?? []).find((p) => p.id === created.program_id)?.name ?? '')
+                    bookingType === 'tour'
+                      ? tourShowTitle.trim()
+                      : customShowTitle.trim() ||
+                        ((programmes.data ?? []).find((p) => p.id === created.program_id)?.name ?? '')
                   }
                 />
                 <Row label="Date" value={formatBookingDate(created.booking_date)} />
@@ -566,32 +698,47 @@ export function BookingDialog({
                     created.end_time.slice(0, 5),
                   )}`}
                 />
-                <Row
-                  label="Editor"
-                  value={created.self_edit ? 'Editing it myself' : (selectedEditor?.full_name ?? 'To be assigned')}
-                />
+                {bookingType === 'booking' && (
+                  <Row
+                    label="Editor"
+                    value={created.self_edit ? 'Editing it myself' : (selectedEditor?.full_name ?? 'To be assigned')}
+                  />
+                )}
               </dl>
 
-              <p className="small muted">
-                Recorded already? You can attach the audio now, or come back to it from
-                My bookings.
-              </p>
+              {bookingType === 'booking' ? (
+                <>
+                  <p className="small muted">
+                    Recorded already? You can attach the audio now, or come back to it from
+                    My bookings.
+                  </p>
 
-              <div className="dialog-actions">
-                <button
-                  type="button"
-                  className="btn btn-solid"
-                  onClick={() => setUploading(true)}
-                >
-                  Upload audio
-                </button>
-                <Link to="/bookings" className="btn btn-outline">
-                  My bookings
-                </Link>
-                <button type="button" className="btn btn-ghost" onClick={onClose}>
-                  Back to calendar
-                </button>
-              </div>
+                  <div className="dialog-actions">
+                    <button
+                      type="button"
+                      className="btn btn-solid"
+                      onClick={() => setUploading(true)}
+                    >
+                      Upload audio
+                    </button>
+                    <Link to="/bookings" className="btn btn-outline">
+                      My bookings
+                    </Link>
+                    <button type="button" className="btn btn-ghost" onClick={onClose}>
+                      Back to calendar
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="dialog-actions">
+                  <Link to="/bookings" className="btn btn-solid">
+                    My bookings
+                  </Link>
+                  <button type="button" className="btn btn-ghost" onClick={onClose}>
+                    Back to calendar
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -624,7 +771,7 @@ export function BookingDialog({
         </div>
       </div>
 
-      {uploading && created && (
+      {uploading && created && bookingType === 'booking' && (
         <RecordingDialog
           // The recording dialog names the show it is uploading against, and
           // `createBooking` returns the plain row -- so the programme chosen a

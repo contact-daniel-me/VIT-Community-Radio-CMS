@@ -199,7 +199,7 @@ describe('development seed', () => {
     });
   });
 
-  it('leaves a QC queue and a rejection with a usable comment', async () => {
+  it('leaves a QC Done and a rejection with a usable comment', async () => {
     const pending = await db.sql(`select id from public.episodes where status = 'PENDING_QC'`);
     expect(pending).toHaveLength(2);
 

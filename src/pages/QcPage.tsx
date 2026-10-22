@@ -124,7 +124,7 @@ export function QcPage() {
   return (
     <>
       <PageHeader
-        title="QC queue"
+        title="QC Done"
         description="Oldest submission first. Approve for air, or reject with a reason the producer can act on."
         actions={
           <input 

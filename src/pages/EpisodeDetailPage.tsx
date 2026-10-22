@@ -521,7 +521,7 @@ export function EpisodeDetailPage() {
                   className="primary"
                   disabled={busy || (needsAudio && !ep.final_audio_file_id)}
                   onClick={() =>
-                    void run(() => episodeService.submitForQC(ep.id), 'Sent to the QC queue.')
+                    void run(() => episodeService.submitForQC(ep.id), 'Sent to QC Done.')
                   }
                 >
                   Submit for QC

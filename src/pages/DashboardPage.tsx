@@ -253,7 +253,7 @@ export function DashboardPage() {
               </div>
               
               {pendingQc.length === 0 ? (
-                <CompactEmptyState message="QC queue is clear" />
+                <CompactEmptyState message="QC Done is clear" />
               ) : (
                 <div className="stack" style={{ gap: '0.5rem' }}>
                   {pendingQc.slice(0, 3).map(ep => (

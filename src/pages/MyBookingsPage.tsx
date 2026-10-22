@@ -21,9 +21,26 @@ function getDisplayShowName(programName?: string | null, notes?: string | null):
   return programName ?? 'Unknown Show';
 }
 
+function getDisplayScript(notes?: string | null): { type: 'text' | 'file'; content: string } | null {
+  if (!notes) return null;
+  const textMatch = notes.match(/\[Submitted Script:\n([\s\S]*?)\n\]/);
+  if (textMatch) {
+    return { type: 'text', content: textMatch[1].trim() };
+  }
+  const fileMatch = notes.match(/\[Submitted Script File:\s*([^\]]+)\]/);
+  if (fileMatch) {
+    return { type: 'file', content: fileMatch[1].trim() };
+  }
+  return null;
+}
+
 function getDisplayNotes(notes?: string | null): string | null {
   if (!notes) return null;
-  const cleaned = notes.replace(/^\[(?:Show|Other Show|Special Link|Studio Tour):\s*[^\]]+\]\n?/i, '').trim();
+  const cleaned = notes
+    .replace(/^\[(?:Show|Other Show|Special Link|Studio Tour):\s*[^\]]+\]\n?/i, '')
+    .replace(/\[Submitted Script:\n[\s\S]*?\n\]/g, '')
+    .replace(/\[Submitted Script File:\s*[^\]]+\]/g, '')
+    .trim();
   return cleaned || null;
 }
 
@@ -400,6 +417,39 @@ export function MyBookingsPage() {
                               : 'Not approved'
                         }
                       />
+                      {(() => {
+                        const script = getDisplayScript(item.notes);
+                        if (!script) return null;
+                        return (
+                          <div className="review-row" style={{ alignItems: 'flex-start' }}>
+                            <dt>Submitted script</dt>
+                            <dd style={{ width: '100%' }}>
+                              {script.type === 'file' ? (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'var(--surface-muted)', padding: '0.3rem 0.6rem', borderRadius: 'var(--r-sm)', fontSize: '0.85rem' }}>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                  </svg>
+                                  {script.content}
+                                </span>
+                              ) : (
+                                <div style={{ 
+                                  whiteSpace: 'pre-wrap', 
+                                  background: 'var(--surface-muted)', 
+                                  padding: '0.6rem 0.8rem', 
+                                  borderRadius: 'var(--r-sm)', 
+                                  fontSize: '0.85rem',
+                                  maxHeight: '180px',
+                                  overflowY: 'auto',
+                                  border: '1px solid var(--line)'
+                                }}>
+                                  {script.content}
+                                </div>
+                              )}
+                            </dd>
+                          </div>
+                        );
+                      })()}
                       {getDisplayNotes(item.notes) && <Detail label="Notes" value={getDisplayNotes(item.notes)!} />}
                       {!isRequest && booking.override_reason && (
                         <Detail label="Override reason" value={booking.override_reason} />

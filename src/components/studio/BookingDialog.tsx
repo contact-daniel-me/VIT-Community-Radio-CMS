@@ -91,6 +91,21 @@ export function BookingDialog({
   const [bookingType, setBookingType] = useState<'booking' | 'tour'>('booking');
   const [tourShowTitle, setTourShowTitle] = useState('');
 
+  const [scriptMode, setScriptMode] = useState<'write' | 'upload'>('write');
+  const [scriptText, setScriptText] = useState('');
+  const [scriptFile, setScriptFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleScriptFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) setScriptFile(f);
+  };
+
+  const clearScriptFile = () => {
+    setScriptFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   // The escape key is captured here rather than on the dialog element so it works
   // even if focus is inside an input.
   useEffect(() => {
@@ -261,6 +276,23 @@ export function BookingDialog({
               : `[${tag}: ${title}]`;
           }
         }
+      }
+
+      // Link submitted script (if provided) to the studio booking
+      let scriptTag = '';
+      if (scriptMode === 'write' && scriptText.trim()) {
+        scriptTag = `[Submitted Script:\n${scriptText.trim()}\n]`;
+      } else if (scriptMode === 'upload' && scriptFile) {
+        const sizeStr = scriptFile.size / 1024 < 1024
+          ? `${(scriptFile.size / 1024).toFixed(1)} KB`
+          : `${(scriptFile.size / (1024 * 1024)).toFixed(1)} MB`;
+        scriptTag = `[Submitted Script File: ${scriptFile.name} (${sizeStr})]`;
+      }
+
+      if (scriptTag) {
+        effectiveNotes = effectiveNotes.trim()
+          ? `${effectiveNotes.trim()}\n\n${scriptTag}`
+          : scriptTag;
       }
 
       if (insideNotice && !mayOverride) {
@@ -468,6 +500,131 @@ export function BookingDialog({
                       </div>
                     )}
 
+                    {/* Optional Script Submission */}
+                    <fieldset className="field" style={{ border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: '0.85rem', margin: '0.2rem 0' }}>
+                      <legend style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--ink)' }}>
+                        Script Submission <span className="hint">(optional)</span>
+                      </legend>
+
+                      <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.75rem', marginTop: '0.2rem' }}>
+                        <label className="radio" style={{ cursor: 'pointer', fontSize: '0.84rem' }}>
+                          <input
+                            type="radio"
+                            name="script_submission_mode"
+                            value="write"
+                            checked={scriptMode === 'write'}
+                            onChange={() => setScriptMode('write')}
+                          />
+                          <span>Write in editor</span>
+                        </label>
+                        <label className="radio" style={{ cursor: 'pointer', fontSize: '0.84rem' }}>
+                          <input
+                            type="radio"
+                            name="script_submission_mode"
+                            value="upload"
+                            checked={scriptMode === 'upload'}
+                            onChange={() => setScriptMode('upload')}
+                          />
+                          <span>Upload script file</span>
+                        </label>
+                      </div>
+
+                      {scriptMode === 'write' ? (
+                        <div style={{ display: 'grid', gap: '0.3rem' }}>
+                          <textarea
+                            id="b-script-text"
+                            placeholder="Write or paste your show script here (dialogue, outline, cues, timing)..."
+                            value={scriptText}
+                            onChange={(e) => setScriptText(e.target.value)}
+                            rows={4}
+                            style={{ width: '100%', fontFamily: 'inherit', resize: 'vertical', fontSize: '0.88rem' }}
+                          />
+                          {scriptText.trim() && (
+                            <p className="small muted" style={{ margin: 0, textAlign: 'right' }}>
+                              {scriptText.trim().split(/\s+/).filter(Boolean).length} words &middot; {scriptText.length} characters
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          {!scriptFile ? (
+                            <div
+                              style={{
+                                border: '1.5px dashed var(--border)',
+                                borderRadius: 'var(--r-md)',
+                                padding: '1.1rem',
+                                textAlign: 'center',
+                                background: 'var(--bg-sunk, rgba(0, 0, 0, 0.02))',
+                                cursor: 'pointer',
+                              }}
+                              onClick={() => fileInputRef.current?.click()}
+                              onDragOver={(e) => e.preventDefault()}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                const dropped = e.dataTransfer.files?.[0];
+                                if (dropped) setScriptFile(dropped);
+                              }}
+                            >
+                              <input
+                                ref={fileInputRef}
+                                id="b-script-file"
+                                type="file"
+                                accept=".pdf,.doc,.docx,.txt,.rtf,.odt,.md"
+                                style={{ display: 'none' }}
+                                onChange={handleScriptFileChange}
+                              />
+                              <p style={{ margin: 0, fontSize: '0.88rem', fontWeight: 500 }}>
+                                Click or drag a file to upload
+                              </p>
+                              <p className="small muted" style={{ margin: '0.25rem 0 0' }}>
+                                Supports PDF, Word (.docx, .doc), or Text (.txt, .md)
+                              </p>
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '0.65rem 0.85rem',
+                                border: '1px solid var(--accent, #dc2626)',
+                                background: 'var(--accent-wash, rgba(220, 38, 38, 0.05))',
+                                borderRadius: 'var(--r-md)',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', overflow: 'hidden' }}>
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, color: 'var(--accent)' }}>
+                                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                  <polyline points="14 2 14 8 20 8"></polyline>
+                                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                                  <polyline points="10 9 9 9 8 9"></polyline>
+                                </svg>
+                                <div style={{ overflow: 'hidden' }}>
+                                  <strong style={{ display: 'block', fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {scriptFile.name}
+                                  </strong>
+                                  <span className="small muted">
+                                    {scriptFile.size / 1024 < 1024
+                                      ? `${(scriptFile.size / 1024).toFixed(1)} KB`
+                                      : `${(scriptFile.size / (1024 * 1024)).toFixed(1)} MB`}
+                                  </span>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                className="btn btn-ghost small"
+                                style={{ color: 'var(--ink-muted)', padding: '0.2rem 0.5rem', fontSize: '0.78rem' }}
+                                onClick={clearScriptFile}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </fieldset>
+
                     <fieldset className="field editor-choice">
                       <legend>Editing</legend>
                       <label className="radio">
@@ -630,6 +787,24 @@ export function BookingDialog({
                       }
                     />
                     <Row
+                      label="Submitted script"
+                      value={
+                        scriptMode === 'write'
+                          ? scriptText.trim()
+                            ? scriptText.trim().length > 60
+                              ? `${scriptText.trim().slice(0, 60)}…`
+                              : scriptText.trim()
+                            : 'None (optional)'
+                          : scriptFile
+                          ? `${scriptFile.name} (${
+                              scriptFile.size / 1024 < 1024
+                                ? `${(scriptFile.size / 1024).toFixed(1)} KB`
+                                : `${(scriptFile.size / (1024 * 1024)).toFixed(1)} MB`
+                            })`
+                          : 'None (optional)'
+                      }
+                    />
+                    <Row
                       label="Editor"
                       value={form.self_edit ? 'Editing it myself' : (selectedEditor?.full_name ?? 'To be assigned by admin')}
                     />
@@ -699,10 +874,24 @@ export function BookingDialog({
                   )}`}
                 />
                 {bookingType === 'booking' && (
-                  <Row
-                    label="Editor"
-                    value={created.self_edit ? 'Editing it myself' : (selectedEditor?.full_name ?? 'To be assigned')}
-                  />
+                  <>
+                    {((scriptMode === 'write' && scriptText.trim()) || (scriptMode === 'upload' && scriptFile)) && (
+                      <Row
+                        label="Submitted script"
+                        value={
+                          scriptMode === 'write'
+                            ? scriptText.trim().length > 60
+                              ? `${scriptText.trim().slice(0, 60)}…`
+                              : scriptText.trim()
+                            : `${scriptFile?.name}`
+                        }
+                      />
+                    )}
+                    <Row
+                      label="Editor"
+                      value={created.self_edit ? 'Editing it myself' : (selectedEditor?.full_name ?? 'To be assigned')}
+                    />
+                  </>
                 )}
               </dl>
 

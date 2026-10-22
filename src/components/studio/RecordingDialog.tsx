@@ -49,7 +49,7 @@ export function RecordingDialog({
   const [progress, setProgress] = useState<string>('');
   const [episode, setEpisode] = useState<EpisodeRow | null>(null);
   const [file, setFile] = useState<File | null>(null);
-  const customMatch = (booking.notes ?? '').match(/^\[(?:Show|Other Show|Special Link):\s*([^\]]+)\]/i);
+  const customMatch = (booking.notes ?? '').match(/^\[(?:Show|Other Show|Special Link|Studio Tour):\s*([^\]]+)\]/i);
   const displayShowName = customMatch ? customMatch[1].trim() : (booking.program?.name ?? '');
 
   const [programId, setProgramId] = useState(booking.program_id);

@@ -26,7 +26,7 @@ const MusicIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentCol
 
 function getShowTitle(programName?: string | null, notes?: string | null): string {
   if (notes) {
-    const match = notes.match(/^\[(?:Show|Other Show|Special Link):\s*([^\]]+)\]/i);
+    const match = notes.match(/^\[(?:Show|Other Show|Special Link|Studio Tour):\s*([^\]]+)\]/i);
     if (match) return match[1].trim();
   }
   return programName ?? 'Studio Session';

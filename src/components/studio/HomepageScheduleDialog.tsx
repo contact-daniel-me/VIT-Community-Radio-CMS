@@ -226,11 +226,6 @@ export function HomepageScheduleDialog({
         <div className="dialog-body">
           <Banner>{error}</Banner>
 
-          <p className="small muted" style={{ marginTop: 0, marginBottom: '1.25rem' }}>
-            Configure when this QC-approved episode appears in the homepage carousel and when it
-            automatically disappears, just like scheduling podcast releases on Spotify.
-          </p>
-
           <div className="stack" style={{ gap: '1.25rem' }}>
             {/* Episode Homepage Details (Title & Description) */}
             <div

@@ -203,7 +203,7 @@ export function HomepageScheduleDialog({
       >
         <div className="dialog-head">
           <div>
-            <p className="dialog-eyebrow">HOMEPAGE RELEASE · SPOTIFY-STYLE</p>
+            <p className="dialog-eyebrow">HOMEPAGE RELEASE</p>
             <h2 id="homepage-schedule-title" className="dialog-title">
               Homepage Schedule
             </h2>

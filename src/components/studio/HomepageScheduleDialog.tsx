@@ -307,27 +307,47 @@ export function HomepageScheduleDialog({
                 1. When should this show on the homepage?
               </label>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.95rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '0.75rem' }}>
+                <label
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                    cursor: 'pointer',
+                    fontSize: '0.92rem',
+                    width: 'fit-content',
+                  }}
+                >
                   <input
                     type="radio"
                     name="publish-mode"
                     value="immediate"
                     checked={mode === 'immediate'}
                     onChange={() => setMode('immediate')}
+                    style={{ width: 'auto', margin: 0, flexShrink: 0, cursor: 'pointer' }}
                   />
                   <span>
                     <strong>Show immediately</strong> (goes live as soon as saved)
                   </span>
                 </label>
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.95rem' }}>
+                <label
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                    cursor: 'pointer',
+                    fontSize: '0.92rem',
+                    width: 'fit-content',
+                  }}
+                >
                   <input
                     type="radio"
                     name="publish-mode"
                     value="schedule"
                     checked={mode === 'schedule'}
                     onChange={() => setMode('schedule')}
+                    style={{ width: 'auto', margin: 0, flexShrink: 0, cursor: 'pointer' }}
                   />
                   <span>
                     <strong>Schedule for later</strong>
@@ -375,11 +395,20 @@ export function HomepageScheduleDialog({
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <label style={{ fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <label
+                  style={{
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={hasExpiry}
                     onChange={(e) => setHasExpiry(e.target.checked)}
+                    style={{ width: 'auto', margin: 0, flexShrink: 0, cursor: 'pointer' }}
                   />
                   <span>2. Automatically disappear from homepage</span>
                 </label>

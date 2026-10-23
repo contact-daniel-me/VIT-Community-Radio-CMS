@@ -539,6 +539,13 @@ textarea {
   font: inherit;
   color: inherit;
 }
+input[type="radio"],
+input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
 [data-theme='dark'] input[type="date"]::-webkit-calendar-picker-indicator,
 [data-theme='dark'] input[type="time"]::-webkit-calendar-picker-indicator {
   filter: invert(1);

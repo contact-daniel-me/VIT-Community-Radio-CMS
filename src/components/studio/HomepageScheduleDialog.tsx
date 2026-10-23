@@ -335,7 +335,7 @@ export function HomepageScheduleDialog({
                     onChange={() => setMode('schedule')}
                   />
                   <span>
-                    <strong>Schedule for later</strong> (Spotify release schedule)
+                    <strong>Schedule for later</strong>
                   </span>
                 </label>
               </div>

@@ -44,9 +44,42 @@
   font-weight: 650;
   letter-spacing: -0.015em;
 }
+.studio-nav-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.studio-date-picker-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.studio-jump-label {
+  font-size: 0.8rem;
+  font-weight: 550;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+.studio-date-picker-input {
+  padding: 0.28rem 0.55rem;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+.studio-date-picker-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-wash);
+}
 .studio-nav {
   display: flex;
   gap: 0.35rem;
+  flex-wrap: wrap;
 }
 
 .studio-mobile {
@@ -67,10 +100,37 @@
   width: 78px;
 }
 .cal-head {
-  padding: 0.6rem 0.3rem;
+  padding: 0.35rem 0.2rem;
   border-bottom: 1px solid var(--border);
   text-align: center;
   font-weight: 600;
+  transition: background var(--t-fast) var(--ease);
+}
+.cal-head-btn {
+  background: transparent;
+  border: none;
+  width: 100%;
+  padding: 0.35rem 0.2rem;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.12rem;
+  transition: background var(--t-fast) var(--ease);
+}
+.cal-head-btn:hover {
+  background: var(--bg-sunk);
+}
+.cal-head.is-active {
+  background: var(--accent-wash);
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+.cal-head.is-past {
+  opacity: 0.82;
+}
+.cal-head.is-past .cal-head-date {
+  color: var(--ink-muted);
 }
 .cal-head-day {
   display: block;
@@ -90,6 +150,33 @@
 .cal-head.is-today .cal-head-date,
 .cal-head.is-today .cal-head-day {
   color: var(--accent);
+}
+.cal-today-tag {
+  display: inline-block;
+  font-size: 0.58rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--accent);
+  border-radius: var(--r-full);
+  padding: 0.05rem 0.4rem;
+  margin-top: 0.15rem;
+}
+.cal-past-tag {
+  display: inline-block;
+  font-size: 0.58rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  background: var(--bg-sunk);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  padding: 0.05rem 0.35rem;
+  margin-top: 0.15rem;
 }
 
 .cal-time {
@@ -225,9 +312,42 @@
 .daylist-day.is-blocked {
   opacity: 0.75;
 }
+.daylist-day.is-past:not(.is-active) {
+  opacity: 0.8;
+  background: var(--bg-sunk);
+}
+.daylist-day.is-today:not(.is-active) {
+  border-color: var(--accent);
+}
+.daylist-day.is-today:not(.is-active) .daylist-num,
+.daylist-day.is-today:not(.is-active) .daylist-dow {
+  color: var(--accent);
+}
+
 .slot.is-selected {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+.slot-past.is-admin-selectable {
+  cursor: pointer;
+  opacity: 0.55;
+}
+.slot-past.is-admin-selectable:hover {
+  opacity: 0.9;
+  background: var(--bg-sunk);
+  border-color: var(--border);
+}
+.slot-booked.is-admin-selectable {
+  cursor: pointer;
+}
+.slot-booked.is-admin-selectable:hover {
+  border-color: var(--accent);
+}
+.dayslot.is-admin-selectable {
+  cursor: pointer;
+}
+.dayslot.is-admin-selectable:hover {
+  border-color: var(--accent);
 }
 
 .cal-row-lunch td {
@@ -1010,3 +1130,44 @@
 .qc-add-form .field {
   flex: 1 1 260px;
 }
+
+/* ---------- Historical Studio Bookings Table ----------------------------- */
+.studio-historical-card {
+  padding: 1.25rem 1.4rem;
+}
+.studio-historical-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.studio-historical-table th {
+  padding: 0.65rem 0.75rem;
+  font-size: 0.74rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  white-space: nowrap;
+}
+.studio-historical-table td {
+  padding: 0.75rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  font-size: 0.88rem;
+}
+.studio-historical-table tr:hover td {
+  background: var(--bg-sunk);
+}
+.studio-historical-table tr.row-cancelled td {
+  opacity: 0.65;
+  background: var(--bg-sunk);
+}
+.studio-historical-table .ref-tag {
+  display: inline-block;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--r-sm);
+  background: var(--bg-sunk);
+  border: 1px solid var(--border);
+}
+

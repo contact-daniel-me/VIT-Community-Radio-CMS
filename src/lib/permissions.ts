@@ -20,6 +20,9 @@ export const can = {
   /** Waive the 24-hour rule. Enforced again by app.enforce_booking_window(). */
   overrideBookingWindow: (role: UserRole): boolean => role === 'ADMIN',
 
+  /** Navigate historical calendar dates and view historical booking records. */
+  viewHistoricalCalendar: (role: UserRole): boolean => role === 'ADMIN',
+
   /** Be assignable as an editor on a booking. */
   editAudio: (role: UserRole): boolean =>
     role === 'EDITOR' || role === 'PRODUCER' || role === 'ADMIN',

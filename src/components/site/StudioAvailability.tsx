@@ -4,19 +4,29 @@ import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
 import { StudioCalendar, StudioDayList } from '@/components/studio/StudioCalendar';
 import { BookingDialog } from '@/components/studio/BookingDialog';
-import { bookingService } from '@/services/bookingService';
+import { UnifiedStatusBadge } from '@/components/ui';
+import { bookingService, type BookingWithPeople } from '@/services/bookingService';
 import { can } from '@/lib/permissions';
 import type { CalendarSlot } from '@/utils/studio';
-import { addDays, formatBookingDate, isoDate, mondayOf, weekdaysFrom } from '@/utils/studio';
+import {
+  addDays,
+  addMonths,
+  addYears,
+  formatBookingDate,
+  formatSlotTime,
+  getDisplayNotes,
+  getDisplayShowName,
+  isoDate,
+  mondayOf,
+  weekdaysFrom,
+} from '@/utils/studio';
 
 /**
- * The public studio calendar.
+ * The studio calendar and historical bookings overview.
  *
- * Works signed out. Occupancy comes from `v_public_studio_calendar`, which
- * carries only date and start/end time — no name, no email, no show title — so
- * a visitor sees that a slot is taken and nothing about who took it. A signed-in
- * RJ additionally gets their own bookings merged in, which is the only way
- * identity ever enters this view.
+ * Works signed out for upcoming availability.
+ * For administrators, provides full historical navigation across past weeks,
+ * months, and years with detailed historical booking records and empty states.
  */
 export function StudioAvailability({ showHeading = true }: { showHeading?: boolean } = {}) {
   const { session, profile } = useAuth();
@@ -31,10 +41,21 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
 
   const signedIn = Boolean(session && profile);
   const mayBook = profile ? can.bookStudio(profile.role) : false;
+  const isAdmin = profile ? can.viewHistoricalCalendar(profile.role) : false;
+  const today = isoDate(new Date());
+  const thisWeek = mondayOf(new Date());
 
   const week = useAsync(
     () => bookingService.getWeek(monday, profile?.id ?? null),
     [monday, profile?.id],
+  );
+
+  const activeBookings = useAsync(
+    () =>
+      isAdmin && activeDay
+        ? bookingService.getBookingsForDate(activeDay, true)
+        : Promise.resolve([] as BookingWithPeople[]),
+    [isAdmin, activeDay],
   );
 
   useEffect(() => {
@@ -42,11 +63,22 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
     if (!days.includes(activeDay)) setActiveDay(days[0]);
   }, [monday, activeDay]);
 
-  const refresh = useCallback(() => void week.reload(), [week]);
+  const refresh = useCallback(() => {
+    void week.reload();
+    if (isAdmin) void activeBookings.reload();
+  }, [week, activeBookings, isAdmin]);
 
   const onSelect = (slot: CalendarSlot) => {
-    if (slot.state === 'PAST' || slot.state === 'BOOKED') {
-      // Non-interactive.
+    setActiveDay(slot.date);
+
+    if (slot.state === 'PAST') {
+      // Past dates are not bookable. Selecting updates activeDay to view historical records.
+      setSelected(null);
+      return;
+    }
+    if (slot.state === 'BOOKED') {
+      // Booked slots cannot be reserved. Selecting updates activeDay.
+      setSelected(null);
       return;
     }
     if (slot.state === 'BLOCKED') {
@@ -67,7 +99,9 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
   };
 
   const days = weekdaysFrom(monday);
-  const thisWeek = mondayOf(new Date());
+  const activeDayObj = week.data?.find((d) => d.date === activeDay);
+  const activeDayIsBlocked = activeDayObj?.isBlocked;
+  const activeHolidayReason = activeDayObj?.holidayReason;
 
   return (
     <section className="section" id="studio">
@@ -92,34 +126,114 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
               {formatBookingDate(days[0], { short: true })} &ndash;{' '}
               {formatBookingDate(days[6], { short: true })}
             </h3>
-            {monday === thisWeek && <span className="badge badge-red">This week</span>}
+            {monday === thisWeek ? (
+              <span className="badge badge-red">This week</span>
+            ) : monday < thisWeek ? (
+              <span className="badge badge-grey">Historical</span>
+            ) : (
+              <span className="badge badge-blue">Upcoming</span>
+            )}
           </div>
 
-          <div className="studio-nav">
-            <button
-              type="button"
-              className="btn btn-ghost small"
-              onClick={() => setMonday(addDays(monday, -7))}
-              aria-label="Previous week"
-            >
-              &larr; Previous
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost small"
-              onClick={() => setMonday(thisWeek)}
-              disabled={monday === thisWeek}
-            >
-              This week
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost small"
-              onClick={() => setMonday(addDays(monday, 7))}
-              aria-label="Next week"
-            >
-              Next &rarr;
-            </button>
+          <div className="studio-nav-container">
+            {isAdmin && (
+              <div className="studio-date-picker-wrap">
+                <label htmlFor="studio-jump-date" className="studio-jump-label">
+                  Jump to date:
+                </label>
+                <input
+                  id="studio-jump-date"
+                  type="date"
+                  value={activeDay}
+                  onChange={(e) => {
+                    const picked = e.target.value;
+                    if (picked) {
+                      setMonday(mondayOf(new Date(`${picked}T12:00:00`)));
+                      setActiveDay(picked);
+                    }
+                  }}
+                  className="studio-date-picker-input"
+                  title="Jump directly to any date, month, or year"
+                />
+              </div>
+            )}
+
+            <div className="studio-nav">
+              {isAdmin && (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-ghost small"
+                    onClick={() => setMonday(addYears(monday, -1))}
+                    title="Navigate back 1 year"
+                    aria-label="Previous year"
+                  >
+                    &laquo; Year
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost small"
+                    onClick={() => setMonday(addMonths(monday, -1))}
+                    title="Navigate back 1 month"
+                    aria-label="Previous month"
+                  >
+                    &lsaquo; Month
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                className="btn btn-ghost small"
+                onClick={() => setMonday(addDays(monday, -7))}
+                title="Go back 1 week"
+                aria-label="Previous week"
+              >
+                &larr; Prev Week
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost small"
+                onClick={() => {
+                  setMonday(thisWeek);
+                  setActiveDay(today);
+                }}
+                disabled={monday === thisWeek && activeDay === today}
+                title="Jump to current week and today"
+              >
+                This week
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost small"
+                onClick={() => setMonday(addDays(monday, 7))}
+                title="Go forward 1 week"
+                aria-label="Next week"
+              >
+                Next Week &rarr;
+              </button>
+              {isAdmin && (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-ghost small"
+                    onClick={() => setMonday(addMonths(monday, 1))}
+                    title="Navigate forward 1 month"
+                    aria-label="Next month"
+                  >
+                    Month &rsaquo;
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost small"
+                    onClick={() => setMonday(addYears(monday, 1))}
+                    title="Navigate forward 1 year"
+                    aria-label="Next year"
+                  >
+                    Year &raquo;
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -141,7 +255,15 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
         ) : (
           <>
             <div className="studio-desktop">
-              <StudioCalendar week={week.data ?? []} selected={selected} onSelect={onSelect} />
+              <StudioCalendar
+                week={week.data ?? []}
+                selected={selected}
+                onSelect={onSelect}
+                activeDate={activeDay}
+                onPickDate={setActiveDay}
+                isAdmin={isAdmin}
+                today={today}
+              />
             </div>
             <div className="studio-mobile">
               <StudioDayList
@@ -150,6 +272,8 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
                 onPickDate={setActiveDay}
                 selected={selected}
                 onSelect={onSelect}
+                isAdmin={isAdmin}
+                today={today}
               />
             </div>
           </>
@@ -166,6 +290,199 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
           <li><span className="key slot-past" aria-hidden="true">–</span> Past</li>
         </ul>
       </div>
+
+      {/* Historical and date-specific bookings inspection panel for administrators */}
+      {isAdmin && (
+        <div className="card studio-historical-card" style={{ marginTop: '1.5rem' }}>
+          <div
+            className="card-header spread align-center wrap"
+            style={{ gap: '0.75rem', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.85rem' }}
+          >
+            <div>
+              <div className="row align-center wrap" style={{ gap: '0.5rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 650 }}>
+                  Studio Bookings &middot; {formatBookingDate(activeDay)}
+                </h3>
+                {activeDay < today ? (
+                  <span className="badge badge-grey">Historical</span>
+                ) : activeDay === today ? (
+                  <span className="badge badge-red">Today</span>
+                ) : (
+                  <span className="badge badge-blue">Upcoming</span>
+                )}
+              </div>
+              <p
+                style={{
+                  margin: '0.25rem 0 0 0',
+                  fontSize: '0.82rem',
+                  color: 'var(--ink-faint)',
+                }}
+              >
+                Comprehensive records of studio sessions, RJ allocations, and statuses for this date.
+              </p>
+            </div>
+
+            <div className="row align-center" style={{ gap: '0.5rem' }}>
+              <Link to="/bookings" className="btn btn-outline small">
+                All studio bookings &rarr;
+              </Link>
+            </div>
+          </div>
+
+          {activeDayIsBlocked && (
+            <div
+              className="banner banner-info"
+              style={{ margin: '0 0 1rem 0', fontSize: '0.86rem' }}
+              role="status"
+            >
+              <strong>Studio closed / Blocked:</strong>{' '}
+              {activeHolidayReason ||
+                'Studio bookings were unavailable on this date due to a holiday or scheduled maintenance.'}
+            </div>
+          )}
+
+          {activeBookings.loading ? (
+            <p className="loading" style={{ padding: '1.5rem 0' }}>
+              Loading bookings for {formatBookingDate(activeDay)}&hellip;
+            </p>
+          ) : activeBookings.error ? (
+            <p className="section-empty">Could not load bookings for this date.</p>
+          ) : (activeBookings.data?.length ?? 0) === 0 ? (
+            <div
+              className="studio-empty-day"
+              style={{
+                padding: '2.5rem 1rem',
+                textAlign: 'center',
+                background: 'var(--bg-sunk)',
+                borderRadius: 'var(--r-md)',
+              }}
+            >
+              <p style={{ fontWeight: 650, fontSize: '0.98rem', color: 'var(--ink)' }}>
+                No bookings on this date
+              </p>
+              <p
+                style={{
+                  fontSize: '0.84rem',
+                  color: 'var(--ink-faint)',
+                  maxWidth: '440px',
+                  margin: '0.35rem auto 0 auto',
+                }}
+              >
+                {activeDay < today
+                  ? `There were no studio recording sessions or bookings recorded on ${formatBookingDate(
+                      activeDay,
+                    )}.`
+                  : `No studio recording sessions are currently booked for ${formatBookingDate(
+                      activeDay,
+                    )}.`}
+              </p>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table studio-historical-table">
+                <thead>
+                  <tr>
+                    <th>Time Slot</th>
+                    <th>Reference</th>
+                    <th>Show / Episode Title</th>
+                    <th>RJ / Host</th>
+                    <th>Editor</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activeBookings.data!.map((b) => {
+                    const showName = getDisplayShowName(
+                      b.program?.name,
+                      b.notes,
+                      b.episode?.title,
+                    );
+                    const cleanNotes = getDisplayNotes(b.notes);
+                    return (
+                      <tr
+                        key={b.id}
+                        className={b.status === 'CANCELLED' ? 'row-cancelled' : undefined}
+                      >
+                        <td
+                          style={{
+                            whiteSpace: 'nowrap',
+                            fontWeight: 600,
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '0.84rem',
+                          }}
+                        >
+                          {formatSlotTime(b.start_time.slice(0, 5))} &ndash;{' '}
+                          {formatSlotTime(b.end_time.slice(0, 5))}
+                        </td>
+                        <td>
+                          <span
+                            className="ref-tag"
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '0.82rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {b.reference}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{showName}</div>
+                          {b.episode?.title &&
+                            b.program?.name &&
+                            b.episode.title !== b.program.name && (
+                              <div
+                                style={{ fontSize: '0.78rem', color: 'var(--ink-faint)' }}
+                              >
+                                {b.program.name}
+                              </div>
+                            )}
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 550 }}>
+                            {b.rj?.full_name || 'Unassigned'}
+                          </div>
+                          {b.rj?.email && (
+                            <div
+                              style={{ fontSize: '0.78rem', color: 'var(--ink-faint)' }}
+                            >
+                              {b.rj.email}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          {b.self_edit ? (
+                            <span className="badge badge-grey">Self-edit</span>
+                          ) : b.editor?.full_name ? (
+                            <span>{b.editor.full_name}</span>
+                          ) : (
+                            <span style={{ color: 'var(--ink-faint)' }}>&mdash;</span>
+                          )}
+                        </td>
+                        <td>
+                          <UnifiedStatusBadge booking={b} episode={b.episode} />
+                        </td>
+                        <td
+                          style={{
+                            maxWidth: '220px',
+                            fontSize: '0.82rem',
+                            color: 'var(--ink-muted)',
+                          }}
+                        >
+                          {cleanNotes || (
+                            <span style={{ color: 'var(--ink-faint)' }}>&mdash;</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {prompt && (
         <div className="studio-prompt" role="status">

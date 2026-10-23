@@ -8,19 +8,17 @@ import { RecordingDialog } from '@/components/studio/RecordingDialog';
 import { errorMessage } from '@/lib/errors';
 import { can } from '@/lib/permissions';
 import { formatDateTime } from '@/utils/datetime';
-import { formatBookingDate, formatSlotTime, isStudioTourBooking, slotStartsAt } from '@/utils/studio';
+import {
+  formatBookingDate,
+  formatSlotTime,
+  getDisplayNotes,
+  getDisplayShowName,
+  isStudioTourBooking,
+  slotStartsAt,
+} from '@/utils/studio';
 import type { StudioBookingRequestRow } from '@/types/database';
 
 type Tab = 'upcoming' | 'past' | 'cancelled' | 'requests';
-
-function getDisplayShowName(programName?: string | null, notes?: string | null, episodeTitle?: string | null): string {
-  if (episodeTitle?.trim()) return episodeTitle.trim();
-  if (notes) {
-    const match = notes.match(/^\[(?:Show|Other Show|Special Link|Studio Tour):\s*([^\]]+)\]/i);
-    if (match) return match[1].trim();
-  }
-  return programName ?? 'Unknown Show';
-}
 
 function getDisplayScript(notes?: string | null): { type: 'text' | 'file'; content: string } | null {
   if (!notes) return null;
@@ -33,16 +31,6 @@ function getDisplayScript(notes?: string | null): { type: 'text' | 'file'; conte
     return { type: 'file', content: fileMatch[1].trim() };
   }
   return null;
-}
-
-function getDisplayNotes(notes?: string | null): string | null {
-  if (!notes) return null;
-  const cleaned = notes
-    .replace(/^\[(?:Show|Other Show|Special Link|Studio Tour):\s*[^\]]+\]\n?/i, '')
-    .replace(/\[Submitted Script:\n[\s\S]*?\n\]/g, '')
-    .replace(/\[Submitted Script File:\s*[^\]]+\]/g, '')
-    .trim();
-  return cleaned || null;
 }
 
 export function MyBookingsPage() {

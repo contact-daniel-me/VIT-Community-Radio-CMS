@@ -29,11 +29,17 @@ export function StudioCalendar({
   week,
   selected,
   onSelect,
+  activeDate,
+  onPickDate,
+  isAdmin = false,
   today = isoDate(new Date()),
 }: {
   week: CalendarDay[];
   selected: { date: string; start: string } | null;
   onSelect: (slot: CalendarSlot) => void;
+  activeDate?: string;
+  onPickDate?: (date: string) => void;
+  isAdmin?: boolean;
   today?: string;
 }) {
   // Every day shares the same row template, so the times column is taken once.
@@ -51,26 +57,53 @@ export function StudioCalendar({
               <th scope="col" className="cal-corner">
                 <span className="sr-only">Time</span>
               </th>
-              {week.map((day) => (
-                <th
-                  key={day.date}
-                  scope="col"
-                  className={`cal-head ${day.date === today ? 'is-today' : ''} ${day.isBlocked ? 'is-blocked' : ''}`}
-                >
-                  <span className="cal-head-day">
-                    {formatBookingDate(day.date, { short: true }).split(',')[0]}
-                  </span>
-                  <span className="cal-head-date">{formatDayNumber(day.date)}</span>
-                  {day.isBlocked && (
-                    <span
-                      className="cal-blocked-tag"
-                      title={day.holidayReason ? `Studio closed: ${day.holidayReason}` : 'Studio closed: Holiday / Maintenance'}
+              {week.map((day) => {
+                const isTodayDate = day.date === today;
+                const isPastDate = day.date < today;
+                const isUpcomingDate = day.date > today;
+                const isActiveDate = activeDate === day.date;
+
+                return (
+                  <th
+                    key={day.date}
+                    scope="col"
+                    className={`cal-head ${isTodayDate ? 'is-today' : ''} ${
+                      isPastDate ? 'is-past' : ''
+                    } ${isUpcomingDate ? 'is-upcoming' : ''} ${
+                      day.isBlocked ? 'is-blocked' : ''
+                    } ${isActiveDate ? 'is-active' : ''}`}
+                  >
+                    <button
+                      type="button"
+                      className="cal-head-btn"
+                      onClick={() => onPickDate?.(day.date)}
+                      title={`Select ${formatBookingDate(day.date)}`}
+                      aria-label={`${formatBookingDate(day.date)}${
+                        isTodayDate ? ' (Today)' : isPastDate ? ' (Past date)' : ''
+                      }`}
                     >
-                      Blocked
-                    </span>
-                  )}
-                </th>
-              ))}
+                      <span className="cal-head-day">
+                        {formatBookingDate(day.date, { short: true }).split(',')[0]}
+                      </span>
+                      <span className="cal-head-date">{formatDayNumber(day.date)}</span>
+                      {isTodayDate && <span className="cal-today-tag">Today</span>}
+                      {isPastDate && <span className="cal-past-tag">Past</span>}
+                      {day.isBlocked && (
+                        <span
+                          className="cal-blocked-tag"
+                          title={
+                            day.holidayReason
+                              ? `Studio closed: ${day.holidayReason}`
+                              : 'Studio closed: Holiday / Maintenance'
+                          }
+                        >
+                          Blocked
+                        </span>
+                      )}
+                    </button>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
 
@@ -100,14 +133,22 @@ export function StudioCalendar({
                     ) : null;
                   }
 
+                  const slotSelectable =
+                    isSelectable(slot.state) ||
+                    (isAdmin && (slot.state === 'PAST' || slot.state === 'BOOKED'));
+
                   return (
                     <td key={slot.date} className="cal-cell">
                       <button
                         type="button"
                         className={`slot slot-${slot.state.toLowerCase()} ${
                           isSelected ? 'is-selected' : ''
+                        } ${
+                          isAdmin && (slot.state === 'PAST' || slot.state === 'BOOKED')
+                            ? 'is-admin-selectable'
+                            : ''
                         }`}
-                        disabled={!isSelectable(slot.state)}
+                        disabled={!slotSelectable}
                         aria-pressed={isSelected}
                         aria-label={`${formatBookingDate(slot.date)}, ${formatSlotTime(
                           slot.start,
@@ -159,38 +200,59 @@ export function StudioDayList({
   onPickDate,
   selected,
   onSelect,
+  isAdmin = false,
+  today = isoDate(new Date()),
 }: {
   week: CalendarDay[];
   activeDate: string;
   onPickDate: (date: string) => void;
   selected: { date: string; start: string } | null;
   onSelect: (slot: CalendarSlot) => void;
+  isAdmin?: boolean;
+  today?: string;
 }) {
   const day = week.find((d) => d.date === activeDate) ?? week[0];
 
   return (
     <div className="daylist">
       <div className="daylist-days" role="tablist" aria-label="Choose a day">
-        {week.map((d) => (
-          <button
-            key={d.date}
-            type="button"
-            role="tab"
-            aria-selected={d.date === activeDate}
-            className={`daylist-day ${d.date === activeDate ? 'is-active' : ''} ${d.isBlocked ? 'is-blocked' : ''}`}
-            onClick={() => onPickDate(d.date)}
-          >
-            <span className="daylist-dow">
-              {formatBookingDate(d.date, { short: true }).split(',')[0]}
-            </span>
-            <span className="daylist-num">{formatDayNumber(d.date)}</span>
-            {d.isBlocked && (
-              <span className="cal-blocked-tag" style={{ marginTop: '0.15rem' }}>
-                Blocked
+        {week.map((d) => {
+          const isTodayDate = d.date === today;
+          const isPastDate = d.date < today;
+
+          return (
+            <button
+              key={d.date}
+              type="button"
+              role="tab"
+              aria-selected={d.date === activeDate}
+              className={`daylist-day ${d.date === activeDate ? 'is-active' : ''} ${
+                isTodayDate ? 'is-today' : ''
+              } ${isPastDate ? 'is-past' : ''} ${d.isBlocked ? 'is-blocked' : ''}`}
+              onClick={() => onPickDate(d.date)}
+            >
+              <span className="daylist-dow">
+                {formatBookingDate(d.date, { short: true }).split(',')[0]}
               </span>
-            )}
-          </button>
-        ))}
+              <span className="daylist-num">{formatDayNumber(d.date)}</span>
+              {isTodayDate && (
+                <span className="cal-today-tag" style={{ marginTop: '0.15rem' }}>
+                  Today
+                </span>
+              )}
+              {isPastDate && (
+                <span className="cal-past-tag" style={{ marginTop: '0.15rem' }}>
+                  Past
+                </span>
+              )}
+              {d.isBlocked && (
+                <span className="cal-blocked-tag" style={{ marginTop: '0.15rem' }}>
+                  Blocked
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {day?.isBlocked && (
@@ -200,7 +262,8 @@ export function StudioDayList({
           role="status"
         >
           <strong>Studio closed:</strong>{' '}
-          {day.holidayReason || 'Studio bookings are unavailable on this date due to a holiday or scheduled closure.'}
+          {day.holidayReason ||
+            'Studio bookings are unavailable on this date due to a holiday or scheduled closure.'}
         </div>
       )}
 
@@ -208,15 +271,24 @@ export function StudioDayList({
         {(day?.slots ?? [])
           .filter((s) => !s.isLunch)
           .map((slot) => {
-            const isSelected = selected?.date === slot.date && selected?.start === slot.start;
+            const isSelected =
+              selected?.date === slot.date && selected?.start === slot.start;
+            const slotSelectable =
+              isSelectable(slot.state) ||
+              (isAdmin && (slot.state === 'PAST' || slot.state === 'BOOKED'));
+
             return (
               <li key={slot.start}>
                 <button
                   type="button"
                   className={`dayslot slot-${slot.state.toLowerCase()} ${
                     isSelected ? 'is-selected' : ''
+                  } ${
+                    isAdmin && (slot.state === 'PAST' || slot.state === 'BOOKED')
+                      ? 'is-admin-selectable'
+                      : ''
                   }`}
-                  disabled={!isSelectable(slot.state)}
+                  disabled={!slotSelectable}
                   onClick={() => onSelect(slot)}
                 >
                   <span className="dayslot-time">
@@ -228,7 +300,6 @@ export function StudioDayList({
             );
           })}
       </ul>
-
     </div>
   );
 }

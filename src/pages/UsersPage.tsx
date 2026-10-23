@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
-import { Banner, ConfirmButton, Loading, PageHeader } from '@/components/ui';
+import { Banner, ConfirmButton, Empty, Loading, PageHeader } from '@/components/ui';
 import { userService } from '@/services/userService';
 import { activityService, describeAction, describeSubject } from '@/services/activityService';
 import { ROLE_LABELS, ROLE_SUMMARY } from '@/lib/permissions';
@@ -11,11 +11,28 @@ import type { UserRole } from '@/types/database';
 
 const ROLES: UserRole[] = ['ADMIN', 'PRODUCER', 'RJ', 'QC'];
 
+export type UserFilterTab = 'ALL' | 'ADMIN' | 'PRODUCER' | 'RJ' | 'QC';
+
+export interface UserRoleTabDef {
+  key: UserFilterTab;
+  label: string;
+  role?: UserRole;
+}
+
+export const USER_ROLE_TABS: UserRoleTabDef[] = [
+  { key: 'ALL', label: 'All Users' },
+  { key: 'ADMIN', label: 'Administrators', role: 'ADMIN' },
+  { key: 'PRODUCER', label: 'Producers', role: 'PRODUCER' },
+  { key: 'RJ', label: 'Radio Jockeys', role: 'RJ' },
+  { key: 'QC', label: 'Quality Control', role: 'QC' },
+];
+
 export function UsersPage() {
   const profile = useCurrentUser();
   const users = useAsync(() => userService.getUsers(), []);
   const activity = useAsync(() => activityService.getRecentActivity(20), []);
 
+  const [roleFilter, setRoleFilter] = useState<UserFilterTab>('ALL');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,28 +88,43 @@ export function UsersPage() {
   // Never activated = still waiting. Activated then switched off = removed.
   const allUsers = users.data ?? [];
   const pending = allUsers.filter((u) => !u.active && !u.approved_at);
-  const sorted = [...allUsers].sort((a, b) => {
-    const aPending = !a.active && !a.approved_at ? 0 : 1;
-    const bPending = !b.active && !b.approved_at ? 0 : 1;
-    return aPending - bPending || a.full_name.localeCompare(b.full_name);
-  }).filter(u => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.role.toLowerCase().includes(q);
-  });
+
+  const counts = useMemo(() => {
+    return {
+      ALL: allUsers.length,
+      ADMIN: allUsers.filter((u) => u.role === 'ADMIN').length,
+      PRODUCER: allUsers.filter((u) => u.role === 'PRODUCER').length,
+      RJ: allUsers.filter((u) => u.role === 'RJ').length,
+      QC: allUsers.filter((u) => u.role === 'QC').length,
+    };
+  }, [allUsers]);
+
+  const filteredUsers = useMemo(() => {
+    return allUsers
+      .filter((u) => {
+        if (roleFilter !== 'ALL' && u.role !== roleFilter) return false;
+        if (!searchQuery.trim()) return true;
+        const q = searchQuery.toLowerCase();
+        const roleLabel = (ROLE_LABELS[u.role] ?? '').toLowerCase();
+        return (
+          u.full_name.toLowerCase().includes(q) ||
+          u.email.toLowerCase().includes(q) ||
+          u.role.toLowerCase().includes(q) ||
+          roleLabel.includes(q)
+        );
+      })
+      .sort((a, b) => {
+        const aPending = !a.active && !a.approved_at ? 0 : 1;
+        const bPending = !b.active && !b.approved_at ? 0 : 1;
+        return aPending - bPending || a.full_name.localeCompare(b.full_name);
+      });
+  }, [allUsers, roleFilter, searchQuery]);
 
   return (
     <>
       <PageHeader
         title="Users"
-        actions={
-          <input 
-            type="search" 
-            placeholder="Search users..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        }
+        description="Every account registered with the station, and what each can do."
       />
 
       <Banner>{error}</Banner>
@@ -107,13 +139,61 @@ export function UsersPage() {
         </Banner>
       )}
 
-
+      {/* Role filter tab navigation and search bar */}
+      <div
+        className="row spread align-center wrap"
+        style={{ gap: '1rem', marginBottom: '1rem' }}
+      >
+        <div
+          className="tabs"
+          role="tablist"
+          aria-label="Filter users by role"
+          style={{ margin: 0 }}
+        >
+          {USER_ROLE_TABS.map((tab) => {
+            const isActive = roleFilter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                role="tab"
+                type="button"
+                aria-selected={isActive}
+                className={`tab ${isActive ? 'is-active' : ''}`}
+                onClick={() => setRoleFilter(tab.key)}
+              >
+                {tab.label}
+                <span className="tab-count">{counts[tab.key]}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ flex: '1 1 260px', maxWidth: '380px' }}>
+          <input
+            type="search"
+            placeholder="Search users..."
+            aria-label="Search users"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ width: '100%' }}
+          />
+        </div>
+      </div>
 
       <section className="card">
         {users.loading ? (
           <Loading />
         ) : users.error ? (
           <Banner>{users.error}</Banner>
+        ) : filteredUsers.length === 0 ? (
+          <Empty>
+            {searchQuery.trim()
+              ? `No users found matching "${searchQuery}".`
+              : roleFilter === 'ALL'
+                ? 'No registered users found.'
+                : `No users currently assigned to ${
+                    USER_ROLE_TABS.find((t) => t.key === roleFilter)?.label ?? 'this role'
+                  }.`}
+          </Empty>
         ) : (
           <div className="table-wrap">
             <table>
@@ -128,7 +208,7 @@ export function UsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {sorted.map((user) => {
+                {filteredUsers.map((user) => {
                   const isSelf = user.id === profile.id;
                   return (
                     <tr key={user.id}>

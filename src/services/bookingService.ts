@@ -157,6 +157,24 @@ export const bookingService = {
     );
   },
 
+  /**
+   * All bookings for a specific date, including people, status, and cancelled entries.
+   * Used for day inspection, historical calendar views, and administrative oversight.
+   */
+  async getBookingsForDate(date: string, includeCancelled = true): Promise<BookingWithPeople[]> {
+    let query = supabase
+      .from('studio_bookings')
+      .select(BOOKING_SELECT)
+      .eq('booking_date', date)
+      .order('start_time', { ascending: true });
+
+    if (!includeCancelled) {
+      query = query.neq('status', 'CANCELLED');
+    }
+
+    return unwrap(query.returns<BookingWithPeople[]>());
+  },
+
   /** Every active upcoming booking, for the admin view or scoped to RJ. Excludes CANCELLED. */
   async getUpcomingBookings(limit = 5, userId?: string): Promise<BookingWithPeople[]> {
     let query = supabase

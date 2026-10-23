@@ -90,6 +90,25 @@ export function addDays(iso: string, days: number): string {
   return isoDate(d);
 }
 
+/** Shift a Monday forward or backward by a number of months, returning the Monday of that week. */
+export function addMonths(isoMonday: string, months: number): string {
+  const d = new Date(`${isoMonday}T12:00:00`);
+  d.setMonth(d.getMonth() + months);
+  return mondayOf(d);
+}
+
+/** Shift a Monday forward or backward by a number of years, returning the Monday of that week. */
+export function addYears(isoMonday: string, years: number): string {
+  const d = new Date(`${isoMonday}T12:00:00`);
+  d.setFullYear(d.getFullYear() + years);
+  return mondayOf(d);
+}
+
+/** Whether a YYYY-MM-DD date is strictly in the past relative to today. */
+export function isDateInPast(date: string, todayIso = isoDate(new Date())): boolean {
+  return date < todayIso;
+}
+
 /** The seven days of the week starting at `monday`. */
 export function weekdaysFrom(monday: string): string[] {
   return [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(monday, i));
@@ -246,4 +265,28 @@ export function isStudioTourBooking(booking?: {
   if (booking.notes && /\bStudio Tour\b/i.test(booking.notes)) return true;
   return false;
 }
+
+export function getDisplayShowName(
+  programName?: string | null,
+  notes?: string | null,
+  episodeTitle?: string | null,
+): string {
+  if (episodeTitle?.trim()) return episodeTitle.trim();
+  if (notes) {
+    const match = notes.match(/^\[(?:Show|Other Show|Special Link|Studio Tour):\s*([^\]]+)\]/i);
+    if (match) return match[1].trim();
+  }
+  return programName ?? 'Unknown Show';
+}
+
+export function getDisplayNotes(notes?: string | null): string | null {
+  if (!notes) return null;
+  const cleaned = notes
+    .replace(/^\[(?:Show|Other Show|Special Link|Studio Tour):\s*[^\]]+\]\n?/i, '')
+    .replace(/\[Submitted Script:\n[\s\S]*?\n\]/g, '')
+    .replace(/\[Submitted Script File:\s*[^\]]+\]/g, '')
+    .trim();
+  return cleaned || null;
+}
+
 

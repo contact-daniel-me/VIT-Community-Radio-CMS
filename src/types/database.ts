@@ -92,7 +92,17 @@ export type StudioBookingRow = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
-}
+};
+
+export type StudioHolidayRow = {
+  id: string;
+  start_date: string;
+  end_date: string;
+  reason: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
 
 export type SlotKind =
   | 'ANNOUNCEMENT'
@@ -689,6 +699,20 @@ export type Database = {
             columns: ['program_id'];
             isOneToOne: false;
             referencedRelation: 'programs';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      studio_holidays: {
+        Row: StudioHolidayRow;
+        Insert: Insertable<StudioHolidayRow, 'start_date' | 'end_date'>;
+        Update: Partial<StudioHolidayRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'studio_holidays_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
             referencedColumns: ['id'];
           },
         ];

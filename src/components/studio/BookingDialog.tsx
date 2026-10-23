@@ -8,6 +8,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/errors';
 import { can } from '@/lib/permissions';
 import type { ProfileRow, ScriptApproval, ShowLanguage, StudioBookingRow } from '@/types/database';
+import { holidayService } from '@/services/holidayService';
 import { formatBookingDate, formatSlotTime, withinNoticeWindow } from '@/utils/studio';
 
 
@@ -56,6 +57,13 @@ export function BookingDialog({
 
   const insideNotice = withinNoticeWindow(slot.date, slot.start);
   const mayOverride = can.overrideBookingWindow(profile.role);
+
+  const holidays = useAsync(
+    () => holidayService.getHolidaysForRange(slot.date, slot.date),
+    [slot.date],
+  );
+  const activeHoliday = holidays.data?.[0];
+  const isBlocked = Boolean(activeHoliday);
 
   const editors = useAsync(
     async () => {
@@ -121,6 +129,11 @@ export function BookingDialog({
     event.preventDefault();
     setError(null);
 
+    if (isBlocked) {
+      setError('Studio bookings are unavailable on this date due to a holiday or scheduled closure.');
+      return;
+    }
+
     if (bookingType === 'tour') {
       if (!tourShowTitle.trim()) {
         setError('Please enter the show title.');
@@ -150,6 +163,10 @@ export function BookingDialog({
   };
 
   const confirm = async () => {
+    if (isBlocked) {
+      setError('Studio bookings are unavailable on this date due to a holiday or scheduled closure.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -368,6 +385,26 @@ export function BookingDialog({
 
         <div className="dialog-body">
           <Banner>{error}</Banner>
+
+          {isBlocked && (
+            <div
+              className="notice-block"
+              style={{
+                borderLeft: '3px solid #dc2626',
+                background: '#fef2f2',
+                color: '#991b1b',
+                marginBottom: '1rem',
+              }}
+            >
+              <p className="notice-title" style={{ color: '#b91c1c' }}>
+                Studio Bookings Blocked
+              </p>
+              <p>
+                Studio bookings are unavailable on this date ({formatBookingDate(slot.date)}) due to{' '}
+                <strong>{activeHoliday?.reason || 'a holiday or scheduled closure'}</strong>.
+              </p>
+            </div>
+          )}
 
           {step === 'form' && (
             <>
@@ -735,7 +772,7 @@ export function BookingDialog({
                   <button
                     type="submit"
                     className="btn btn-solid"
-                    disabled={busy}
+                    disabled={busy || isBlocked}
                   >
                     Review booking
                   </button>
@@ -817,7 +854,7 @@ export function BookingDialog({
                   type="button"
                   className="btn btn-solid"
                   onClick={() => void confirm()}
-                  disabled={busy}
+                  disabled={busy || isBlocked}
                 >
                   {busy 
                     ? (bookingType === 'booking' && insideNotice && !mayOverride ? 'Sending request…' : 'Booking the studio…') 

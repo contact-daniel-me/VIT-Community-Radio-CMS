@@ -19,6 +19,8 @@ const NAV: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', visible: () => true },
   { to: '/studio/book', label: 'Studio', visible: () => true },
   { to: '/bookings', label: 'Bookings', visible: () => true },
+  { to: '/admin/holidays', label: 'Holidays', visible: (role) => can.manageHolidays(role) },
+  { to: '/schedule/edit', label: 'Schedule', visible: (role) => can.schedule(role) },
   { to: '/admin/episodes', label: 'Episodes', visible: () => true },
   { to: '/qc', label: 'QC', visible: () => true },
   { to: '/audio', label: 'Audio Library', visible: (role) => can.viewAudioLibrary(role) },
@@ -26,7 +28,6 @@ const NAV: NavItem[] = [
   { to: '/badges', label: 'Badges', visible: () => true },
   { to: '/settings', label: 'Settings', visible: () => true },
   { to: '/programs', label: 'Programs', visible: (role) => can.manageProgram(role) },
-  { to: '/schedule/edit', label: 'Schedule', visible: (role) => can.schedule(role) },
 ];
 
 export function AppLayout() {

@@ -148,7 +148,8 @@ export type SlotState =
   | 'BOOKED'      // taken by somebody else
   | 'MINE'        // taken by the current user
   | 'LUNCH'
-  | 'PAST';
+  | 'PAST'
+  | 'BLOCKED';    // admin holiday / closure: bookings disabled
 
 export interface CalendarSlot extends GridSlot {
   date: string;
@@ -159,6 +160,8 @@ export interface CalendarSlot extends GridSlot {
 
 export interface CalendarDay {
   date: string;
+  isBlocked?: boolean;
+  holidayReason?: string | null;
   slots: CalendarSlot[];
 }
 
@@ -173,6 +176,7 @@ export function deriveWeek(
   occupied: { booking_date: string; start_time: string }[],
   mine: StudioBookingRow[],
   viewerId: string | null,
+  blockedDates: Set<string> | Map<string, string | null> = new Set(),
 ): CalendarDay[] {
   // 'HH:MM:SS' comes back from postgres `time`; the grid uses 'HH:MM'.
   const key = (date: string, time: string) => `${date}|${time.slice(0, 5)}`;
@@ -184,34 +188,45 @@ export function deriveWeek(
       .map((b) => [key(b.booking_date, b.start_time), b]),
   );
 
-  return days.map((date) => ({
-    date,
-    slots: buildGrid().map((slot) => {
-      const k = key(date, slot.start);
-      const ownBooking = mineByKey.get(k) ?? null;
+  return days.map((date) => {
+    const isDateBlocked =
+      blockedDates instanceof Map ? blockedDates.has(date) : blockedDates.has(date);
+    const holidayReason =
+      blockedDates instanceof Map ? (blockedDates.get(date) ?? null) : null;
 
-      let state: SlotState;
-      if (slot.isLunch) {
-        state = 'LUNCH';
-      } else if (ownBooking && viewerId) {
-        state = 'MINE';
-      } else if (takenKeys.has(k)) {
-        state = 'BOOKED';
-      } else if (isPast(date, slot.start)) {
-        state = 'PAST';
-      } else if (withinNoticeWindow(date, slot.start)) {
-        state = 'NOTICE';
-      } else {
-        state = 'AVAILABLE';
-      }
+    return {
+      date,
+      isBlocked: isDateBlocked,
+      holidayReason,
+      slots: buildGrid().map((slot) => {
+        const k = key(date, slot.start);
+        const ownBooking = mineByKey.get(k) ?? null;
 
-      // A slot the viewer owns stays visible as theirs even once it has passed,
-      // so their own week does not silently empty out.
-      if (ownBooking && slot.isLunch === false) state = 'MINE';
+        let state: SlotState;
+        if (isDateBlocked) {
+          state = 'BLOCKED';
+        } else if (slot.isLunch) {
+          state = 'LUNCH';
+        } else if (ownBooking && viewerId) {
+          state = 'MINE';
+        } else if (takenKeys.has(k)) {
+          state = 'BOOKED';
+        } else if (isPast(date, slot.start)) {
+          state = 'PAST';
+        } else if (withinNoticeWindow(date, slot.start)) {
+          state = 'NOTICE';
+        } else {
+          state = 'AVAILABLE';
+        }
 
-      return { ...slot, date, state, booking: ownBooking };
-    }),
-  }));
+        // A slot the viewer owns stays visible as theirs even once it has passed,
+        // so their own week does not silently empty out (unless explicitly blocked as a holiday).
+        if (ownBooking && slot.isLunch === false && !isDateBlocked) state = 'MINE';
+
+        return { ...slot, date, state, booking: ownBooking };
+      }),
+    };
+  });
 }
 
 /**

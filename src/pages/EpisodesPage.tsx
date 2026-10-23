@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
-import { Banner, Empty, UnifiedStatusBadge, Loading, PageHeader } from '@/components/ui';
+import { Banner, UnifiedStatusBadge, Loading, PageHeader } from '@/components/ui';
 import { HomepageScheduleDialog } from '@/components/studio/HomepageScheduleDialog';
 import { episodeService, type EpisodeInput, type EpisodeWithRelations } from '@/services/episodeService';
 import { programService } from '@/services/programService';
@@ -13,14 +13,39 @@ import { formatDate, formatDuration } from '@/utils/datetime';
 import { downloadBulkZip } from '@/utils/download';
 import type { EpisodeStatus } from '@/types/database';
 
-const STATUSES: EpisodeStatus[] = ['DRAFT', 'PENDING_QC', 'APPROVED', 'REJECTED', 'ARCHIVED'];
+type TabKey = 'ALL' | 'DRAFT' | 'PENDING_QC' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
+
+interface EpisodeTabItem {
+  key: TabKey;
+  label: string;
+  status: EpisodeStatus | '';
+}
+
+const EPISODE_TABS: EpisodeTabItem[] = [
+  { key: 'ALL', label: 'All Episodes', status: '' },
+  { key: 'DRAFT', label: 'Drafts', status: 'DRAFT' },
+  { key: 'PENDING_QC', label: 'Pending QC', status: 'PENDING_QC' },
+  { key: 'APPROVED', label: 'Approved / QC Done', status: 'APPROVED' },
+  { key: 'REJECTED', label: 'Rejected', status: 'REJECTED' },
+  { key: 'ARCHIVED', label: 'Archived', status: 'ARCHIVED' },
+];
 
 export function EpisodesPage() {
   const profile = useCurrentUser();
   const [params, setParams] = useSearchParams();
 
   const programFilter = params.get('program') ?? '';
-  const statusFilter = (params.get('status') ?? '') as EpisodeStatus | '';
+  const rawStatus = (params.get('status') ?? '').toUpperCase();
+  const activeTab: TabKey =
+    rawStatus === 'DRAFT' ||
+    rawStatus === 'PENDING_QC' ||
+    rawStatus === 'APPROVED' ||
+    rawStatus === 'REJECTED' ||
+    rawStatus === 'ARCHIVED'
+      ? (rawStatus as TabKey)
+      : 'ALL';
+
+  const statusFilter: EpisodeStatus | '' = activeTab === 'ALL' ? '' : (activeTab as EpisodeStatus);
   const isRj = profile.role === 'RJ';
   const mineOnly = isRj || params.get('mine') === '1';
   const search = params.get('q') ?? '';
@@ -32,8 +57,27 @@ export function EpisodesPage() {
     setParams(next, { replace: true });
   };
 
+  const handleTabClick = (tabKey: TabKey) => {
+    setSelected(new Set());
+    if (tabKey === 'ALL') {
+      setParam('status', '');
+    } else {
+      setParam('status', tabKey);
+    }
+  };
+
   const programs = useAsync(() => programService.getPrograms(), []);
   const rjs = useAsync(() => userService.getActiveUsersByRole('RJ'), []);
+
+  const counts = useAsync(
+    () =>
+      episodeService.getStatusCounts({
+        programId: programFilter || undefined,
+        mineOnly: mineOnly ? profile.id : undefined,
+        search: search || undefined,
+      }),
+    [programFilter, mineOnly, search, profile.id],
+  );
 
   const episodes = useAsync(
     () =>
@@ -86,7 +130,7 @@ export function EpisodesPage() {
     try {
       await episodeService.createEpisode(form, profile.id);
       setForm(null);
-      await episodes.reload();
+      await Promise.all([episodes.reload(), counts.reload()]);
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -225,6 +269,29 @@ export function EpisodesPage() {
         </form>
       )}
 
+      {/* Horizontal episode status tabs */}
+      <div className="tabs-nav-wrap">
+        <div className="tabs" role="tablist" aria-label="Episode status tabs">
+          {EPISODE_TABS.map((tab) => {
+            const count = counts.data ? counts.data[tab.key] : 0;
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                role="tab"
+                type="button"
+                aria-selected={isActive}
+                className={`tab ${isActive ? 'is-active' : ''}`}
+                onClick={() => handleTabClick(tab.key)}
+              >
+                {tab.label}
+                <span className="tab-count">{counts.loading && !counts.data ? '…' : count}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <section className="card">
         <div className="filters">
           <input
@@ -246,18 +313,6 @@ export function EpisodesPage() {
               </option>
             ))}
           </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setParam('status', e.target.value)}
-            aria-label="Filter by status"
-          >
-            <option value="">All statuses</option>
-            {STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {status.replace('_', ' ')}
-              </option>
-            ))}
-          </select>
           {!isRj && (
             <label className="checkbox">
               <input
@@ -275,7 +330,19 @@ export function EpisodesPage() {
         ) : episodes.error ? (
           <Banner>{episodes.error}</Banner>
         ) : (episodes.data ?? []).length === 0 ? (
-          <Empty>No episodes match these filters.</Empty>
+          <EpisodeEmptyState
+            activeTab={activeTab}
+            hasFilters={Boolean(search.trim() || programFilter || (mineOnly && !isRj))}
+            onResetFilters={() => {
+              const next = new URLSearchParams(params);
+              next.delete('q');
+              next.delete('program');
+              if (!isRj) next.delete('mine');
+              setParams(next, { replace: true });
+            }}
+            canCreate={can.createEpisode(profile.role) && activePrograms.length > 0}
+            onCreate={openCreate}
+          />
         ) : (
           <div className="table-wrap">
             <table>
@@ -572,10 +639,116 @@ export function EpisodesPage() {
           onSaved={(msg) => {
             setSchedulingEpisode(null);
             setNotice(msg);
-            void episodes.reload();
+            void Promise.all([episodes.reload(), counts.reload()]);
           }}
         />
       )}
     </>
+  );
+}
+
+function EpisodeEmptyState({
+  activeTab,
+  hasFilters,
+  onResetFilters,
+  canCreate,
+  onCreate,
+}: {
+  activeTab: TabKey;
+  hasFilters: boolean;
+  onResetFilters: () => void;
+  canCreate: boolean;
+  onCreate: () => void;
+}) {
+  const getEmptyDetails = () => {
+    if (hasFilters) {
+      return {
+        title: 'No matching episodes',
+        desc: 'No episodes matched your current search and filter settings. Try adjusting or clearing your filters to see more results.',
+        showReset: true,
+      };
+    }
+    switch (activeTab) {
+      case 'DRAFT':
+        return {
+          title: 'No draft episodes',
+          desc: 'There are no episodes in draft status. Create a draft to start producing a new radio show.',
+          actionText: canCreate ? 'New episode draft' : undefined,
+          actionFn: onCreate,
+        };
+      case 'PENDING_QC':
+        return {
+          title: 'No episodes pending QC',
+          desc: 'The QC pipeline is currently clear. Episodes submitted for Quality Control review will appear here.',
+        };
+      case 'APPROVED':
+        return {
+          title: 'No approved episodes',
+          desc: 'No episodes have been approved yet. Episodes that pass QC review become approved and ready for broadcast scheduling.',
+        };
+      case 'REJECTED':
+        return {
+          title: 'No rejected episodes',
+          desc: 'No episodes have been rejected. Any episodes flagged by QC with requested revisions will be shown here.',
+        };
+      case 'ARCHIVED':
+        return {
+          title: 'No archived episodes',
+          desc: 'Archived episodes are preserved here for historical records and reference.',
+        };
+      case 'ALL':
+      default:
+        return {
+          title: 'No episodes found',
+          desc: 'No episodes have been created yet. Start by creating the station’s first episode.',
+          actionText: canCreate ? 'Create first episode' : undefined,
+          actionFn: onCreate,
+        };
+    }
+  };
+
+  const details = getEmptyDetails();
+
+  return (
+    <div className="episode-empty-state">
+      <div className="episode-empty-icon" aria-hidden="true">
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M9 18V5l12-2v13" />
+          <circle cx="6" cy="18" r="3" />
+          <circle cx="18" cy="16" r="3" />
+        </svg>
+      </div>
+      <h3 className="episode-empty-title">{details.title}</h3>
+      <p className="episode-empty-desc">{details.desc}</p>
+      {details.showReset && (
+        <button
+          type="button"
+          className="btn btn-outline small"
+          onClick={onResetFilters}
+          style={{ marginTop: '0.85rem' }}
+        >
+          Clear filters
+        </button>
+      )}
+      {details.actionText && details.actionFn && (
+        <button
+          type="button"
+          className="primary small"
+          onClick={details.actionFn}
+          style={{ marginTop: '0.85rem' }}
+        >
+          {details.actionText}
+        </button>
+      )}
+    </div>
   );
 }

@@ -45,6 +45,14 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
   const refresh = useCallback(() => void week.reload(), [week]);
 
   const onSelect = (slot: CalendarSlot) => {
+    if (slot.state === 'PAST' || slot.state === 'BOOKED') {
+      // Non-interactive.
+      return;
+    }
+    if (slot.state === 'BLOCKED') {
+      setPrompt(slot);
+      return;
+    }
     if (!signedIn) {
       // Never pretend to book. Explain what signing in would allow.
       setPrompt(slot);
@@ -151,6 +159,7 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
           <li><span className="key slot-available" aria-hidden="true">+</span> Available</li>
           <li><span className="key slot-notice" aria-hidden="true">!</span> Inside 24 hours</li>
           <li><span className="key slot-booked" aria-hidden="true">×</span> Booked</li>
+          <li><span className="key slot-blocked" aria-hidden="true">⊘</span> Blocked</li>
           {signedIn && (
             <li><span className="key slot-mine" aria-hidden="true">●</span> Yours</li>
           )}
@@ -160,7 +169,19 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
 
       {prompt && (
         <div className="studio-prompt" role="status">
-          {!signedIn ? (
+          {prompt.state === 'BLOCKED' ? (
+            <>
+              <p className="studio-prompt-title">
+                Studio closed &middot; {formatBookingDate(prompt.date)}
+              </p>
+              <p>
+                Studio bookings are unavailable on this date due to a holiday or scheduled closure.
+              </p>
+              <button type="button" className="btn btn-ghost" onClick={() => setPrompt(null)}>
+                Dismiss
+              </button>
+            </>
+          ) : !signedIn ? (
             <>
               <p className="studio-prompt-title">
                 {formatBookingDate(prompt.date)} &middot; {prompt.start}

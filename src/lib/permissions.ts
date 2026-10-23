@@ -60,6 +60,8 @@ export const can = {
   viewFullActivity: (role: UserRole): boolean => role === 'ADMIN' || role === 'PRODUCER',
 
   adminForceUploadAudio: (role: UserRole): boolean => role === 'ADMIN',
+
+  manageHolidays: (role: UserRole): boolean => role === 'ADMIN',
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {

@@ -29,6 +29,7 @@ import { AnnouncementsPage } from '@/pages/AnnouncementsPage';
 import { GlobalAudioProvider } from '@/hooks/GlobalAudioContext';
 import { BadgesPage } from '@/pages/BadgesPage';
 import { LeaderboardPage } from '@/pages/LeaderboardPage';
+import { HolidaysPage } from '@/pages/HolidaysPage';
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const { session, profile, loading } = useAuth();
@@ -160,10 +161,16 @@ export default function App() {
                 }
               />
 
-              {/* Signed-in staff book from inside the portal. The public
-                  /studio page stays public and renders the same calendar. */}
               <Route path="studio/book" element={<StudioPage />} />
               <Route path="bookings" element={<MyBookingsPage />} />
+              <Route
+                path="admin/holidays"
+                element={
+                  <RequireRole allow={can.manageHolidays}>
+                    <HolidaysPage />
+                  </RequireRole>
+                }
+              />
               <Route
                 path="announcements"
                 element={

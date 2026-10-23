@@ -17,6 +17,7 @@ const STATE_LABEL: Record<SlotState, string> = {
   MINE: 'Your booking',
   LUNCH: 'Lunch break',
   PAST: 'Past',
+  BLOCKED: 'Blocked',
 };
 
 /** Which states a click should do something with. */
@@ -54,12 +55,20 @@ export function StudioCalendar({
                 <th
                   key={day.date}
                   scope="col"
-                  className={`cal-head ${day.date === today ? 'is-today' : ''}`}
+                  className={`cal-head ${day.date === today ? 'is-today' : ''} ${day.isBlocked ? 'is-blocked' : ''}`}
                 >
                   <span className="cal-head-day">
                     {formatBookingDate(day.date, { short: true }).split(',')[0]}
                   </span>
                   <span className="cal-head-date">{formatDayNumber(day.date)}</span>
+                  {day.isBlocked && (
+                    <span
+                      className="cal-blocked-tag"
+                      title={day.holidayReason ? `Studio closed: ${day.holidayReason}` : 'Studio closed: Holiday / Maintenance'}
+                    >
+                      Blocked
+                    </span>
+                  )}
                 </th>
               ))}
             </tr>
@@ -116,7 +125,9 @@ export function StudioCalendar({
                                 ? '–'
                                 : slot.state === 'NOTICE'
                                   ? '!'
-                                  : '+'}
+                                  : slot.state === 'BLOCKED'
+                                    ? '⊘'
+                                    : '+'}
                         </span>
                         <span className="slot-text">{STATE_LABEL[slot.state]}</span>
                       </button>
@@ -166,16 +177,32 @@ export function StudioDayList({
             type="button"
             role="tab"
             aria-selected={d.date === activeDate}
-            className={`daylist-day ${d.date === activeDate ? 'is-active' : ''}`}
+            className={`daylist-day ${d.date === activeDate ? 'is-active' : ''} ${d.isBlocked ? 'is-blocked' : ''}`}
             onClick={() => onPickDate(d.date)}
           >
             <span className="daylist-dow">
               {formatBookingDate(d.date, { short: true }).split(',')[0]}
             </span>
             <span className="daylist-num">{formatDayNumber(d.date)}</span>
+            {d.isBlocked && (
+              <span className="cal-blocked-tag" style={{ marginTop: '0.15rem' }}>
+                Blocked
+              </span>
+            )}
           </button>
         ))}
       </div>
+
+      {day?.isBlocked && (
+        <div
+          className="banner banner-info"
+          style={{ margin: '0 0 1rem 0', fontSize: '0.86rem' }}
+          role="status"
+        >
+          <strong>Studio closed:</strong>{' '}
+          {day.holidayReason || 'Studio bookings are unavailable on this date due to a holiday or scheduled closure.'}
+        </div>
+      )}
 
       <ul className="daylist-slots">
         {(day?.slots ?? [])

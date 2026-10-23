@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { AppError, toAppError } from '@/lib/errors';
 import { unwrap } from '@/lib/query';
+import { holidayService } from './holidayService';
 import type {
   ProfileRow,
   ScriptApproval,
@@ -87,27 +88,37 @@ export const bookingService = {
     const from = days[0];
     const to = days[days.length - 1];
 
-    const occupied = await unwrap(
-      supabase
-        .from('v_public_studio_calendar')
-        .select('booking_date, start_time, end_time')
-        .gte('booking_date', from)
-        .lte('booking_date', to),
-    );
-
-    let mine: StudioBookingRow[] = [];
-    if (viewerId) {
-      mine = await unwrap(
+    const [occupied, mineResult, holidays] = await Promise.all([
+      unwrap(
         supabase
-          .from('studio_bookings')
-          .select('*')
-          .eq('rj_id', viewerId)
+          .from('v_public_studio_calendar')
+          .select('booking_date, start_time, end_time')
           .gte('booking_date', from)
           .lte('booking_date', to),
-      );
+      ),
+      viewerId
+        ? unwrap(
+            supabase
+              .from('studio_bookings')
+              .select('*')
+              .eq('rj_id', viewerId)
+              .gte('booking_date', from)
+              .lte('booking_date', to),
+          )
+        : Promise.resolve([] as StudioBookingRow[]),
+      holidayService.getHolidaysForRange(from, to).catch(() => []),
+    ]);
+
+    const blockedDates = new Map<string, string | null>();
+    for (const h of holidays) {
+      for (const d of days) {
+        if (d >= h.start_date && d <= h.end_date) {
+          blockedDates.set(d, h.reason ?? null);
+        }
+      }
     }
 
-    return deriveWeek(days, occupied, mine, viewerId);
+    return deriveWeek(days, occupied, mineResult, viewerId, blockedDates);
   },
 
   /** Bookable rows only, for the mobile day view. */
@@ -228,6 +239,14 @@ export const bookingService = {
    * sentence -- it never pre-approves a booking.
    */
   async createBooking(input: BookingInput, rjId: string, createdBy: string): Promise<StudioBookingRow> {
+    const holidays = await holidayService.getHolidaysForRange(input.booking_date, input.booking_date).catch(() => []);
+    if (holidays.length > 0) {
+      throw new AppError(
+        'VALIDATION',
+        'Studio bookings are unavailable on this date due to a holiday or scheduled closure.',
+      );
+    }
+
     const startTime = `${input.start_time}:00`;
     // The 30-minute duration is a CHECK constraint; computing it here keeps the
     // insert honest rather than letting the caller pick an end time.
@@ -555,6 +574,10 @@ function translateBookingError(error: unknown): AppError {
       'Only an administrator can book inside the 24-hour window.',
     ],
     [/already started/i, 'This booking has already started and can no longer be cancelled here.'],
+    [
+      /holiday or scheduled closure|studio_bookings_holiday_check|studio_booking_requests_holiday_check/i,
+      'Studio bookings are unavailable on this date due to a holiday or scheduled closure.',
+    ],
     [
       /row-level security/i,
       'You do not have permission to create or change this booking.',

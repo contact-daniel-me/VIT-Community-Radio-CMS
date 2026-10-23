@@ -1,5 +1,5 @@
 import { AUDIO_BUCKET, supabase } from '@/lib/supabase';
-import { AppError, assertWritten } from '@/lib/errors';
+import { AppError, assertWritten, toAppError } from '@/lib/errors';
 import { unwrap } from '@/lib/query';
 import type { AudioFileRow, EpisodeRow, EpisodeStatus } from '@/types/database';
 
@@ -38,6 +38,8 @@ export interface EpisodeFilters {
   limit?: number;
 }
 
+export type EpisodeStatusCounts = Record<EpisodeStatus | 'ALL', number>;
+
 export const episodeService = {
   async getEpisodes(filters: EpisodeFilters = {}): Promise<EpisodeWithRelations[]> {
     let query = supabase
@@ -61,6 +63,52 @@ export const episodeService = {
     if (filters.limit) query = query.limit(filters.limit);
 
     return unwrap(query.returns<EpisodeWithRelations[]>());
+  },
+
+  async getStatusCounts(
+    filters: Omit<EpisodeFilters, 'status' | 'limit'> = {},
+  ): Promise<EpisodeStatusCounts> {
+    const buildQuery = (status?: EpisodeStatus) => {
+      let q = supabase
+        .from('episodes')
+        .select('*', { count: 'exact', head: true });
+
+      if (filters.programId) q = q.eq('program_id', filters.programId);
+      if (status) q = q.eq('status', status);
+      if (filters.mineOnly) {
+        q = q.or(`created_by.eq.${filters.mineOnly},assigned_rj.eq.${filters.mineOnly}`);
+      }
+      if (filters.search?.trim()) {
+        const term = filters.search.trim();
+        q = q.or(`title.ilike.%${term}%,episode_id.ilike.%${term}%`);
+      }
+      return q;
+    };
+
+    const [allRes, draftRes, pendingRes, approvedRes, rejectedRes, archivedRes] = await Promise.all([
+      buildQuery(),
+      buildQuery('DRAFT'),
+      buildQuery('PENDING_QC'),
+      buildQuery('APPROVED'),
+      buildQuery('REJECTED'),
+      buildQuery('ARCHIVED'),
+    ]);
+
+    if (allRes.error) throw toAppError(allRes.error);
+    if (draftRes.error) throw toAppError(draftRes.error);
+    if (pendingRes.error) throw toAppError(pendingRes.error);
+    if (approvedRes.error) throw toAppError(approvedRes.error);
+    if (rejectedRes.error) throw toAppError(rejectedRes.error);
+    if (archivedRes.error) throw toAppError(archivedRes.error);
+
+    return {
+      ALL: allRes.count ?? 0,
+      DRAFT: draftRes.count ?? 0,
+      PENDING_QC: pendingRes.count ?? 0,
+      APPROVED: approvedRes.count ?? 0,
+      REJECTED: rejectedRes.count ?? 0,
+      ARCHIVED: archivedRes.count ?? 0,
+    };
   },
 
   async getEpisode(id: string): Promise<EpisodeWithRelations> {

@@ -163,32 +163,74 @@ export const episodeService = {
     showOnHomepage: boolean,
     publishAt: string | null = null,
     expiresAt: string | null = null,
+    title?: string | null,
+    description?: string | null,
   ): Promise<EpisodeRow> {
     try {
+      const rpcArgs: {
+        p_episode_id: string;
+        p_show_on_homepage: boolean;
+        p_homepage_publish_at: string | null;
+        p_homepage_expires_at: string | null;
+        p_title?: string | null;
+        p_description?: string | null;
+      } = {
+        p_episode_id: episodeId,
+        p_show_on_homepage: showOnHomepage,
+        p_homepage_publish_at: publishAt,
+        p_homepage_expires_at: expiresAt,
+      };
+
+      if (title !== undefined) {
+        rpcArgs.p_title = title;
+      }
+      if (description !== undefined) {
+        rpcArgs.p_description = description;
+      }
+
       return await unwrap(
-        supabase.rpc('schedule_episode_homepage', {
-          p_episode_id: episodeId,
-          p_show_on_homepage: showOnHomepage,
-          p_homepage_publish_at: publishAt,
-          p_homepage_expires_at: expiresAt,
-        }),
+        supabase.rpc('schedule_episode_homepage', rpcArgs),
       );
     } catch (rpcErr) {
       const msg = rpcErr instanceof Error ? rpcErr.message : String(rpcErr);
       const isMissingRpc = /function .*schedule_episode_homepage.* does not exist|could not find the function .*schedule_episode_homepage/i.test(msg);
 
       if (!isMissingRpc) {
-        throw rpcErr;
+        // If the database has the older 4-arg RPC signature and errors on unknown parameter names:
+        if (/cannot find.*parameter|parameter.*not found|does not exist/i.test(msg)) {
+          try {
+            return await unwrap(
+              supabase.rpc('schedule_episode_homepage', {
+                p_episode_id: episodeId,
+                p_show_on_homepage: showOnHomepage,
+                p_homepage_publish_at: publishAt,
+                p_homepage_expires_at: expiresAt,
+              }),
+            );
+          } catch {
+            // Fall through to table update fallback
+          }
+        } else {
+          throw rpcErr;
+        }
       }
 
       // Fallback only if the RPC function is not yet installed in Supabase schema
+      const updatePayload: Partial<EpisodeRow> = {
+        show_on_homepage: showOnHomepage,
+        homepage_publish_at: showOnHomepage ? publishAt : null,
+        homepage_expires_at: showOnHomepage ? expiresAt : null,
+      };
+      if (title !== undefined && title !== null && title.trim().length > 0) {
+        updatePayload.title = title.trim();
+      }
+      if (description !== undefined) {
+        updatePayload.description = description ? description.trim() : null;
+      }
+
       const { data, error } = await supabase
         .from('episodes')
-        .update({
-          show_on_homepage: showOnHomepage,
-          homepage_publish_at: showOnHomepage ? publishAt : null,
-          homepage_expires_at: showOnHomepage ? expiresAt : null,
-        })
+        .update(updatePayload)
         .eq('id', episodeId)
         .select('*')
         .single();
@@ -196,7 +238,7 @@ export const episodeService = {
       if (error) {
         throw new AppError(
           'PERMISSION',
-          'Failed to schedule episode. Please ensure migration 20260915000005_episode_homepage_schedule.sql has been executed in Supabase SQL Editor.',
+          'Failed to schedule episode. Please ensure migration 20260917000001_homepage_schedule_title_desc.sql has been executed in Supabase SQL Editor.',
           error,
         );
       }

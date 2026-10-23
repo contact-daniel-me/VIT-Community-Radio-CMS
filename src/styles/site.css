@@ -4760,7 +4760,7 @@
 .whats-new-card {
   width: 82%;
   max-width: 620px;
-  min-height: 160px;
+  min-height: 175px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
@@ -4810,9 +4810,20 @@
 .whats-new-title {
   font-size: 1.1rem;
   font-weight: 700;
-  line-height: 1.2;
-  margin-bottom: 1.2rem;
+  line-height: 1.25;
+  margin-bottom: 0.35rem;
   color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.whats-new-desc {
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+  line-height: 1.45;
+  margin: 0 0 0.85rem 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;

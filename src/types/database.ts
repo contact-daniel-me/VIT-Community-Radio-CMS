@@ -866,6 +866,8 @@ export type Database = {
           p_show_on_homepage: boolean;
           p_homepage_publish_at?: string | null;
           p_homepage_expires_at?: string | null;
+          p_title?: string | null;
+          p_description?: string | null;
         };
         Returns: EpisodeRow;
       };

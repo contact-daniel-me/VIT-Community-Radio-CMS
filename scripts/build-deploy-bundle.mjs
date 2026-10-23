@@ -66,14 +66,14 @@ function read(file) {
 // ---------------------------------------------------------------------------
 // 1. The upgrade bundle: 08 -> 14
 // ---------------------------------------------------------------------------
-const upgradeFiles = allMigrations.filter((f) => 
+const upgradeFiles = allMigrations.filter((f) =>
   f.startsWith('202501010000') && UPGRADE_RANGE.includes(sequenceOf(f))
 );
 
 if (upgradeFiles.length !== UPGRADE_RANGE.length) {
   throw new Error(
     `Expected migrations ${UPGRADE_RANGE.join(', ')} but found ${upgradeFiles.length}: ` +
-      upgradeFiles.join(', '),
+    upgradeFiles.join(', '),
   );
 }
 

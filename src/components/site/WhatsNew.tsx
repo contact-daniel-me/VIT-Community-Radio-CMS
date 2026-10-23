@@ -68,6 +68,8 @@ export function WhatsNew() {
       }
     }
     fetchEpisodes();
+    const interval = setInterval(fetchEpisodes, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   // Autoplay timer — only advances the card, never plays audio
@@ -211,8 +213,15 @@ export function WhatsNew() {
                   <div className="whats-new-card-badge">NEW</div>
 
                   <div className="whats-new-card-content">
-                    <div className="whats-new-rj">{ep.host_name || 'VIT Radio'}</div>
-                    <h3 className="whats-new-title">{ep.program_name}</h3>
+                    <div className="whats-new-rj">
+                      {ep.program_name && ep.program_name !== 'Legacy Bookings'
+                        ? `${ep.host_name ? `${ep.host_name} · ` : ''}${ep.program_name}`
+                        : ep.host_name || 'VIT Community Radio'}
+                    </div>
+                    <h3 className="whats-new-title">{ep.title}</h3>
+                    {ep.description && (
+                      <p className="whats-new-desc">{ep.description}</p>
+                    )}
                     <div className="whats-new-bottom">
                       <span className="whats-new-date">{formatDate(ep.created_at)}</span>
                       <button

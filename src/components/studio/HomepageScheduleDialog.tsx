@@ -30,6 +30,9 @@ export function HomepageScheduleDialog({
 }: HomepageScheduleDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
+  const [title, setTitle] = useState(episode.title || '');
+  const [description, setDescription] = useState(episode.description || '');
+
   const [mode, setMode] = useState<'immediate' | 'schedule'>(() => {
     if (episode.homepage_publish_at) {
       const pubDate = new Date(episode.homepage_publish_at);
@@ -51,8 +54,11 @@ export function HomepageScheduleDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize dates
+  // Initialize form fields and dates
   useEffect(() => {
+    setTitle(episode.title || '');
+    setDescription(episode.description || '');
+
     const now = new Date();
     if (episode.homepage_publish_at) {
       const d = new Date(episode.homepage_publish_at);
@@ -109,6 +115,13 @@ export function HomepageScheduleDialog({
 
   const handleSave = async () => {
     setError(null);
+
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setError('Please provide a title for the episode before saving the homepage schedule.');
+      return;
+    }
+
     setBusy(true);
 
     try {
@@ -143,16 +156,20 @@ export function HomepageScheduleDialog({
         }
       }
 
+      const trimmedDescription = description.trim() ? description.trim() : null;
+
       await episodeService.scheduleHomepageEpisode(
         episode.id,
         true,
         publishAtIso,
         expiresAtIso,
+        trimmedTitle,
+        trimmedDescription,
       );
 
       const notice = mode === 'schedule'
-        ? `Scheduled "${episode.title}" to appear on homepage at ${startDate} ${startTime}.`
-        : `Published "${episode.title}" to the homepage!`;
+        ? `Scheduled "${trimmedTitle}" to appear on homepage at ${startDate} ${startTime}.`
+        : `Published "${trimmedTitle}" to the homepage!`;
       onSaved(notice);
     } catch (err) {
       setError(errorMessage(err));
@@ -191,13 +208,14 @@ export function HomepageScheduleDialog({
               Homepage Schedule
             </h2>
             <p className="dialog-slot">
-              {episode.title} {episode.program?.name ? `· ${episode.program.name}` : ''}
+              {title.trim() || episode.title} {episode.program?.name ? `· ${episode.program.name}` : ''}
             </p>
           </div>
           <button
             type="button"
             className="small"
             onClick={onClose}
+            disabled={busy}
             aria-label="Close dialog"
             style={{ padding: '0.3rem 0.6rem' }}
           >
@@ -214,6 +232,73 @@ export function HomepageScheduleDialog({
           </p>
 
           <div className="stack" style={{ gap: '1.25rem' }}>
+            {/* Episode Homepage Details (Title & Description) */}
+            <div
+              style={{
+                background: 'var(--surface-sunken)',
+                padding: '1rem',
+                borderRadius: 'var(--r-md, 8px)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              <label style={{ fontWeight: 600, display: 'block', marginBottom: '0.6rem' }}>
+                Episode Homepage Details
+              </label>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                <div>
+                  <label
+                    htmlFor="schedule-title"
+                    className="small muted"
+                    style={{ display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}
+                  >
+                    Homepage Title <span style={{ color: 'var(--accent, #e11d48)' }}>*</span>
+                  </label>
+                  <input
+                    id="schedule-title"
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Enter episode title for homepage"
+                    required
+                    disabled={busy}
+                    style={{ width: '100%' }}
+                  />
+                  <p className="small muted" style={{ margin: '0.25rem 0 0', fontSize: '0.78rem' }}>
+                    Headline displayed on the homepage carousel card.
+                  </p>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="schedule-description"
+                    className="small muted"
+                    style={{ display: 'block', marginBottom: '0.3rem', fontWeight: 600 }}
+                  >
+                    Homepage Description
+                  </label>
+                  <textarea
+                    id="schedule-description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Brief description or highlights for homepage listeners..."
+                    rows={3}
+                    disabled={busy}
+                    style={{
+                      width: '100%',
+                      fontFamily: 'inherit',
+                      resize: 'vertical',
+                      fontSize: '0.88rem',
+                      lineHeight: '1.4',
+                    }}
+                  />
+                  <p className="small muted" style={{ margin: '0.25rem 0 0', fontSize: '0.78rem' }}>
+                    Optional summary shown beneath the title on the carousel.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Start / Publish Time */}
             <div
               style={{

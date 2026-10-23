@@ -4990,6 +4990,9 @@ create trigger studio_booking_requests_holiday_check
   before insert or update on public.studio_booking_requests
   for each row execute function app.enforce_holiday_closure();
 
+-- Allow longer notes and submitted scripts on studio bookings
+alter table public.studio_bookings drop constraint if exists studio_bookings_notes_check;
+
 
 -- ###########################################################################
 -- SOURCE: supabase/seed.sql

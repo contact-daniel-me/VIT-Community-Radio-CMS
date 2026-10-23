@@ -256,6 +256,11 @@ export const bookingService = {
       endMinutes % 60,
     ).padStart(2, '0')}:00`;
 
+    let safeNotes = input.notes?.trim() || null;
+    if (safeNotes && safeNotes.length > 1000) {
+      safeNotes = safeNotes.slice(0, 997) + '...';
+    }
+
     const { data, error } = await supabase
       .from('studio_bookings')
       .insert({
@@ -269,7 +274,7 @@ export const bookingService = {
         script_approver: input.script_approver?.trim() || null,
         self_edit: input.self_edit,
         editor_id: input.self_edit ? null : (input.editor_id || null),
-        notes: input.notes?.trim() || null,
+        notes: safeNotes,
         origin: input.override_reason ? 'ADMIN_OVERRIDE' : 'RJ',
         override_reason: input.override_reason?.trim() || null,
         created_by: createdBy,
@@ -577,6 +582,10 @@ function translateBookingError(error: unknown): AppError {
     [
       /holiday or scheduled closure|studio_bookings_holiday_check|studio_booking_requests_holiday_check/i,
       'Studio bookings are unavailable on this date due to a holiday or scheduled closure.',
+    ],
+    [
+      /studio_bookings_notes_check|notes.*check/i,
+      'Notes or submitted script must not exceed 1,000 characters.',
     ],
     [
       /row-level security/i,

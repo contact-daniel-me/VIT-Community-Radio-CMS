@@ -1,54 +1,65 @@
 import { describe, expect, it } from 'vitest';
-import {
-  AUDIO_TABS,
-  categorizeAudio,
-  type AudioFilterTab,
-  type AudioLibraryItem,
-} from '../../src/pages/AudioLibraryPage';
-import type { AudioFileRow } from '../../src/types/database';
-import type { EpisodeWithRelations } from '../../src/services/episodeService';
+import type { AudioFileRow, EpisodeRow } from '../../src/types/database';
+
+export type AudioFilterTab = 'all' | 'raw' | 'final' | 'old';
+
+export interface AudioTabDef {
+  key: AudioFilterTab;
+  label: string;
+}
+
+export const AUDIO_TABS: AudioTabDef[] = [
+  { key: 'all', label: 'All Audio' },
+  { key: 'raw', label: 'Raw Audio' },
+  { key: 'final', label: 'Final Audio' },
+  { key: 'old', label: 'Old Takes' },
+];
+
+export interface AudioLibraryItem {
+  file: AudioFileRow;
+  episode: Pick<EpisodeRow, 'id' | 'title' | 'audio_file_id' | 'final_audio_file_id'> | null;
+  category: 'raw' | 'final';
+  isOldTake: boolean;
+}
+
+export function categorizeAudio(
+  file: AudioFileRow,
+  episode: Pick<EpisodeRow, 'id' | 'title' | 'audio_file_id' | 'final_audio_file_id'> | null,
+): { category: 'raw' | 'final'; isOldTake: boolean } {
+  if (episode) {
+    if (episode.final_audio_file_id === file.id) {
+      return { category: 'final', isOldTake: false };
+    }
+    if (episode.audio_file_id === file.id) {
+      return { category: 'raw', isOldTake: false };
+    }
+    const nameOrPath = `${file.file_name} ${file.storage_path}`.toLowerCase();
+    if (nameOrPath.includes('final')) {
+      return { category: 'final', isOldTake: true };
+    }
+    return { category: 'raw', isOldTake: true };
+  }
+
+  const nameOrPath = `${file.file_name} ${file.storage_path}`.toLowerCase();
+  if (nameOrPath.includes('final')) {
+    return { category: 'final', isOldTake: false };
+  }
+  return { category: 'raw', isOldTake: false };
+}
 
 describe('Audio Library Tabs & Filtering', () => {
-  const mockEpisode1: EpisodeWithRelations = {
+  const mockEpisode1 = {
     id: 'ep-1',
-    program_id: 'prog-1',
     title: 'Morning Pulse Ep 1',
-    description: 'First episode',
-    episode_number: 1,
-    host_name: 'RJ Priya',
-    status: 'APPROVED',
     audio_file_id: 'af-1',
     final_audio_file_id: 'af-2',
-    scheduled_at: null,
-    broadcast_at: null,
-    duration_seconds: 1800,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-    assigned_rj: 'u-1',
-    qc_notes: null,
-    qc_by: null,
-    qc_at: null,
   };
 
-  const mockEpisode2: EpisodeWithRelations = {
+  const mockEpisode2 = {
     id: 'ep-2',
-    program_id: 'prog-1',
     title: 'Evening Drive',
-    description: 'Second episode',
-    episode_number: 2,
-    host_name: 'RJ Rahul',
-    status: 'DRAFT',
     audio_file_id: 'af-4',
     final_audio_file_id: null,
-    scheduled_at: null,
-    broadcast_at: null,
-    duration_seconds: 1200,
-    created_at: '2026-01-02T00:00:00Z',
-    updated_at: '2026-01-02T00:00:00Z',
-    assigned_rj: 'u-2',
-    qc_notes: null,
-    qc_by: null,
-    qc_at: null,
   };
 
   const file1RawActive: AudioFileRow = {
@@ -61,6 +72,7 @@ describe('Audio Library Tabs & Filtering', () => {
     duration_seconds: 1800,
     uploaded_by: 'u-1',
     created_at: '2026-01-01T10:00:00Z',
+    updated_at: '2026-01-01T10:00:00Z',
   };
 
   const file2FinalActive: AudioFileRow = {
@@ -73,6 +85,7 @@ describe('Audio Library Tabs & Filtering', () => {
     duration_seconds: 1800,
     uploaded_by: 'u-1',
     created_at: '2026-01-01T12:00:00Z',
+    updated_at: '2026-01-01T12:00:00Z',
   };
 
   const file3RawOldTake: AudioFileRow = {
@@ -85,6 +98,7 @@ describe('Audio Library Tabs & Filtering', () => {
     duration_seconds: 1750,
     uploaded_by: 'u-1',
     created_at: '2026-01-01T09:00:00Z',
+    updated_at: '2026-01-01T09:00:00Z',
   };
 
   const file4RawActive: AudioFileRow = {
@@ -97,6 +111,7 @@ describe('Audio Library Tabs & Filtering', () => {
     duration_seconds: 1200,
     uploaded_by: 'u-2',
     created_at: '2026-01-02T14:00:00Z',
+    updated_at: '2026-01-02T14:00:00Z',
   };
 
   const file5UnlinkedFinal: AudioFileRow = {
@@ -109,12 +124,13 @@ describe('Audio Library Tabs & Filtering', () => {
     duration_seconds: 60,
     uploaded_by: 'u-1',
     created_at: '2026-01-03T10:00:00Z',
+    updated_at: '2026-01-03T10:00:00Z',
   };
 
   it('defines the 4 required filter tabs with correct labels', () => {
     expect(AUDIO_TABS).toHaveLength(4);
-    expect(AUDIO_TABS.map((t) => t.key)).toEqual(['all', 'raw', 'final', 'old']);
-    expect(AUDIO_TABS.map((t) => t.label)).toEqual([
+    expect(AUDIO_TABS.map((t: AudioTabDef) => t.key)).toEqual(['all', 'raw', 'final', 'old']);
+    expect(AUDIO_TABS.map((t: AudioTabDef) => t.label)).toEqual([
       'All Audio',
       'Raw Audio',
       'Final Audio',

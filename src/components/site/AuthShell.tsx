@@ -123,28 +123,6 @@ export function AuthShell({
           {footer && (
             <div style={{ borderTop: '1px solid var(--line)', marginTop: '3rem', paddingTop: '1.5rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--muted)' }}>
               {footer}
-              {/* Help & Contact links — always shown at the bottom */}
-              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1.5rem', opacity: 0.7 }}>
-                <a
-                  href="mailto:vitcr@vit.ac.in?subject=Help%20with%20VCR%20CMS"
-                  style={{ color: 'inherit', textDecoration: 'none' }}
-                  title="Email us for help"
-                >
-                  Help
-                </a>
-                <span aria-hidden="true">|</span>
-                <a
-                  href="mailto:vitcr@vit.ac.in?subject=Contact%20VIT%20Community%20Radio"
-                  style={{ color: 'inherit', textDecoration: 'none' }}
-                  title="Contact VIT Community Radio"
-                >
-                  Contact
-                </a>
-                <span aria-hidden="true">|</span>
-                <Link to="/" style={{ color: 'inherit', textDecoration: 'none' }}>
-                  VIT Community Radio
-                </Link>
-              </div>
             </div>
           )}
         </div>

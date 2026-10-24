@@ -26,6 +26,8 @@ describe('schema and constraints', () => {
       'audio_files',
       'broadcast_state',
       'episodes',
+      'feedback_admin_notes',
+      'feedback_submissions',
       'gamification_badges',
       'gamification_levels',
       'gamification_xp_rules',
@@ -92,7 +94,7 @@ describe('schema and constraints', () => {
     const count = await db.sql<{ count: number }>(
       `select count(*)::int as count from public.programs`,
     );
-    expect(count[0].count).toBe(25);
+    expect(count[0].count).toBe(27);
   });
 
   it('is idempotent -- re-running the line-up migration adds nothing', async () => {

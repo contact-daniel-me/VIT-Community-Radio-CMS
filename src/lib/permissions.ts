@@ -65,6 +65,8 @@ export const can = {
   adminForceUploadAudio: (role: UserRole): boolean => role === 'ADMIN',
 
   manageHolidays: (role: UserRole): boolean => role === 'ADMIN',
+
+  manageFeedback: (role: UserRole): boolean => role === 'ADMIN',
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {

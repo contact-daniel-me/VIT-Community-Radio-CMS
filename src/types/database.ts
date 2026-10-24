@@ -105,6 +105,49 @@ export type StudioHolidayRow = {
   updated_at: string;
 };
 
+export type FeedbackType = 'IDENTIFIED' | 'ANONYMOUS';
+
+export type FeedbackCategory =
+  | 'IDEA'
+  | 'BUG'
+  | 'STUDIO'
+  | 'BOOKING'
+  | 'TECHNICAL'
+  | 'APPRECIATION'
+  | 'OTHER';
+
+export type FeedbackStatus = 'NEW' | 'IN_REVIEW' | 'RESOLVED' | 'ARCHIVED';
+
+export type FeedbackSubmissionRow = {
+  id: string;
+  reference: string;
+  feedback_type: FeedbackType;
+  user_id: string | null;
+  category: FeedbackCategory;
+  subject: string;
+  message: string;
+  rating: number | null;
+  status: FeedbackStatus;
+  admin_response: string | null;
+  admin_notes: string | null;
+  created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+  resolved_by: string | null;
+};
+
+export type FeedbackAdminNoteRow = {
+  id: string;
+  feedback_id: string;
+  author_id: string;
+  note: string;
+  created_at: string;
+};
+
+export type FeedbackWithUser = FeedbackSubmissionRow & {
+  submitter?: Pick<ProfileRow, 'id' | 'full_name' | 'email' | 'role'> | null;
+};
+
 export type SlotKind =
   | 'ANNOUNCEMENT'
   | 'SEGMENT'
@@ -806,6 +849,48 @@ export type Database = {
           },
         ];
       };
+      feedback_submissions: {
+        Row: FeedbackSubmissionRow;
+        Insert: Insertable<FeedbackSubmissionRow, 'feedback_type' | 'category' | 'subject' | 'message'>;
+        Update: Partial<FeedbackSubmissionRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'feedback_submissions_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'feedback_submissions_resolved_by_fkey';
+            columns: ['resolved_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      feedback_admin_notes: {
+        Row: FeedbackAdminNoteRow;
+        Insert: Insertable<FeedbackAdminNoteRow, 'feedback_id' | 'author_id' | 'note'>;
+        Update: Partial<FeedbackAdminNoteRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'feedback_admin_notes_feedback_id_fkey';
+            columns: ['feedback_id'];
+            isOneToOne: false;
+            referencedRelation: 'feedback_submissions';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'feedback_admin_notes_author_id_fkey';
+            columns: ['author_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: {
       v_schedule_details: { Row: ScheduleDetailsRow; Relationships: [] };
@@ -819,6 +904,7 @@ export type Database = {
       v_public_fixed_point_chart: { Row: PublicChartRow; Relationships: [] };
       v_public_studio_calendar: { Row: PublicStudioSlotRow; Relationships: [] };
       v_public_approved_episodes: { Row: PublicApprovedEpisodeRow; Relationships: [] };
+      v_my_feedback: { Row: FeedbackSubmissionRow; Relationships: [] };
     };
     Functions: {
       submit_episode_for_qc: { Args: { p_episode_id: string }; Returns: EpisodeRow };

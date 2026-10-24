@@ -24,10 +24,12 @@ const NAV: NavItem[] = [
   { to: '/audio', label: 'Audio Library', visible: (role) => can.viewAudioLibrary(role) },
   { to: '/users', label: 'Users', visible: (role) => can.manageUsers(role) },
   { to: '/badges', label: 'Badges', visible: () => true },
+  { to: '/feedback', label: 'Feedback & Ideas', visible: (role) => !can.manageFeedback(role) },
   { to: '/settings', label: 'Settings', visible: () => true },
   { to: '/schedule/edit', label: 'Schedule', visible: (role) => can.schedule(role) },
   { to: '/programs', label: 'Programs', visible: (role) => can.manageProgram(role) },
   { to: '/admin/holidays', label: 'Holidays', visible: (role) => can.manageHolidays(role) },
+  { to: '/admin/feedback', label: 'Feedback', visible: (role) => can.manageFeedback(role) },
 ];
 
 export function AppLayout() {

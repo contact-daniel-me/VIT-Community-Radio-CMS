@@ -30,6 +30,8 @@ import { GlobalAudioProvider } from '@/hooks/GlobalAudioContext';
 import { BadgesPage } from '@/pages/BadgesPage';
 import { LeaderboardPage } from '@/pages/LeaderboardPage';
 import { HolidaysPage } from '@/pages/HolidaysPage';
+import { FeedbackPage } from '@/pages/FeedbackPage';
+import { AdminFeedbackPage } from '@/pages/AdminFeedbackPage';
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const { session, profile, loading } = useAuth();
@@ -181,6 +183,15 @@ export default function App() {
               />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="badges" element={<BadgesPage />} />
+              <Route path="feedback" element={<FeedbackPage />} />
+              <Route
+                path="admin/feedback"
+                element={
+                  <RequireRole allow={can.manageFeedback}>
+                    <AdminFeedbackPage />
+                  </RequireRole>
+                }
+              />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Routes>

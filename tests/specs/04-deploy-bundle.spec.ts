@@ -48,6 +48,8 @@ describe('fresh-project bundle', () => {
       'audio_files',
       'broadcast_state',
       'episodes',
+      'feedback_admin_notes',
+      'feedback_submissions',
       'gamification_badges',
       'gamification_levels',
       'gamification_xp_rules',
@@ -106,7 +108,7 @@ describe('fresh-project bundle', () => {
     const programs = await pg.query<{ count: number }>(
       `select count(*)::int as count from public.programs`,
     );
-    expect(programs.rows[0].count).toBe(30);
+    expect(programs.rows[0].count).toBe(32);
 
     const chart = await pg.query<{ count: number }>(
       `select count(*)::int as count from public.station_slots`,

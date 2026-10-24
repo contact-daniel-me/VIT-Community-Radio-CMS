@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { AppError, toAppError } from '@/lib/errors';
 import { unwrap } from '@/lib/query';
-import { holidayService } from './holidayService';
+import { holidayService, parseHolidaySlots, formatHolidayReason } from './holidayService';
 import type {
   ProfileRow,
   ScriptApproval,
@@ -110,15 +110,25 @@ export const bookingService = {
     ]);
 
     const blockedDates = new Map<string, string | null>();
+    const blockedSlots = new Map<string, string | null>();
+
     for (const h of holidays) {
+      const hSlots = parseHolidaySlots(h);
       for (const d of days) {
         if (d >= h.start_date && d <= h.end_date) {
-          blockedDates.set(d, h.reason ?? null);
+          const reason = formatHolidayReason(h.reason) || null;
+          if (!hSlots || hSlots.length === 0) {
+            blockedDates.set(d, reason);
+          } else {
+            for (const s of hSlots) {
+              blockedSlots.set(`${d}|${s.slice(0, 5)}`, reason);
+            }
+          }
         }
       }
     }
 
-    return deriveWeek(days, occupied, mineResult, viewerId, blockedDates);
+    return deriveWeek(days, occupied, mineResult, viewerId, blockedDates, blockedSlots);
   },
 
   /** Bookable rows only, for the mobile day view. */
@@ -258,10 +268,15 @@ export const bookingService = {
    */
   async createBooking(input: BookingInput, rjId: string, createdBy: string): Promise<StudioBookingRow> {
     const holidays = await holidayService.getHolidaysForRange(input.booking_date, input.booking_date).catch(() => []);
-    if (holidays.length > 0) {
+    const blockingHoliday = holidays.find((h) => {
+      const hSlots = parseHolidaySlots(h);
+      if (!hSlots || hSlots.length === 0) return true;
+      return hSlots.includes(input.start_time.slice(0, 5));
+    });
+    if (blockingHoliday) {
       throw new AppError(
         'VALIDATION',
-        'Studio bookings are unavailable on this date due to a holiday or scheduled closure.',
+        'Studio bookings are unavailable for this slot due to a scheduled holiday or closure.',
       );
     }
 

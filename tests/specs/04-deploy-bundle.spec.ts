@@ -60,6 +60,7 @@ describe('fresh-project bundle', () => {
       'station_slots',
       'studio_booking_requests',
       'studio_bookings',
+      'studio_holidays',
       'user_badges',
       'user_gamification_adjustments',
     ]);

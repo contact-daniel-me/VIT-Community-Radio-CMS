@@ -175,6 +175,33 @@ export interface CalendarSlot extends GridSlot {
   state: SlotState;
   /** Only ever set for the viewer's own bookings. */
   booking: StudioBookingRow | null;
+  holidayReason?: string | null;
+}
+
+/**
+ * Extract particular slot start times from a holiday row.
+ * Returns null if the holiday is an all-day block.
+ */
+export function parseHolidaySlots(holiday: { slots?: string[] | null; reason?: string | null }): string[] | null {
+  if (Array.isArray(holiday.slots) && holiday.slots.length > 0) {
+    return holiday.slots;
+  }
+  if (holiday.reason) {
+    const match = holiday.reason.match(/\[SLOTS:([^\]]+)\]/);
+    if (match && match[1]) {
+      const parsed = match[1].split(',').map((s) => s.trim()).filter(Boolean);
+      if (parsed.length > 0) return parsed;
+    }
+  }
+  return null;
+}
+
+/**
+ * Clean reason description by stripping any [SLOTS:...] internal fallback tag.
+ */
+export function formatHolidayReason(reason?: string | null): string {
+  if (!reason) return '';
+  return reason.replace(/\[SLOTS:[^\]]+\]\s*/g, '').trim();
 }
 
 export interface CalendarDay {
@@ -196,6 +223,7 @@ export function deriveWeek(
   mine: StudioBookingRow[],
   viewerId: string | null,
   blockedDates: Set<string> | Map<string, string | null> = new Set(),
+  blockedSlots: Set<string> | Map<string, string | null> = new Set(),
 ): CalendarDay[] {
   // 'HH:MM:SS' comes back from postgres `time`; the grid uses 'HH:MM'.
   const key = (date: string, time: string) => `${date}|${time.slice(0, 5)}`;
@@ -220,9 +248,15 @@ export function deriveWeek(
       slots: buildGrid().map((slot) => {
         const k = key(date, slot.start);
         const ownBooking = mineByKey.get(k) ?? null;
+        const isSlotBlocked =
+          isDateBlocked ||
+          (blockedSlots instanceof Map ? blockedSlots.has(k) : blockedSlots.has(k));
+        const slotBlockedReason =
+          holidayReason ||
+          (blockedSlots instanceof Map ? (blockedSlots.get(k) ?? null) : null);
 
         let state: SlotState;
-        if (isDateBlocked) {
+        if (isSlotBlocked) {
           state = 'BLOCKED';
         } else if (slot.isLunch) {
           state = 'LUNCH';
@@ -240,9 +274,9 @@ export function deriveWeek(
 
         // A slot the viewer owns stays visible as theirs even once it has passed,
         // so their own week does not silently empty out (unless explicitly blocked as a holiday).
-        if (ownBooking && slot.isLunch === false && !isDateBlocked) state = 'MINE';
+        if (ownBooking && slot.isLunch === false && !isSlotBlocked) state = 'MINE';
 
-        return { ...slot, date, state, booking: ownBooking };
+        return { ...slot, date, state, booking: ownBooking, holidayReason: slotBlockedReason };
       }),
     };
   });

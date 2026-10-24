@@ -99,6 +99,7 @@ export type StudioHolidayRow = {
   start_date: string;
   end_date: string;
   reason: string | null;
+  slots?: string[] | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

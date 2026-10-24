@@ -8,7 +8,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/errors';
 import { can } from '@/lib/permissions';
 import type { ProfileRow, ScriptApproval, ShowLanguage, StudioBookingRow } from '@/types/database';
-import { holidayService } from '@/services/holidayService';
+import { holidayService, parseHolidaySlots } from '@/services/holidayService';
 import { formatBookingDate, formatSlotTime, withinNoticeWindow } from '@/utils/studio';
 
 
@@ -62,7 +62,11 @@ export function BookingDialog({
     () => holidayService.getHolidaysForRange(slot.date, slot.date),
     [slot.date],
   );
-  const activeHoliday = holidays.data?.[0];
+  const activeHoliday = holidays.data?.find((h) => {
+    const hSlots = parseHolidaySlots(h);
+    if (!hSlots || hSlots.length === 0) return true;
+    return hSlots.includes(slot.start.slice(0, 5));
+  });
   const isBlocked = Boolean(activeHoliday);
 
   const editors = useAsync(

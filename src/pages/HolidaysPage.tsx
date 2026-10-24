@@ -6,9 +6,11 @@ import {
   holidayService,
   type HolidayWithCreator,
   type HolidayInput,
+  parseHolidaySlots,
+  formatHolidayReason,
 } from '@/services/holidayService';
 import { errorMessage } from '@/lib/errors';
-import { formatBookingDate, isoDate } from '@/utils/studio';
+import { formatBookingDate, isoDate, bookableSlots, formatSlotTime } from '@/utils/studio';
 import { formatDate } from '@/utils/datetime';
 
 const REASON_PRESETS = [
@@ -32,6 +34,8 @@ export function HolidaysPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingHoliday, setEditingHoliday] = useState<HolidayWithCreator | null>(null);
   const [isRange, setIsRange] = useState(false);
+  const [slotMode, setSlotMode] = useState<'all' | 'slots'>('all');
+  const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [formData, setFormData] = useState<HolidayInput>({
     start_date: isoDate(new Date()),
     end_date: isoDate(new Date()),
@@ -40,6 +44,8 @@ export function HolidaysPage() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<HolidayWithCreator | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const availableSlots = useMemo(() => bookableSlots(), []);
 
   // Existing bookings warning check
   const [existingBookingsWarning, setExistingBookingsWarning] = useState<{
@@ -52,7 +58,7 @@ export function HolidaysPage() {
 
   const today = isoDate(new Date());
 
-  // Check existing bookings when form dates change
+  // Check existing bookings when form dates or slots change
   useEffect(() => {
     if (!isFormOpen) {
       setExistingBookingsWarning(null);
@@ -67,10 +73,15 @@ export function HolidaysPage() {
       return;
     }
 
+    if (slotMode === 'slots' && selectedSlots.length === 0) {
+      setExistingBookingsWarning(null);
+      return;
+    }
+
     let active = true;
     setCheckingBookings(true);
     holidayService
-      .checkExistingBookings(start, end)
+      .checkExistingBookings(start, end, slotMode === 'slots' ? selectedSlots : null)
       .then((res) => {
         if (active) setExistingBookingsWarning(res);
       })
@@ -84,7 +95,7 @@ export function HolidaysPage() {
     return () => {
       active = false;
     };
-  }, [formData.start_date, formData.end_date, isRange, isFormOpen]);
+  }, [formData.start_date, formData.end_date, isRange, isFormOpen, slotMode, selectedSlots]);
 
   // Open creation modal
   const openCreate = () => {
@@ -92,6 +103,8 @@ export function HolidaysPage() {
     setNotice(null);
     setEditingHoliday(null);
     setIsRange(false);
+    setSlotMode('all');
+    setSelectedSlots([]);
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomStr = isoDate(tomorrow);
@@ -109,10 +122,18 @@ export function HolidaysPage() {
     setNotice(null);
     setEditingHoliday(h);
     setIsRange(h.start_date !== h.end_date);
+    const hSlots = parseHolidaySlots(h);
+    if (hSlots && hSlots.length > 0) {
+      setSlotMode('slots');
+      setSelectedSlots(hSlots);
+    } else {
+      setSlotMode('all');
+      setSelectedSlots([]);
+    }
     setFormData({
       start_date: h.start_date,
       end_date: h.end_date,
-      reason: h.reason ?? '',
+      reason: formatHolidayReason(h.reason),
     });
     setIsFormOpen(true);
   };
@@ -134,13 +155,20 @@ export function HolidaysPage() {
       return;
     }
 
+    if (slotMode === 'slots' && selectedSlots.length === 0) {
+      setError('Please select at least one time slot to block, or switch to All Day.');
+      return;
+    }
+
     setSaving(true);
+    const slotsPayload = slotMode === 'slots' ? selectedSlots : null;
     try {
       if (editingHoliday) {
         await holidayService.updateHoliday(editingHoliday.id, {
           start_date: start,
           end_date: end,
           reason: formData.reason,
+          slots: slotsPayload,
         });
         setNotice('Holiday dates updated successfully.');
       } else {
@@ -149,10 +177,15 @@ export function HolidaysPage() {
             start_date: start,
             end_date: end,
             reason: formData.reason,
+            slots: slotsPayload,
           },
           profile.id,
         );
-        setNotice('Studio dates blocked successfully. Bookings on these dates are now disabled.');
+        setNotice(
+          slotMode === 'slots'
+            ? `Successfully blocked ${selectedSlots.length} time slot(s).`
+            : 'Studio dates blocked successfully. Bookings on these dates are now disabled.',
+        );
       }
       setIsFormOpen(false);
       setEditingHoliday(null);
@@ -211,11 +244,16 @@ export function HolidaysPage() {
     if (!search.trim()) return list;
     const q = search.trim().toLowerCase();
     return list.filter((h) => {
-      const reasonMatch = (h.reason || '').toLowerCase().includes(q);
+      const displayReason = formatHolidayReason(h.reason).toLowerCase();
+      const reasonMatch = displayReason.includes(q);
       const startMatch = h.start_date.includes(q);
       const endMatch = h.end_date.includes(q);
       const creatorMatch = (h.creator?.full_name || '').toLowerCase().includes(q);
-      return reasonMatch || startMatch || endMatch || creatorMatch;
+      const hSlots = parseHolidaySlots(h);
+      const slotsMatch = hSlots
+        ? hSlots.some((s) => s.includes(q) || formatSlotTime(s).toLowerCase().includes(q))
+        : false;
+      return reasonMatch || startMatch || endMatch || creatorMatch || slotsMatch;
     });
   }, [allHolidays, tab, today, search]);
 
@@ -391,6 +429,8 @@ export function HolidaysPage() {
                 {filteredHolidays.map((h) => {
                   const isActive = h.start_date <= today && h.end_date >= today;
                   const isFuture = h.start_date > today;
+                  const hSlots = parseHolidaySlots(h);
+                  const displayReason = formatHolidayReason(h.reason);
                   const daysDiff =
                     Math.round(
                       (new Date(h.end_date).getTime() - new Date(h.start_date).getTime()) /
@@ -403,17 +443,31 @@ export function HolidaysPage() {
                         {formatDateDisplay(h.start_date, h.end_date)}
                       </td>
                       <td>
-                        <span className="badge badge-grey small">
-                          {daysDiff} {daysDiff === 1 ? 'day' : 'days'}
-                        </span>
+                        {hSlots && hSlots.length > 0 ? (
+                          <div>
+                            <span className="badge badge-amber small">
+                              {hSlots.length} slot{hSlots.length === 1 ? '' : 's'}
+                            </span>
+                            <span
+                              className="small muted"
+                              style={{ display: 'block', marginTop: '0.2rem', fontSize: '0.74rem' }}
+                            >
+                              {hSlots.map((s) => formatSlotTime(s)).join(', ')}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="badge badge-grey small">
+                            {daysDiff} {daysDiff === 1 ? 'day (all day)' : 'days'}
+                          </span>
+                        )}
                       </td>
                       <td>
-                        {h.reason ? (
+                        {displayReason ? (
                           <span
-                            className={`badge ${getReasonTone(h.reason)}`}
+                            className={`badge ${getReasonTone(displayReason)}`}
                             style={{ fontSize: '0.78rem' }}
                           >
-                            {h.reason}
+                            {displayReason}
                           </span>
                         ) : (
                           <span className="muted">Studio closure</span>
@@ -468,14 +522,14 @@ export function HolidaysPage() {
           aria-modal="true"
           aria-labelledby="holiday-dialog-title"
         >
-          <div className="dialog-card card" style={{ maxWidth: '520px', width: '100%' }}>
+          <div className="dialog-card card" style={{ maxWidth: '560px', width: '100%' }}>
             <header className="dialog-header">
               <div>
                 <h2 id="holiday-dialog-title" style={{ margin: 0, fontSize: '1.25rem' }}>
                   {editingHoliday ? 'Edit Studio Holiday' : 'Block Studio Dates'}
                 </h2>
                 <p className="muted small" style={{ margin: '0.25rem 0 0' }}>
-                  Dates blocked will prevent any user from booking studio slots.
+                  Dates or slots blocked will prevent any user from booking studio sessions.
                 </p>
               </div>
               <button
@@ -512,7 +566,10 @@ export function HolidaysPage() {
                       type="radio"
                       name="closureType"
                       checked={isRange}
-                      onChange={() => setIsRange(true)}
+                      onChange={() => {
+                        setIsRange(true);
+                        setSlotMode('all'); // Ranges default to all day
+                      }}
                     />
                     Date Range (Multiple days)
                   </label>
@@ -560,8 +617,164 @@ export function HolidaysPage() {
                 ) : (
                   <div>
                     <span className="muted small" style={{ display: 'block', marginTop: '1.8rem' }}>
-                      All slots on this day will be marked as Blocked.
+                      {slotMode === 'slots'
+                        ? `${selectedSlots.length} slot(s) on this date will be marked as Blocked.`
+                        : 'All slots on this day will be marked as Blocked.'}
                     </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Slot-level blocking option */}
+              <div className="field" style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.4rem', fontWeight: 600 }}>
+                  Slots to Block
+                </label>
+                <div className="row" style={{ gap: '1.5rem', marginBottom: slotMode === 'slots' ? '0.75rem' : 0 }}>
+                  <label className="radio" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="slotMode"
+                      checked={slotMode === 'all'}
+                      onChange={() => setSlotMode('all')}
+                    />
+                    All Day (All slots)
+                  </label>
+                  <label className="radio" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="slotMode"
+                      checked={slotMode === 'slots'}
+                      onChange={() => {
+                        setSlotMode('slots');
+                        if (selectedSlots.length === 0) {
+                          setSelectedSlots(['09:00', '09:30', '10:00', '10:30']);
+                        }
+                      }}
+                    />
+                    Particular Slots
+                  </label>
+                </div>
+
+                {slotMode === 'slots' && (
+                  <div
+                    style={{
+                      background: 'var(--surface-sunken)',
+                      padding: '0.85rem',
+                      borderRadius: 'var(--r-md, 8px)',
+                      border: '1px solid var(--border)',
+                      marginTop: '0.5rem',
+                    }}
+                  >
+                    <div className="row spread align-center wrap" style={{ gap: '0.5rem', marginBottom: '0.6rem' }}>
+                      <span className="small muted">
+                        <strong style={{ color: selectedSlots.length > 0 ? 'var(--accent)' : 'inherit' }}>
+                          {selectedSlots.length}
+                        </strong>{' '}
+                        of {availableSlots.length} slots selected to block
+                      </span>
+                      <div className="row wrap" style={{ gap: '0.3rem' }}>
+                        <button
+                          type="button"
+                          className="btn btn-outline small"
+                          style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem' }}
+                          onClick={() =>
+                            setSelectedSlots([
+                              '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30',
+                            ])
+                          }
+                        >
+                          Morning (9am-1pm)
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-outline small"
+                          style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem' }}
+                          onClick={() =>
+                            setSelectedSlots([
+                              '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00',
+                            ])
+                          }
+                        >
+                          Afternoon (2pm-5pm)
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-outline small"
+                          style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem' }}
+                          onClick={() =>
+                            setSelectedSlots([
+                              '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
+                            ])
+                          }
+                        >
+                          Evening (5pm-8pm)
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost small"
+                          style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem' }}
+                          onClick={() => setSelectedSlots(availableSlots.map((s) => s.start))}
+                        >
+                          All
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost small"
+                          style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem' }}
+                          onClick={() => setSelectedSlots([])}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                        gap: '0.4rem',
+                        maxHeight: '190px',
+                        overflowY: 'auto',
+                        paddingRight: '0.2rem',
+                      }}
+                    >
+                      {availableSlots.map((slot) => {
+                        const isSelected = selectedSlots.includes(slot.start);
+                        return (
+                          <button
+                            key={slot.start}
+                            type="button"
+                            onClick={() => {
+                              setSelectedSlots((prev) =>
+                                prev.includes(slot.start)
+                                  ? prev.filter((s) => s !== slot.start)
+                                  : [...prev, slot.start].sort(),
+                              );
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '0.35rem 0.55rem',
+                              borderRadius: 'var(--r-sm, 6px)',
+                              fontSize: '0.78rem',
+                              cursor: 'pointer',
+                              border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border)',
+                              background: isSelected ? 'var(--accent-wash)' : 'var(--surface)',
+                              color: isSelected ? 'var(--accent)' : 'var(--ink)',
+                              fontWeight: isSelected ? 600 : 400,
+                              transition: 'all 120ms ease',
+                            }}
+                          >
+                            <span>{formatSlotTime(slot.start)}</span>
+                            <span style={{ fontSize: '0.8rem', marginLeft: '0.25rem' }}>
+                              {isSelected ? '✓' : '+'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -616,9 +829,9 @@ export function HolidaysPage() {
                   className="banner banner-info"
                   style={{ marginBottom: '1.25rem', fontSize: '0.86rem', borderLeft: '4px solid var(--warn)' }}
                 >
-                  <strong>⚠️ Warning:</strong> There are{' '}
+                  <strong>⚠️ Warning:</strong> There {existingBookingsWarning.count === 1 ? 'is' : 'are'}{' '}
                   <strong>{existingBookingsWarning.count} confirmed booking(s)</strong> already
-                  scheduled on these dates.
+                  scheduled on {slotMode === 'slots' ? 'the selected slots' : 'these dates'}.
                   <p style={{ margin: '0.35rem 0 0', fontSize: '0.82rem' }}>
                     Blocking will prevent new bookings, but existing bookings will NOT be cancelled
                     automatically. Review them in{' '}
@@ -644,9 +857,11 @@ export function HolidaysPage() {
                     ? 'Saving...'
                     : editingHoliday
                       ? 'Update Holiday'
-                      : isRange
-                        ? 'Block Date Range'
-                        : 'Block Date'}
+                      : slotMode === 'slots'
+                        ? `Block ${selectedSlots.length} Slot${selectedSlots.length === 1 ? '' : 's'}`
+                        : isRange
+                          ? 'Block Date Range'
+                          : 'Block Date'}
                 </button>
               </div>
             </form>

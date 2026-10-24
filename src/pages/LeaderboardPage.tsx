@@ -249,7 +249,7 @@ function SidebarCards({ userId }: { userId: string | undefined }) {
       <div className="lb-side-card">
         <div className="lb-side-header">
           <h3 className="lb-side-title">🎯 Today's Challenge</h3>
-          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#f59e0b', background: '#fef3c7', padding: '0.2rem 0.5rem', borderRadius: '999px' }}>🔥 +100 XP</span>
+          <span className="lb-bonus-badge">🔥 +100 XP</span>
         </div>
         <div className="lb-challenge-box">
           <div className="lb-challenge-icon">🎙️</div>

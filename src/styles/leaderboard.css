@@ -7,8 +7,10 @@
    -------------------------------------------------------------------------- */
 .lb-page {
   min-height: 100vh;
-  background: #fcfcfc;
+  background: var(--bg, #fcfcfc);
+  color: var(--ink, #0f172a);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
 }
 
 .lb-hero-wrapper {
@@ -24,8 +26,9 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--color-bg-subtle);
+  background: var(--color-bg-subtle, var(--surface-raised, #f8fafc));
   z-index: -1;
+  transition: background var(--t-fast) var(--ease);
 }
 .lb-hero-bg::after { display: none; }
 
@@ -655,4 +658,353 @@
   .lb-header-graphic { opacity: 0.9; right: 0; }
   .lb-podium-block { width: 100px; }
   .lb-podium-block.rank-1 { height: 160px; }
+}
+
+/* --------------------------------------------------------------------------
+   ADDITIONAL BASE COMPONENTS
+   -------------------------------------------------------------------------- */
+.lb-bonus-badge {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #d97706;
+  background: #fef3c7;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.lb-empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: white;
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  max-width: 600px;
+  margin: 2rem auto;
+}
+.lb-empty-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 1rem;
+}
+.lb-empty-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.5rem;
+}
+.lb-empty-desc {
+  color: #64748b;
+  font-size: 0.95rem;
+  margin: 0 0 1.5rem;
+  line-height: 1.5;
+}
+
+.lb-rankup-toast {
+  position: fixed;
+  bottom: 110px;
+  right: 24px;
+  background: #0f172a;
+  color: #ffffff;
+  padding: 0.9rem 1.4rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 1000;
+  animation: lb-hero-fade 0.3s var(--ease);
+}
+
+/* =============================================================================
+   DARK MODE ADAPTATIONS ([data-theme='dark'])
+   ============================================================================= */
+[data-theme='dark'] .lb-page {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+[data-theme='dark'] .lb-hero-bg {
+  background: radial-gradient(circle at 50% -20%, rgba(239, 59, 64, 0.12) 0%, rgba(20, 23, 30, 0.95) 75%, transparent 100%);
+}
+
+[data-theme='dark'] .lb-title {
+  color: var(--ink-strong);
+  text-shadow: 0 4px 24px rgba(255, 255, 255, 0.08);
+}
+
+[data-theme='dark'] .lb-subtitle {
+  color: var(--ink-muted);
+}
+
+/* Filters */
+[data-theme='dark'] .lb-filters {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme='dark'] .lb-filter-btn {
+  color: var(--ink-muted);
+}
+
+[data-theme='dark'] .lb-filter-btn:hover {
+  color: var(--ink-strong);
+}
+
+[data-theme='dark'] .lb-filter-btn.is-active {
+  background: var(--brand-red);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(210, 30, 40, 0.45);
+}
+
+[data-theme='dark'] .lb-filter-streak {
+  background: var(--surface);
+  color: var(--ink-muted);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Your Rank Card */
+[data-theme='dark'] .lb-my-card-horizontal {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme='dark'] .lb-my-rank-title {
+  color: #ff5257;
+}
+
+[data-theme='dark'] .lb-my-rank-num {
+  color: #ff5257;
+  text-shadow: 0 2px 14px rgba(239, 59, 64, 0.35);
+}
+
+[data-theme='dark'] .lb-my-rank-msg {
+  color: var(--ink-muted);
+}
+
+[data-theme='dark'] .lb-my-stat-val {
+  color: var(--ink-strong);
+}
+
+[data-theme='dark'] .lb-my-stat-label {
+  color: var(--ink-muted);
+}
+
+[data-theme='dark'] .lb-my-graphic {
+  color: #ff5257;
+}
+
+[data-theme='dark'] .lb-my-progress-text {
+  color: var(--ink-strong);
+}
+
+[data-theme='dark'] .lb-my-progress-bar {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+}
+
+/* Podium */
+[data-theme='dark'] .lb-section-title {
+  color: var(--ink-strong);
+}
+
+[data-theme='dark'] .lb-podium-name {
+  color: var(--ink-strong);
+}
+
+[data-theme='dark'] .lb-podium-xp {
+  color: var(--ink-muted);
+}
+
+[data-theme='dark'] .lb-podium-avatar {
+  border-color: var(--surface-raised);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme='dark'] .lb-podium-badge-pill {
+  background: var(--surface-raised);
+  border-color: var(--line);
+  color: var(--ink-muted);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme='dark'] .lb-podium-block.rank-2 {
+  background: linear-gradient(180deg, #475569 0%, #1e293b 100%);
+  box-shadow: -10px 0 25px rgba(0, 0, 0, 0.3);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+[data-theme='dark'] .lb-podium-block.rank-1 {
+  background: linear-gradient(180deg, #f59e0b 0%, #b45309 100%);
+  box-shadow: -10px 0 25px rgba(0, 0, 0, 0.35), 10px 0 25px rgba(0, 0, 0, 0.35);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+[data-theme='dark'] .lb-podium-block.rank-3 {
+  background: linear-gradient(180deg, #ea580c 0%, #9a3412 100%);
+  box-shadow: 10px 0 25px rgba(0, 0, 0, 0.3);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Table Card */
+[data-theme='dark'] .lb-table-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme='dark'] .lb-table-header {
+  border-bottom-color: var(--line);
+  color: var(--ink-faint);
+}
+
+[data-theme='dark'] .lb-table-row {
+  border-bottom-color: var(--line);
+}
+
+[data-theme='dark'] .lb-table-row:hover {
+  background: var(--surface-raised);
+}
+
+[data-theme='dark'] .lb-td-rank {
+  color: var(--ink-strong);
+}
+
+[data-theme='dark'] .lb-td-user-name {
+  color: var(--ink-strong);
+}
+
+[data-theme='dark'] .lb-td-user-avatar {
+  background: var(--surface-raised);
+  color: var(--ink-muted);
+  border: 1px solid var(--line);
+}
+
+[data-theme='dark'] .lb-td-level {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+[data-theme='dark'] .lb-td-xp {
+  color: var(--ink-muted);
+}
+
+[data-theme='dark'] .lb-td-badges {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+[data-theme='dark'] .lb-td-change {
+  color: var(--ink-faint);
+}
+
+[data-theme='dark'] .lb-table-my-position {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+}
+
+[data-theme='dark'] .lb-my-pos-label {
+  color: #ff5257;
+}
+
+/* Sidebar */
+[data-theme='dark'] .lb-side-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme='dark'] .lb-side-title {
+  color: var(--ink-strong);
+}
+
+[data-theme='dark'] .lb-challenge-box {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+}
+
+[data-theme='dark'] .lb-challenge-icon {
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+[data-theme='dark'] .lb-challenge-info h4 {
+  color: var(--ink-strong);
+}
+
+[data-theme='dark'] .lb-challenge-info p {
+  color: var(--ink-muted);
+}
+
+[data-theme='dark'] .lb-bonus-badge {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+[data-theme='dark'] .lb-earn-item {
+  border-bottom-color: var(--line);
+}
+
+[data-theme='dark'] .lb-earn-label {
+  color: var(--ink);
+}
+
+[data-theme='dark'] .lb-badge-name {
+  color: var(--ink-muted);
+}
+
+[data-theme='dark'] .lb-promo-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+}
+
+[data-theme='dark'] .lb-promo-content h3 {
+  color: #ff5257;
+}
+
+[data-theme='dark'] .lb-promo-content p {
+  color: var(--ink-muted);
+}
+
+[data-theme='dark'] .lb-promo-img {
+  opacity: 0.35;
+  filter: drop-shadow(0 0 14px rgba(239, 59, 64, 0.45));
+  mix-blend-mode: screen;
+}
+
+/* Empty State & Skeletons */
+[data-theme='dark'] .lb-empty {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme='dark'] .lb-empty-title {
+  color: var(--ink-strong);
+}
+
+[data-theme='dark'] .lb-empty-desc {
+  color: var(--ink-muted);
+}
+
+[data-theme='dark'] .lb-skeleton {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+}
+
+[data-theme='dark'] .lb-rankup-toast {
+  background: var(--surface-raised);
+  color: var(--ink-strong);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
 }

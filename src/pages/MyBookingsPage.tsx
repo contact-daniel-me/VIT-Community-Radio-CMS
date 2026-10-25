@@ -5,6 +5,7 @@ import { useCurrentUser } from '@/hooks/useAuth';
 import { Banner, ConfirmButton, Empty, Loading, PageHeader, UnifiedStatusBadge, getUnifiedStatusClass } from '@/components/ui';
 import { bookingService, type BookingWithPeople } from '@/services/bookingService';
 import { RecordingDialog } from '@/components/studio/RecordingDialog';
+import { mixotaService } from '@/services/mixotaService';
 import { errorMessage } from '@/lib/errors';
 import { can } from '@/lib/permissions';
 import { formatDateTime } from '@/utils/datetime';
@@ -336,12 +337,32 @@ export function MyBookingsPage() {
                     ) : (
                       canUpload && (booking.rj_id === profile.id || can.adminForceUploadAudio(profile.role)) && (
                         booking.episode_id ? (
-                          <Link
-                            to={`/admin/episodes/${booking.episode_id}`}
-                            className="btn btn-outline small"
-                          >
-                            Open recording
-                          </Link>
+                          <div className="row align-center" style={{ gap: '0.4rem' }}>
+                            <Link
+                              to={`/admin/episodes/${booking.episode_id}`}
+                              className="btn btn-outline small"
+                            >
+                              Open recording
+                            </Link>
+                            {(booking.episode?.audio_file_id || booking.episode?.final_audio_file_id) && (
+                              <button
+                                type="button"
+                                className="btn btn-outline small"
+                                title="Open in Mixota Audio Editor"
+                                onClick={() => {
+                                  const recId = booking.episode!.final_audio_file_id || booking.episode!.audio_file_id!;
+                                  void mixotaService.openInMixota({
+                                    recordingId: recId,
+                                    episodeId: booking.episode_id!,
+                                    title: booking.episode?.title || booking.program?.name,
+                                    targetField: 'final_audio_file_id',
+                                  });
+                                }}
+                              >
+                                Edit in Mixota
+                              </button>
+                            )}
+                          </div>
                         ) : (
                           <button
                             type="button"

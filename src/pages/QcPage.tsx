@@ -6,6 +6,7 @@ import { Banner, Empty, UnifiedStatusBadge, Loading, PageHeader } from '@/compon
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { qcService } from '@/services/qcService';
 import { episodeService, type EpisodeWithRelations } from '@/services/episodeService';
+import { mixotaService } from '@/services/mixotaService';
 import { can } from '@/lib/permissions';
 import { errorMessage } from '@/lib/errors';
 import { formatDateTime, formatDuration } from '@/utils/datetime';
@@ -277,16 +278,36 @@ export function QcPage() {
                       {formatDuration(episode.final_audio_file?.duration_seconds)}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    className="small"
-                    onClick={() => {
-                      setOpenId(open ? null : episode.id);
-                      setComment('');
-                    }}
-                  >
-                    {open ? 'Close' : 'Review'}
-                  </button>
+                  <div className="row align-center" style={{ gap: '0.4rem' }}>
+                    <button
+                      type="button"
+                      className="small"
+                      onClick={() => {
+                        setOpenId(open ? null : episode.id);
+                        setComment('');
+                      }}
+                    >
+                      {open ? 'Close' : 'Review'}
+                    </button>
+                    {episode.final_audio_file && (
+                      <button
+                        type="button"
+                        className="small"
+                        title="Open in Mixota Audio Editor"
+                        onClick={() => {
+                          void mixotaService.openInMixota({
+                            recordingId: episode.final_audio_file!.id,
+                            episodeId: episode.id,
+                            fileName: episode.final_audio_file!.file_name,
+                            title: episode.title,
+                            targetField: 'final_audio_file_id',
+                          });
+                        }}
+                      >
+                        Inspect in Mixota
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {episode.description && <p className="small">{episode.description}</p>}

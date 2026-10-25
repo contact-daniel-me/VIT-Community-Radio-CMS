@@ -4,9 +4,11 @@ import { useAsync } from '@/hooks/useAsync';
 import { Banner, Empty, Loading, PageHeader } from '@/components/ui';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { audioService } from '@/services/audioService';
+import { mixotaService } from '@/services/mixotaService';
 import { episodeService, type EpisodeWithRelations } from '@/services/episodeService';
 import type { AudioFileRow } from '@/types/database';
 import { formatDateTime, formatDuration, formatFileSize } from '@/utils/datetime';
+
 
 export interface AudioLibraryItem {
   file: AudioFileRow;
@@ -142,6 +144,23 @@ function AudioSection({
                         onClick={() => onTogglePlay(file.id)}
                       >
                         {playing === file.id ? 'Hide' : 'Play'}
+                      </button>
+                      <button
+                        type="button"
+                        className="small"
+                        style={{ marginLeft: '0.4rem' }}
+                        title="Open in Mixota Audio Editor"
+                        onClick={() => {
+                          void mixotaService.openInMixota({
+                            recordingId: file.id,
+                            episodeId: episode?.id,
+                            fileName: file.file_name,
+                            title: episode?.title || file.file_name,
+                            targetField: 'final_audio_file_id',
+                          });
+                        }}
+                      >
+                        Edit in Mixota
                       </button>
                     </td>
                   </tr>

@@ -7,6 +7,7 @@ import { HomepageScheduleDialog } from '@/components/studio/HomepageScheduleDial
 import { episodeService, type EpisodeInput, type EpisodeWithRelations } from '@/services/episodeService';
 import { programService } from '@/services/programService';
 import { userService } from '@/services/userService';
+import { mixotaService } from '@/services/mixotaService';
 import { can } from '@/lib/permissions';
 import { errorMessage } from '@/lib/errors';
 import { formatDate, formatDuration } from '@/utils/datetime';
@@ -494,7 +495,7 @@ export function EpisodesPage() {
                       </div>
                     </td>
                     <td className="small muted">{formatDate(episode.updated_at)}</td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <Link
                         to={`/admin/episodes/${episode.id}`}
                         className="btn btn-outline small"
@@ -502,6 +503,25 @@ export function EpisodesPage() {
                       >
                         Manage
                       </Link>
+                      {(episode.final_audio_file_id || episode.audio_file_id) && (
+                        <button
+                          type="button"
+                          className="btn btn-outline small"
+                          style={{ padding: '0.25rem 0.5rem', fontSize: '0.82rem', marginLeft: '0.4rem' }}
+                          title="Open in Mixota Audio Editor"
+                          onClick={() => {
+                            const recId = episode.final_audio_file_id || episode.audio_file_id!;
+                            void mixotaService.openInMixota({
+                              recordingId: recId,
+                              episodeId: episode.id,
+                              title: episode.title,
+                              targetField: 'final_audio_file_id',
+                            });
+                          }}
+                        >
+                          Mixota
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

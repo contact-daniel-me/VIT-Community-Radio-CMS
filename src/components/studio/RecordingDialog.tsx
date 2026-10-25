@@ -5,6 +5,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { bookingService, type BookingWithPeople } from '@/services/bookingService';
 import { episodeService } from '@/services/episodeService';
 import { audioService } from '@/services/audioService';
+import { mixotaService } from '@/services/mixotaService';
 import { programService } from '@/services/programService';
 import { errorMessage } from '@/lib/errors';
 import type { EpisodeRow, ProfileRow } from '@/types/database';
@@ -48,6 +49,7 @@ export function RecordingDialog({
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string>('');
   const [episode, setEpisode] = useState<EpisodeRow | null>(null);
+  const [uploadedAudioId, setUploadedAudioId] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const customMatch = (booking.notes ?? '').match(/^\[(?:Show|Other Show|Special Link|Studio Tour):\s*([^\]]+)\]/i);
   const displayShowName = customMatch ? customMatch[1].trim() : (booking.program?.name ?? '');
@@ -93,7 +95,8 @@ export function RecordingDialog({
       );
 
       setProgress(`Uploading ${file.name}…`);
-      await audioService.uploadAudio(created.id, file, profile.id);
+      const audioRow = await audioService.uploadAudio(created.id, file, profile.id);
+      setUploadedAudioId(audioRow.id);
 
       setProgress('Linking it to your booking…');
       // Best effort: the recording already exists and is usable without this.
@@ -169,6 +172,23 @@ export function RecordingDialog({
                 <Link to={`/admin/episodes/${episode.id}`} className="btn btn-solid">
                   Open the episode
                 </Link>
+                {uploadedAudioId && (
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => {
+                      void mixotaService.openInMixota({
+                        recordingId: uploadedAudioId,
+                        episodeId: episode.id,
+                        fileName: file?.name,
+                        title: episode.title,
+                        targetField: 'final_audio_file_id',
+                      });
+                    }}
+                  >
+                    Edit in Mixota
+                  </button>
+                )}
                 <button type="button" className="btn btn-ghost" onClick={onClose}>
                   Back to my bookings
                 </button>

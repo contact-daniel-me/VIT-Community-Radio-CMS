@@ -15,6 +15,7 @@ import { DeleteEpisodeDialog } from '@/components/DeleteEpisodeDialog';
 import { HomepageScheduleDialog } from '@/components/studio/HomepageScheduleDialog';
 import { episodeService } from '@/services/episodeService';
 import { audioService } from '@/services/audioService';
+import { mixotaService } from '@/services/mixotaService';
 import { qcService } from '@/services/qcService';
 import { userService } from '@/services/userService';
 import { can } from '@/lib/permissions';
@@ -356,13 +357,39 @@ export function EpisodeDetailPage() {
                       </div>
                     )}
                     {ep.audio_file && !ep.audio_file.deleted_at && (
-                      <button
-                        type="button"
-                        className="small"
-                        onClick={() => void downloadSingleFile(ep.audio_file!.storage_path, ep.audio_file!.file_name)}
-                      >
-                        Download Raw
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="small"
+                          onClick={() => void downloadSingleFile(ep.audio_file!.storage_path, ep.audio_file!.file_name)}
+                        >
+                          Download Raw
+                        </button>
+                        <button
+                          type="button"
+                          className="small"
+                          title="Open in Mixota Audio Editor"
+                          onClick={() => {
+                            void mixotaService.openInMixota(
+                              {
+                                recordingId: ep.audio_file!.id,
+                                episodeId: ep.id,
+                                fileName: ep.audio_file!.file_name,
+                                title: ep.title,
+                                targetField: 'final_audio_file_id',
+                              },
+                              {
+                                onExportComplete: (res) => {
+                                  setNotice(`Received finished audio "${res.fileName}" from Mixota!`);
+                                  void refresh();
+                                },
+                              },
+                            );
+                          }}
+                        >
+                          Edit in Mixota
+                        </button>
+                      </>
                     )}
                     {(editable || canAdminForceUpload) && ep.audio_file && !uploading && (
                       <ConfirmButton
@@ -433,13 +460,39 @@ export function EpisodeDetailPage() {
                       </div>
                     )}
                     {ep.final_audio_file && (
-                      <button
-                        type="button"
-                        className="small"
-                        onClick={() => void downloadSingleFile(ep.final_audio_file!.storage_path, ep.final_audio_file!.file_name)}
-                      >
-                        Download Final
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="small"
+                          onClick={() => void downloadSingleFile(ep.final_audio_file!.storage_path, ep.final_audio_file!.file_name)}
+                        >
+                          Download Final
+                        </button>
+                        <button
+                          type="button"
+                          className="small"
+                          title="Open in Mixota Audio Editor"
+                          onClick={() => {
+                            void mixotaService.openInMixota(
+                              {
+                                recordingId: ep.final_audio_file!.id,
+                                episodeId: ep.id,
+                                fileName: ep.final_audio_file!.file_name,
+                                title: ep.title,
+                                targetField: 'final_audio_file_id',
+                              },
+                              {
+                                onExportComplete: (res) => {
+                                  setNotice(`Received updated final audio "${res.fileName}" from Mixota!`);
+                                  void refresh();
+                                },
+                              },
+                            );
+                          }}
+                        >
+                          Edit in Mixota
+                        </button>
+                      </>
                     )}
                     {(editable || canAdminForceUpload) && ep.final_audio_file && !uploading && (
                       <ConfirmButton

@@ -94,7 +94,8 @@ function storagePathFor(episodeId: string, fileName: string): string {
     .replace(/[^a-z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(-80);
-  return `episodes/${episodeId}/${Date.now()}-${safe || 'audio.mp3'}`;
+  const randomSuffix = Math.random().toString(36).slice(2, 8);
+  return `episodes/${episodeId}/${Date.now()}-${randomSuffix}-${safe || 'audio.mp3'}`;
 }
 
 async function removeObjectQuietly(path: string): Promise<void> {
@@ -118,7 +119,7 @@ export const audioService = {
 
     const upload = await supabase.storage
       .from(AUDIO_BUCKET)
-      .upload(storagePath, file, { contentType: mimeType, upsert: false });
+      .upload(storagePath, file, { contentType: mimeType, upsert: true });
 
     if (upload.error) {
       if (/row-level security|Unauthorized|403/i.test(upload.error.message)) {

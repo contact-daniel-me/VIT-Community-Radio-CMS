@@ -1,17 +1,23 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Banner } from '@/components/ui';
-import { bookingService, type BookingInput } from '@/services/bookingService';
+import { bookingService, type BookingInput, type BookingWithPeople } from '@/services/bookingService';
 import { programService } from '@/services/programService';
+import { userService } from '@/services/userService';
 import { RecordingDialog } from './RecordingDialog';
 import { useAsync } from '@/hooks/useAsync';
 import { errorMessage } from '@/lib/errors';
 import { can } from '@/lib/permissions';
 import type { ProfileRow, ScriptApproval, ShowLanguage, StudioBookingRow } from '@/types/database';
 import { holidayService, parseHolidaySlots } from '@/services/holidayService';
-import { formatBookingDate, formatSlotTime, withinNoticeWindow } from '@/utils/studio';
-
-
+import {
+  formatBookingDate,
+  formatSlotTime,
+  getDisplayShowName,
+  isDateInPast,
+  isPast,
+  withinNoticeWindow,
+} from '@/utils/studio';
 
 const LANGUAGES: ShowLanguage[] = ['TAMIL', 'ENGLISH', 'HINDI', 'TELUGU', 'MALAYALAM'];
 const LANGUAGE_LABEL: Record<ShowLanguage, string> = {
@@ -28,23 +34,40 @@ const SCRIPT_OPTIONS: { value: ScriptApproval; label: string }[] = [
   { value: 'NO', label: 'Not yet' },
 ];
 
+const TIME_SLOTS: string[] = [];
+for (let h = 6; h <= 23; h++) {
+  TIME_SLOTS.push(`${String(h).padStart(2, '0')}:00`);
+  TIME_SLOTS.push(`${String(h).padStart(2, '0')}:30`);
+}
+
+function getSlotEndTime(startTime: string): string {
+  const [h, m] = startTime.split(':').map(Number);
+  const endMinutes = (h || 0) * 60 + (m || 0) + 30;
+  return `${String(Math.floor(endMinutes / 60)).padStart(2, '0')}:${String(
+    endMinutes % 60,
+  ).padStart(2, '0')}`;
+}
+
 type Step = 'form' | 'review' | 'done' | 'requested';
 
 /**
  * The booking flow: form, review, confirmation.
  *
- * Nothing here decides whether a booking is legal. The 24-hour notice, the
- * editor checks and the slot lock all live in the database; this only chooses
- * which explanation to show and hands the refusal back in plain words.
+ * Provides Administrator Booking Override capabilities for administrators
+ * allowing manual booking of any time slot (past, lunch, off-hours, closures, conflicts).
  */
 export function BookingDialog({
   slot,
   profile,
+  isAdmin = false,
+  existingBooking = null,
   onClose,
   onBooked,
 }: {
   slot: { date: string; start: string; end: string };
   profile: ProfileRow;
+  isAdmin?: boolean;
+  existingBooking?: BookingWithPeople | StudioBookingRow | null;
   onClose: () => void;
   onBooked: () => void;
 }) {
@@ -54,9 +77,6 @@ export function BookingDialog({
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<StudioBookingRow | null>(null);
   const [uploading, setUploading] = useState(false);
-
-  const insideNotice = withinNoticeWindow(slot.date, slot.start);
-  const mayOverride = can.overrideBookingWindow(profile.role);
 
   const holidays = useAsync(
     () => holidayService.getHolidaysForRange(slot.date, slot.date),
@@ -84,6 +104,14 @@ export function BookingDialog({
   // The station's own shows, straight from the Fixed Point Chart line-up.
   const programmes = useAsync(() => programService.getPrograms({ activeOnly: true }), []);
 
+  const [showOverrideConfirm, setShowOverrideConfirm] = useState(false);
+  const [overrideConfirmed, setOverrideConfirmed] = useState(false);
+
+  const usersList = useAsync(
+    () => (isAdmin ? userService.getUsers() : Promise.resolve([] as ProfileRow[])),
+    [isAdmin],
+  );
+
   const [form, setForm] = useState<BookingInput>({
     booking_date: slot.date,
     start_time: slot.start,
@@ -95,7 +123,64 @@ export function BookingDialog({
     editor_id: null,
     notes: '',
     override_reason: '',
+    rj_id: profile.id,
+    studio_name: 'Studio 1',
+    is_override: isAdmin,
   });
+
+  const slotDate = isAdmin ? form.booking_date : slot.date;
+  const slotStart = isAdmin ? form.start_time : slot.start;
+  const slotEnd = getSlotEndTime(slotStart);
+
+  const isSlotPast = isPast(slotDate, slotStart);
+  const insideNotice = withinNoticeWindow(slotDate, slotStart);
+  const mayOverride = can.overrideBookingWindow(profile.role);
+
+  const [sh, sm] = slotStart.split(':').map(Number);
+  const startMinutes = (sh || 0) * 60 + (sm || 0);
+  const isLunch = startMinutes >= 13 * 60 && startMinutes < 14 * 60;
+  const isOutsideHours = startMinutes < 9 * 60 || startMinutes >= 20 * 60;
+
+  const slotConflict =
+    existingBooking &&
+    existingBooking.booking_date === slotDate &&
+    existingBooking.start_time.slice(0, 5) === slotStart.slice(0, 5)
+      ? existingBooking
+      : null;
+
+  const detectedRestrictions: string[] = [];
+  if (isSlotPast) {
+    detectedRestrictions.push(isDateInPast(slotDate) ? 'Past Date' : 'Past Time Slot');
+  } else if (insideNotice) {
+    detectedRestrictions.push('Inside 24-Hour Notice Window');
+  }
+  if (isLunch) {
+    detectedRestrictions.push('Lunch Break (1:00 PM – 2:00 PM)');
+  }
+  if (isOutsideHours) {
+    detectedRestrictions.push('Outside Operating Hours (Before 9:00 AM / After 8:00 PM)');
+  }
+  if (isBlocked) {
+    detectedRestrictions.push(
+      `Scheduled Studio Closure / Holiday (${activeHoliday?.reason || 'Maintenance'})`,
+    );
+  }
+  const conflictWithPeople = slotConflict as BookingWithPeople | null;
+  const conflictShow = conflictWithPeople?.program?.name ?? null;
+  const conflictEpisode = conflictWithPeople?.episode?.title ?? null;
+  const conflictRj = conflictWithPeople?.rj?.full_name || 'Assigned User';
+
+  if (slotConflict) {
+    detectedRestrictions.push(
+      `Conflicting Active Booking (${slotConflict.reference} - ${getDisplayShowName(
+        conflictShow,
+        slotConflict.notes,
+        conflictEpisode,
+      )})`,
+    );
+  }
+
+  const isRestrictedSlot = detectedRestrictions.length > 0;
 
   const [editorMode, setEditorMode] = useState<'admin' | 'self' | 'pick'>('admin');
 
@@ -133,7 +218,7 @@ export function BookingDialog({
     event.preventDefault();
     setError(null);
 
-    if (isBlocked) {
+    if (isBlocked && !isAdmin) {
       setError('Studio bookings are unavailable on this date due to a holiday or scheduled closure.');
       return;
     }
@@ -141,6 +226,10 @@ export function BookingDialog({
     if (bookingType === 'tour') {
       if (!tourShowTitle.trim()) {
         setError('Please enter the show title.');
+        return;
+      }
+      if (isAdmin && isRestrictedSlot && !overrideConfirmed) {
+        setShowOverrideConfirm(true);
         return;
       }
       setStep('review');
@@ -159,21 +248,32 @@ export function BookingDialog({
       setError('Choose an editor, or select another option.');
       return;
     }
-    if (insideNotice && mayOverride && (form.override_reason ?? '').trim().length < 5) {
+    if (insideNotice && mayOverride && !isAdmin && (form.override_reason ?? '').trim().length < 5) {
       setError('An override booking needs a short reason.');
       return;
     }
+
+    if (isAdmin && isRestrictedSlot && !overrideConfirmed) {
+      setShowOverrideConfirm(true);
+      return;
+    }
+
     setStep('review');
   };
 
   const confirm = async () => {
-    if (isBlocked) {
+    if (isBlocked && !isAdmin) {
       setError('Studio bookings are unavailable on this date due to a holiday or scheduled closure.');
       return;
     }
     setBusy(true);
     setError(null);
     try {
+      const effectiveIsOverride = isAdmin || (insideNotice && mayOverride);
+      const effectiveRjId = isAdmin && form.rj_id ? form.rj_id : profile.id;
+      const effectiveOverrideReason = effectiveIsOverride
+        ? (form.override_reason?.trim() || 'Administrator booking override')
+        : null;
       if (bookingType === 'tour') {
         const title = tourShowTitle.trim();
         let finalProgramId = '';
@@ -227,6 +327,8 @@ export function BookingDialog({
         const booking = await bookingService.createBooking(
           {
             ...form,
+            booking_date: slotDate,
+            start_time: slotStart,
             program_id: finalProgramId,
             language: 'ENGLISH',
             script_status: 'YES',
@@ -234,9 +336,12 @@ export function BookingDialog({
             self_edit: true,
             editor_id: null,
             notes: effectiveNotes,
-            override_reason: insideNotice && mayOverride ? (form.override_reason || 'Studio Tour direct confirmation') : null,
+            override_reason: effectiveOverrideReason,
+            rj_id: effectiveRjId,
+            studio_name: form.studio_name || 'Studio 1',
+            is_override: effectiveIsOverride,
           },
-          profile.id,
+          effectiveRjId,
           profile.id,
         );
         setCreated(booking);
@@ -316,10 +421,12 @@ export function BookingDialog({
           : scriptTag;
       }
 
-      if (insideNotice && !mayOverride) {
+      if (insideNotice && !mayOverride && !isAdmin) {
         await bookingService.createRequest(
           {
             ...form,
+            booking_date: slotDate,
+            start_time: slotStart,
             program_id: finalProgramId,
             notes: effectiveNotes.trim() || null,
           },
@@ -331,11 +438,16 @@ export function BookingDialog({
         const booking = await bookingService.createBooking(
           {
             ...form,
+            booking_date: slotDate,
+            start_time: slotStart,
             program_id: finalProgramId,
             notes: effectiveNotes.trim() || null,
-            override_reason: insideNotice && mayOverride ? form.override_reason : null,
+            override_reason: effectiveOverrideReason,
+            rj_id: effectiveRjId,
+            studio_name: form.studio_name || 'Studio 1',
+            is_override: effectiveIsOverride,
           },
-          profile.id,
+          effectiveRjId,
           profile.id,
         );
         setCreated(booking);
@@ -369,15 +481,32 @@ export function BookingDialog({
       >
         <header className="dialog-head">
           <div>
-            <p className="dialog-eyebrow">
-              {step === 'done' ? 'Confirmed' : step === 'review' ? 'Review' : (bookingType === 'tour' ? 'Studio Tour' : 'Studio booking')}
-            </p>
+            <div className="row align-center" style={{ gap: '0.5rem', marginBottom: '0.2rem' }}>
+              <p className="dialog-eyebrow" style={{ margin: 0 }}>
+                {step === 'done'
+                  ? 'Confirmed'
+                  : step === 'review'
+                    ? 'Review'
+                    : bookingType === 'tour'
+                      ? 'Studio Tour'
+                      : 'Studio booking'}
+              </p>
+              {isAdmin && isRestrictedSlot && (
+                <span className="admin-override-badge">⚡ Admin Override</span>
+              )}
+            </div>
             <h2 id="booking-title" className="dialog-title">
-              {formatBookingDate(slot.date)}
+              {formatBookingDate(slotDate)}
             </h2>
             <p className="dialog-slot">
-              {formatSlotTime(slot.start)} &ndash; {formatSlotTime(slot.end)}
+              {formatSlotTime(slotStart)} &ndash; {formatSlotTime(slotEnd)}
               <span className="dialog-dot">&middot;</span>30 minutes
+              {isAdmin && form.studio_name && (
+                <>
+                  <span className="dialog-dot">&middot;</span>
+                  <span style={{ fontWeight: 600 }}>{form.studio_name}</span>
+                </>
+              )}
             </p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
@@ -390,7 +519,64 @@ export function BookingDialog({
         <div className="dialog-body">
           <Banner>{error}</Banner>
 
-          {isBlocked && (
+          {showOverrideConfirm && (
+            <div className="override-confirm-dialog-backdrop" role="dialog" aria-modal="true">
+              <div className="override-confirm-dialog">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.85rem' }}>
+                  <span className="admin-override-badge">⚡ Administrator Override</span>
+                </div>
+                <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1.1rem', fontWeight: 650 }}>
+                  Confirm Administrator Override Booking
+                </h3>
+                <p style={{ margin: '0 0 1rem 0', fontSize: '0.92rem', color: 'var(--ink)' }}>
+                  You're booking a restricted time slot using administrator privileges. Do you want to proceed?
+                </p>
+
+                <div style={{ background: 'var(--bg-sunk)', borderRadius: 'var(--r-md)', padding: '0.85rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
+                  <div style={{ fontWeight: 600, marginBottom: '0.3rem' }}>
+                    {formatBookingDate(slotDate)} &middot; {formatSlotTime(slotStart)} – {formatSlotTime(slotEnd)}
+                  </div>
+                  <div style={{ color: 'var(--ink-muted)', marginBottom: '0.3rem' }}>
+                    <strong>Scheduling restrictions being bypassed:</strong>
+                  </div>
+                  <ul style={{ margin: '0 0 0 1.1rem', padding: 0 }}>
+                    {detectedRestrictions.map((r, i) => (
+                      <li key={i} style={{ color: '#b91c1c', fontWeight: 500 }}>{r}</li>
+                    ))}
+                  </ul>
+
+                  {slotConflict && (
+                    <div style={{ marginTop: '0.65rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
+                      <span style={{ color: '#b45309', fontWeight: 600 }}>Notice:</span> Overlapping bookings will be recorded separately without deleting or modifying existing records.
+                    </div>
+                  )}
+                </div>
+
+                <div className="row" style={{ justifyContent: 'flex-end', gap: '0.75rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => setShowOverrideConfirm(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-solid"
+                    onClick={() => {
+                      setShowOverrideConfirm(false);
+                      setOverrideConfirmed(true);
+                      setStep('review');
+                    }}
+                  >
+                    Proceed with Override
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isBlocked && !isAdmin && (
             <div
               className="notice-block"
               style={{
@@ -404,9 +590,55 @@ export function BookingDialog({
                 Studio Bookings Blocked
               </p>
               <p>
-                Studio bookings are unavailable on this date ({formatBookingDate(slot.date)}) due to{' '}
+                Studio bookings are unavailable on this date ({formatBookingDate(slotDate)}) due to{' '}
                 <strong>{activeHoliday?.reason || 'a holiday or scheduled closure'}</strong>.
               </p>
+            </div>
+          )}
+
+          {isAdmin && isRestrictedSlot && (
+            <div className="override-warning-box">
+              <h4>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Administrator Override Active
+              </h4>
+              <p style={{ margin: 0 }}>
+                You are booking a restricted slot using administrator privileges. The following rules are bypassed:
+              </p>
+              <ul className="override-restrictions-list">
+                {detectedRestrictions.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+              {slotConflict && (
+                <div className="override-conflict-card">
+                  <div style={{ fontWeight: 650, color: '#b45309', marginBottom: '0.25rem' }}>
+                    Existing Booking Details:
+                  </div>
+                  <div><strong>Reference:</strong> {slotConflict.reference}</div>
+                  <div>
+                    <strong>Show:</strong>{' '}
+                    {getDisplayShowName(
+                      conflictShow,
+                      slotConflict.notes,
+                      conflictEpisode,
+                    )}
+                  </div>
+                  <div><strong>RJ / Host:</strong> {conflictRj}</div>
+                  <div>
+                    <strong>Time:</strong> {formatSlotTime(slotConflict.start_time.slice(0, 5))} –{' '}
+                    {formatSlotTime(slotConflict.end_time.slice(0, 5))}
+                  </div>
+                  <div><strong>Status:</strong> {slotConflict.status}</div>
+                  <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.78rem', color: 'var(--ink-muted)' }}>
+                    Overlapping bookings will be recorded separately without deleting or modifying the existing booking.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -423,6 +655,102 @@ export function BookingDialog({
               )}
 
               <form onSubmit={goReview} className="booking-form">
+                {isAdmin && (
+                  <fieldset
+                    style={{
+                      border: '1px solid var(--border)',
+                      borderRadius: 'var(--r-md)',
+                      padding: '0.85rem',
+                      marginBottom: '1rem',
+                      background: 'var(--bg-sunk)',
+                    }}
+                  >
+                    <legend style={{ fontSize: '0.82rem', fontWeight: 650, color: 'var(--ink)' }}>
+                      Administrator Schedule Controls
+                    </legend>
+
+                    <div className="field-row">
+                      <div className="field">
+                        <label htmlFor="b-admin-date">Booking date</label>
+                        <input
+                          id="b-admin-date"
+                          type="date"
+                          value={form.booking_date}
+                          onChange={(e) => {
+                            setForm({ ...form, booking_date: e.target.value });
+                            setOverrideConfirmed(false);
+                          }}
+                          required
+                        />
+                      </div>
+                      <div className="field">
+                        <label htmlFor="b-admin-studio">Studio selection</label>
+                        <select
+                          id="b-admin-studio"
+                          value={form.studio_name ?? 'Studio 1'}
+                          onChange={(e) => setForm({ ...form, studio_name: e.target.value })}
+                        >
+                          <option value="Studio 1">Studio 1 (Main On-Air Studio)</option>
+                          <option value="Studio 2">Studio 2 (Production Studio)</option>
+                          <option value="Studio 3">Studio 3 (Podcast Suite)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="field-row">
+                      <div className="field">
+                        <label htmlFor="b-admin-start">Start time</label>
+                        <select
+                          id="b-admin-start"
+                          value={form.start_time.slice(0, 5)}
+                          onChange={(e) => {
+                            setForm({ ...form, start_time: e.target.value });
+                            setOverrideConfirmed(false);
+                          }}
+                        >
+                          {TIME_SLOTS.map((t) => (
+                            <option key={t} value={t}>
+                              {formatSlotTime(t)}
+                              {t >= '13:00' && t < '14:00' ? ' (Lunch Break)' : ''}
+                              {t < '09:00' || t >= '20:00' ? ' (Off-Hours)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="field">
+                        <label htmlFor="b-admin-duration">End time / Duration</label>
+                        <input
+                          id="b-admin-duration"
+                          type="text"
+                          value={`${formatSlotTime(slotEnd)} (30 minutes)`}
+                          readOnly
+                          disabled
+                          style={{ background: 'var(--surface)', color: 'var(--ink)' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="field">
+                      <label htmlFor="b-admin-rj">RJ / User name</label>
+                      <select
+                        id="b-admin-rj"
+                        value={form.rj_id ?? profile.id}
+                        onChange={(e) => setForm({ ...form, rj_id: e.target.value })}
+                        required
+                      >
+                        <option value={profile.id}>Myself ({profile.full_name} - {profile.role})</option>
+                        {(usersList.data ?? [])
+                          .filter((u) => u.id !== profile.id && u.active)
+                          .map((u) => (
+                            <option key={u.id} value={u.id}>
+                              {u.full_name} ({u.role}) &middot; {u.email}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </fieldset>
+                )}
+
                 <div className="field">
                   <label htmlFor="b-booking-type">Booking type</label>
                   <select
@@ -751,7 +1079,7 @@ export function BookingDialog({
                       />
                     </div>
 
-                    {insideNotice && mayOverride && (
+                    {insideNotice && mayOverride && !isAdmin && (
                       <div className="field override-field">
                         <label htmlFor="b-override">
                           Override reason <span className="hint">(required inside 24 hours)</span>
@@ -769,6 +1097,24 @@ export function BookingDialog({
                         </p>
                       </div>
                     )}
+
+                    {isAdmin && (
+                      <div className="field override-field">
+                        <label htmlFor="b-admin-remarks">
+                          Administrator remarks / Override reason <span className="hint">(optional)</span>
+                        </label>
+                        <input
+                          id="b-admin-remarks"
+                          value={form.override_reason ?? ''}
+                          onChange={(e) => setForm({ ...form, override_reason: e.target.value })}
+                          placeholder="e.g. Guest on campus, urgent broadcast, past make-up session"
+                          maxLength={500}
+                        />
+                        <p className="small muted">
+                          Overrides and conflicting bookings are recorded in the station audit trail.
+                        </p>
+                      </div>
+                    )}
                   </>
                 )}
 
@@ -776,7 +1122,7 @@ export function BookingDialog({
                   <button
                     type="submit"
                     className="btn btn-solid"
-                    disabled={busy || isBlocked}
+                    disabled={busy || (isBlocked && !isAdmin)}
                   >
                     Review booking
                   </button>
@@ -796,11 +1142,25 @@ export function BookingDialog({
                   value={
                     bookingType === 'tour'
                       ? 'Studio Tour'
-                      : insideNotice && mayOverride
-                      ? 'Admin override'
-                      : 'Studio Booking'
+                      : isAdmin && isRestrictedSlot
+                        ? 'Admin override'
+                        : insideNotice && mayOverride
+                          ? 'Admin override'
+                          : 'Studio Booking'
                   }
                 />
+                {isAdmin && (
+                  <>
+                    <Row label="Studio" value={form.studio_name || 'Studio 1'} />
+                    <Row
+                      label="RJ / Host"
+                      value={
+                        (usersList.data ?? []).find((u) => u.id === form.rj_id)?.full_name ||
+                        (form.rj_id === profile.id ? `${profile.full_name} (Self)` : 'Station Member')
+                      }
+                    />
+                  </>
+                )}
                 <Row
                   label="Show"
                   value={
@@ -814,11 +1174,20 @@ export function BookingDialog({
                 {bookingType === 'booking' && (
                   <Row label="Language" value={LANGUAGE_LABEL[form.language]} />
                 )}
-                <Row label="Date" value={formatBookingDate(slot.date)} />
+                <Row label="Date" value={formatBookingDate(slotDate)} />
                 <Row
                   label="Time"
-                  value={`${formatSlotTime(slot.start)} – ${formatSlotTime(slot.end)} (30 min)`}
+                  value={`${formatSlotTime(slotStart)} – ${formatSlotTime(slotEnd)} (30 min)`}
                 />
+                {isAdmin && form.override_reason?.trim() && (
+                  <Row label="Admin remarks" value={form.override_reason.trim()} />
+                )}
+                {isAdmin && isRestrictedSlot && (
+                  <Row
+                    label="Restrictions waived"
+                    value={detectedRestrictions.join('; ')}
+                  />
+                )}
                 {bookingType === 'booking' && (
                   <>
                     <Row
@@ -858,11 +1227,17 @@ export function BookingDialog({
                   type="button"
                   className="btn btn-solid"
                   onClick={() => void confirm()}
-                  disabled={busy || isBlocked}
+                  disabled={busy || (isBlocked && !isAdmin)}
                 >
                   {busy 
-                    ? (bookingType === 'booking' && insideNotice && !mayOverride ? 'Sending request…' : 'Booking the studio…') 
-                    : (bookingType === 'booking' && insideNotice && !mayOverride ? 'Request Admin Approval' : (bookingType === 'tour' ? 'Confirm Studio Tour' : 'Confirm studio booking'))
+                    ? (bookingType === 'booking' && insideNotice && !mayOverride && !isAdmin ? 'Sending request…' : 'Booking the studio…') 
+                    : (bookingType === 'booking' && insideNotice && !mayOverride && !isAdmin 
+                        ? 'Request Admin Approval' 
+                        : isAdmin && isRestrictedSlot
+                          ? 'Confirm Admin Override'
+                          : bookingType === 'tour' 
+                            ? 'Confirm Studio Tour' 
+                            : 'Confirm studio booking')
                   }
                 </button>
                 <button
@@ -891,13 +1266,25 @@ export function BookingDialog({
                   />
                 </svg>
               </div>
-              <h3 className="confirmed-title">{bookingType === 'tour' ? 'Studio Tour booked' : 'Studio booked'}</h3>
+              <h3 className="confirmed-title">{bookingType === 'tour' ? 'Studio Tour booked' : (isAdmin && isRestrictedSlot ? 'Studio booked (Admin Override)' : 'Studio booked')}</h3>
               {/* The reference is whatever the database allocated — it is never
                   constructed in the browser. */}
               <p className="confirmed-ref">{created.reference}</p>
 
               <dl className="review">
-                <Row label="Booking type" value={bookingType === 'tour' ? 'Studio Tour' : 'Studio Booking'} />
+                <Row label="Booking type" value={bookingType === 'tour' ? 'Studio Tour' : (isAdmin && isRestrictedSlot ? 'Admin Override Booking' : 'Studio Booking')} />
+                {isAdmin && form.studio_name && (
+                  <Row label="Studio" value={form.studio_name} />
+                )}
+                {isAdmin && (
+                  <Row
+                    label="RJ / Host"
+                    value={
+                      (usersList.data ?? []).find((u) => u.id === created.rj_id)?.full_name ||
+                      profile.full_name
+                    }
+                  />
+                )}
                 <Row
                   label="Show"
                   value={

@@ -72,6 +72,12 @@ export interface BookingInput {
   notes?: string | null;
   /** Admin-only. The database refuses this from anyone else. */
   override_reason?: string | null;
+  /** Admin-only: book on behalf of another user */
+  rj_id?: string | null;
+  /** Admin-only or default studio name */
+  studio_name?: string | null;
+  /** Explicit administrator override flag */
+  is_override?: boolean;
 }
 
 export const bookingService = {
@@ -258,6 +264,22 @@ export const bookingService = {
   },
 
   /**
+   * Check if an active booking already exists for a specific slot.
+   */
+  async getActiveBookingForSlot(date: string, startTime: string): Promise<BookingWithPeople | null> {
+    const formattedStart = startTime.slice(0, 5);
+    const bookings = await unwrap(
+      supabase
+        .from('studio_bookings')
+        .select(BOOKING_SELECT)
+        .eq('booking_date', date)
+        .neq('status', 'CANCELLED')
+        .returns<BookingWithPeople[]>(),
+    );
+    return bookings.find((b) => b.start_time.startsWith(formattedStart)) ?? null;
+  },
+
+  /**
    * Create a booking.
    *
    * Everything that matters is decided by the database: the grid constraints,
@@ -267,20 +289,24 @@ export const bookingService = {
    * sentence -- it never pre-approves a booking.
    */
   async createBooking(input: BookingInput, rjId: string, createdBy: string): Promise<StudioBookingRow> {
-    const holidays = await holidayService.getHolidaysForRange(input.booking_date, input.booking_date).catch(() => []);
-    const blockingHoliday = holidays.find((h) => {
-      const hSlots = parseHolidaySlots(h);
-      if (!hSlots || hSlots.length === 0) return true;
-      return hSlots.includes(input.start_time.slice(0, 5));
-    });
-    if (blockingHoliday) {
-      throw new AppError(
-        'VALIDATION',
-        'Studio bookings are unavailable for this slot due to a scheduled holiday or closure.',
-      );
+    const isOverride = Boolean(input.is_override || input.override_reason);
+
+    if (!isOverride) {
+      const holidays = await holidayService.getHolidaysForRange(input.booking_date, input.booking_date).catch(() => []);
+      const blockingHoliday = holidays.find((h) => {
+        const hSlots = parseHolidaySlots(h);
+        if (!hSlots || hSlots.length === 0) return true;
+        return hSlots.includes(input.start_time.slice(0, 5));
+      });
+      if (blockingHoliday) {
+        throw new AppError(
+          'VALIDATION',
+          'Studio bookings are unavailable for this slot due to a scheduled holiday or closure.',
+        );
+      }
     }
 
-    const startTime = `${input.start_time}:00`;
+    const startTime = input.start_time.length === 5 ? `${input.start_time}:00` : input.start_time;
     // The 30-minute duration is a CHECK constraint; computing it here keeps the
     // insert honest rather than letting the caller pick an end time.
     const [h, m] = input.start_time.split(':').map(Number);
@@ -294,10 +320,16 @@ export const bookingService = {
       safeNotes = safeNotes.slice(0, 997) + '...';
     }
 
+    const effectiveRjId = input.rj_id || rjId;
+    const effectiveOrigin = isOverride ? 'ADMIN_OVERRIDE' : 'RJ';
+    const effectiveOverrideReason = isOverride
+      ? (input.override_reason?.trim() || 'Administrator booking override')
+      : null;
+
     const { data, error } = await supabase
       .from('studio_bookings')
       .insert({
-        rj_id: rjId,
+        rj_id: effectiveRjId,
         booking_date: input.booking_date,
         start_time: startTime,
         end_time: endTime,
@@ -308,8 +340,9 @@ export const bookingService = {
         self_edit: input.self_edit,
         editor_id: input.self_edit ? null : (input.editor_id || null),
         notes: safeNotes,
-        origin: input.override_reason ? 'ADMIN_OVERRIDE' : 'RJ',
-        override_reason: input.override_reason?.trim() || null,
+        origin: effectiveOrigin,
+        override_reason: effectiveOverrideReason,
+        studio_name: input.studio_name || 'Studio 1',
         created_by: createdBy,
       })
       .select('*')

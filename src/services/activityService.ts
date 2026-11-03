@@ -26,6 +26,8 @@ const ACTION_LABELS: Record<string, string> = {
   SCHEDULE_CREATED: 'scheduled a slot',
   SCHEDULE_UPDATED: 'changed a slot',
   SCHEDULE_CANCELLED: 'cancelled a slot',
+  BOOKING_CREATED: 'booked studio slot',
+  BOOKING_OVERRIDE_CREATED: 'created admin override booking',
   BROADCAST_STARTED: 'went on air',
   BROADCAST_ENDED: 'ended the broadcast',
   BROADCAST_AUTO_COMPLETED: 'closed finished slots',

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDb, expectFailure, type TestDb } from '../harness/db';
-import { deriveWeek, weekdaysFrom } from '../../src/utils/studio';
+import { deriveWeek, mondayOf, weekdaysFrom } from '../../src/utils/studio';
 
 /** A weekday `days` ahead as YYYY-MM-DD, skipping weekends. */
 function weekdayFromNow(days: number): string {
@@ -388,7 +388,7 @@ describe('studio holidays and booking closures', () => {
   // --------------------------------------------------------------------------
   describe('calendar deriveWeek representation', () => {
     it('marks all slots as BLOCKED on a holiday date and attaches reason', () => {
-      const days = weekdaysFrom('2026-11-02'); // Monday 2026-11-02
+      const days = weekdaysFrom(mondayOf(new Date(Date.now() + 14 * 86400000)));
       const blockedDate = days[2]; // Wednesday
 
       const blockedDates = new Map<string, string>();

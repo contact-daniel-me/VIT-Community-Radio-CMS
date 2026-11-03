@@ -90,6 +90,7 @@ export type StudioBookingRow = {
   notes: string | null;
   episode_id: string | null;
   created_by: string | null;
+  studio_name?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -101,6 +102,7 @@ export type StudioHolidayRow = {
   reason: string | null;
   slots?: string[] | null;
   created_by: string | null;
+  studio_name?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -168,6 +170,7 @@ export type StationSlotRow = {
   effective_from: string;
   active: boolean;
   created_by: string | null;
+  studio_name?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -216,6 +219,7 @@ export type ProgramRow = {
   requires_audio: boolean;
   active: boolean;
   created_by: string | null;
+  studio_name?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -241,6 +245,7 @@ export type EpisodeRow = {
   homepage_publish_at?: string | null;
   homepage_expires_at?: string | null;
   created_by: string | null;
+  studio_name?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -286,6 +291,7 @@ export type ScheduleRow = {
   status: ScheduleStatus;
   notes: string | null;
   created_by: string | null;
+  studio_name?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -331,6 +337,7 @@ export type ScheduleDetailsRow = {
   status: ScheduleStatus;
   notes: string | null;
   created_by: string | null;
+  studio_name?: string | null;
   created_at: string;
   program_name: string;
   program_category: string;

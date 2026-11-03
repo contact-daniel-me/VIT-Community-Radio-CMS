@@ -119,8 +119,8 @@ export function StudioCalendar({
                   const isSelected =
                     selected?.date === slot.date && selected?.start === slot.start;
 
-                  if (slot.isLunch) {
-                    // One labelled band per row rather than five identical cells.
+                  if (slot.isLunch && !isAdmin) {
+                    // One labelled band per row rather than five identical cells for non-admins.
                     return day === week[0] ? (
                       <td
                         key={slot.date}
@@ -134,8 +134,13 @@ export function StudioCalendar({
                   }
 
                   const slotSelectable =
-                    isSelectable(slot.state) ||
-                    (isAdmin && (slot.state === 'PAST' || slot.state === 'BOOKED'));
+                    isAdmin ||
+                    isSelectable(slot.state);
+
+                  const isAdminOverrideSlot =
+                    isAdmin &&
+                    slot.state !== 'AVAILABLE' &&
+                    slot.state !== 'MINE';
 
                   return (
                     <td key={slot.date} className="cal-cell">
@@ -144,7 +149,7 @@ export function StudioCalendar({
                         className={`slot slot-${slot.state.toLowerCase()} ${
                           isSelected ? 'is-selected' : ''
                         } ${
-                          isAdmin && (slot.state === 'PAST' || slot.state === 'BOOKED')
+                          isAdminOverrideSlot
                             ? 'is-admin-selectable'
                             : ''
                         }`}
@@ -152,7 +157,9 @@ export function StudioCalendar({
                         aria-pressed={isSelected}
                         aria-label={`${formatBookingDate(slot.date)}, ${formatSlotTime(
                           slot.start,
-                        )} to ${formatSlotTime(slot.end)} — ${STATE_LABEL[slot.state]}`}
+                        )} to ${formatSlotTime(slot.end)} — ${STATE_LABEL[slot.state]}${
+                          isAdminOverrideSlot ? ' (Admin override available)' : ''
+                        }`}
                         onClick={() => onSelect(slot)}
                       >
                         {/* Never colour alone: each state carries a glyph and a
@@ -168,7 +175,9 @@ export function StudioCalendar({
                                   ? '!'
                                   : slot.state === 'BLOCKED'
                                     ? '⊘'
-                                    : '+'}
+                                    : slot.state === 'LUNCH'
+                                      ? '☕'
+                                      : '+'}
                         </span>
                         <span className="slot-text">{STATE_LABEL[slot.state]}</span>
                       </button>
@@ -269,13 +278,14 @@ export function StudioDayList({
 
       <ul className="daylist-slots">
         {(day?.slots ?? [])
-          .filter((s) => !s.isLunch)
+          .filter((s) => isAdmin || !s.isLunch)
           .map((slot) => {
             const isSelected =
               selected?.date === slot.date && selected?.start === slot.start;
             const slotSelectable =
-              isSelectable(slot.state) ||
-              (isAdmin && (slot.state === 'PAST' || slot.state === 'BOOKED'));
+              isAdmin || isSelectable(slot.state);
+            const isAdminOverrideSlot =
+              isAdmin && slot.state !== 'AVAILABLE' && slot.state !== 'MINE';
 
             return (
               <li key={slot.start}>
@@ -284,7 +294,7 @@ export function StudioDayList({
                   className={`dayslot slot-${slot.state.toLowerCase()} ${
                     isSelected ? 'is-selected' : ''
                   } ${
-                    isAdmin && (slot.state === 'PAST' || slot.state === 'BOOKED')
+                    isAdminOverrideSlot
                       ? 'is-admin-selectable'
                       : ''
                   }`}

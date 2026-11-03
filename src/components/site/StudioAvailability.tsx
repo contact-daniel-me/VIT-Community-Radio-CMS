@@ -71,13 +71,20 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
   const onSelect = (slot: CalendarSlot) => {
     setActiveDay(slot.date);
 
+    if (isAdmin) {
+      // Administrator override: can manually book any slot (past, booked, lunch, blocked, notice, mine, available)
+      setPrompt(null);
+      setSelected(slot);
+      return;
+    }
+
     if (slot.state === 'PAST') {
-      // Past dates are not bookable. Selecting updates activeDay to view historical records.
+      // Past dates are not bookable for regular users.
       setSelected(null);
       return;
     }
     if (slot.state === 'BOOKED') {
-      // Booked slots cannot be reserved. Selecting updates activeDay.
+      // Booked slots cannot be reserved by regular users.
       setSelected(null);
       return;
     }
@@ -155,6 +162,24 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
                   className="studio-date-picker-input"
                   title="Jump directly to any date, month, or year"
                 />
+                <button
+                  type="button"
+                  className="btn btn-outline small"
+                  style={{ marginLeft: '0.5rem', whiteSpace: 'nowrap' }}
+                  onClick={() => {
+                    setSelected({
+                      date: activeDay,
+                      start: '08:30',
+                      end: '09:00',
+                      isLunch: false,
+                      state: 'AVAILABLE',
+                      booking: null,
+                    });
+                  }}
+                  title="Manually book any slot including off-hours"
+                >
+                  ⚡ Manual Booking
+                </button>
               </div>
             )}
 
@@ -541,6 +566,17 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
         <BookingDialog
           slot={{ date: selected.date, start: selected.start, end: selected.end }}
           profile={profile}
+          isAdmin={isAdmin}
+          existingBooking={
+            isAdmin && selected
+              ? (activeBookings.data?.find(
+                  (b) =>
+                    b.booking_date === selected.date &&
+                    b.start_time.slice(0, 5) === selected.start.slice(0, 5) &&
+                    b.status !== 'CANCELLED',
+                ) ?? selected.booking ?? null)
+              : null
+          }
           onClose={() => setSelected(null)}
           onBooked={refresh}
         />

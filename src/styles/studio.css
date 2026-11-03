@@ -342,12 +342,103 @@
 }
 .slot-booked.is-admin-selectable:hover {
   border-color: var(--accent);
+  background: var(--accent-wash, rgba(220, 38, 38, 0.05));
+}
+.slot-lunch {
+  background: var(--bg-sunk);
+  color: var(--ink-faint);
+  border-style: dashed;
+}
+.slot-lunch.is-admin-selectable {
+  cursor: pointer;
+  opacity: 0.8;
+}
+.slot-lunch.is-admin-selectable:hover {
+  opacity: 1;
+  border-color: var(--accent);
+  background: var(--accent-wash, rgba(220, 38, 38, 0.05));
+}
+.slot-blocked.is-admin-selectable {
+  cursor: pointer;
+}
+.slot-blocked.is-admin-selectable:hover {
+  opacity: 0.95;
+  border-color: var(--accent);
+  background: var(--accent-wash, rgba(220, 38, 38, 0.05));
 }
 .dayslot.is-admin-selectable {
   cursor: pointer;
 }
 .dayslot.is-admin-selectable:hover {
   border-color: var(--accent);
+}
+
+/* Admin Override Dialog Badges & Cards */
+.admin-override-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--r-pill, 999px);
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.override-warning-box {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #f59e0b;
+  border-radius: var(--r-md);
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.86rem;
+  color: #92400e;
+}
+.override-warning-box h4 {
+  margin: 0 0 0.35rem 0;
+  font-size: 0.92rem;
+  color: #b45309;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.override-conflict-card {
+  background: #fff;
+  border: 1px solid #fcd34d;
+  border-radius: var(--r-sm);
+  padding: 0.75rem;
+  margin-top: 0.6rem;
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+.override-restrictions-list {
+  margin: 0.4rem 0 0 1.2rem;
+  padding: 0;
+  font-size: 0.82rem;
+}
+.override-confirm-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.override-confirm-dialog {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  padding: 1.5rem;
+  border: 1px solid var(--border);
 }
 
 .cal-row-lunch td {

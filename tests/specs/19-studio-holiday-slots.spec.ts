@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDb, expectFailure, type TestDb } from '../harness/db';
-import { deriveWeek, weekdaysFrom, parseHolidaySlots, formatHolidayReason } from '../../src/utils/studio';
+import { deriveWeek, mondayOf, weekdaysFrom, parseHolidaySlots, formatHolidayReason } from '../../src/utils/studio';
 
 function weekdayFromNow(days: number): string {
   const d = new Date();
@@ -48,7 +48,7 @@ describe('studio holiday slot-level blocking', () => {
     });
 
     it('marks only specified slots as BLOCKED while keeping other slots on that date AVAILABLE', () => {
-      const days = weekdaysFrom('2026-11-02');
+      const days = weekdaysFrom(mondayOf(new Date(Date.now() + 14 * 86400000)));
       const testDate = days[1]; // Tuesday
 
       const blockedSlots = new Map<string, string | null>();

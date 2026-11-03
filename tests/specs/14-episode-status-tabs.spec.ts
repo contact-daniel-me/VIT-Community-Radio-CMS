@@ -4,13 +4,14 @@
  * Verifies that:
  * 1. Episode status values map correctly to user tabs.
  * 2. APPROVED is mapped to "Approved / QC Done".
- * 3. Status counting and filtering works across all 6 tabs.
- * 4. Combination of program, search, mine, and status filters works cleanly.
+ * 3. RAW_AUDIO is mapped to "Raw Audio Uploaded" directly after "Drafts".
+ * 4. Status counting and filtering works across all 7 tabs.
+ * 5. Combination of program, search, mine, and status filters works cleanly.
  */
 import { describe, expect, it } from 'vitest';
 import type { EpisodeStatus } from '../../src/types/database';
 
-type TabKey = 'ALL' | 'DRAFT' | 'PENDING_QC' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
+type TabKey = 'ALL' | 'DRAFT' | 'RAW_AUDIO' | 'PENDING_QC' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
 
 interface EpisodeTabItem {
   key: TabKey;
@@ -21,6 +22,7 @@ interface EpisodeTabItem {
 const EPISODE_TABS: EpisodeTabItem[] = [
   { key: 'ALL', label: 'All Episodes', status: '' },
   { key: 'DRAFT', label: 'Drafts', status: 'DRAFT' },
+  { key: 'RAW_AUDIO', label: 'Raw Audio Uploaded', status: 'DRAFT' },
   { key: 'PENDING_QC', label: 'Pending QC', status: 'PENDING_QC' },
   { key: 'APPROVED', label: 'Approved / QC Done', status: 'APPROVED' },
   { key: 'REJECTED', label: 'Rejected', status: 'REJECTED' },
@@ -35,6 +37,7 @@ interface MockEpisode {
   program_id: string;
   created_by: string;
   assigned_rj: string | null;
+  audio_file_id?: string | null;
 }
 
 function deriveCounts(episodes: MockEpisode[], filters: { programId?: string; mineOnly?: string; search?: string } = {}) {
@@ -53,6 +56,7 @@ function deriveCounts(episodes: MockEpisode[], filters: { programId?: string; mi
   const counts: Record<TabKey, number> = {
     ALL: matching.length,
     DRAFT: 0,
+    RAW_AUDIO: 0,
     PENDING_QC: 0,
     APPROVED: 0,
     REJECTED: 0,
@@ -60,7 +64,13 @@ function deriveCounts(episodes: MockEpisode[], filters: { programId?: string; mi
   };
 
   for (const ep of matching) {
-    if (ep.status in counts) {
+    if (ep.status === 'DRAFT') {
+      if (ep.audio_file_id) {
+        counts.RAW_AUDIO++;
+      } else {
+        counts.DRAFT++;
+      }
+    } else if (ep.status in counts) {
       counts[ep.status as TabKey]++;
     }
   }
@@ -70,7 +80,13 @@ function deriveCounts(episodes: MockEpisode[], filters: { programId?: string; mi
 
 function filterEpisodes(episodes: MockEpisode[], activeTab: TabKey, filters: { programId?: string; mineOnly?: string; search?: string } = {}) {
   return episodes.filter((ep) => {
-    if (activeTab !== 'ALL' && ep.status !== activeTab) return false;
+    if (activeTab === 'DRAFT') {
+      if (ep.status !== 'DRAFT' || ep.audio_file_id) return false;
+    } else if (activeTab === 'RAW_AUDIO') {
+      if (ep.status !== 'DRAFT' || !ep.audio_file_id) return false;
+    } else if (activeTab !== 'ALL' && ep.status !== activeTab) {
+      return false;
+    }
     if (filters.programId && ep.program_id !== filters.programId) return false;
     if (filters.mineOnly && ep.created_by !== filters.mineOnly && ep.assigned_rj !== filters.mineOnly) return false;
     if (filters.search?.trim()) {
@@ -85,8 +101,8 @@ function filterEpisodes(episodes: MockEpisode[], activeTab: TabKey, filters: { p
 
 describe('episode status tabs and navigation', () => {
   const sampleEpisodes: MockEpisode[] = [
-    { id: '1', episode_id: 'VCR-EP-001', title: 'Morning Show 1', status: 'DRAFT', program_id: 'prog-1', created_by: 'rj-1', assigned_rj: 'rj-1' },
-    { id: '2', episode_id: 'VCR-EP-002', title: 'Morning Show 2', status: 'DRAFT', program_id: 'prog-1', created_by: 'rj-2', assigned_rj: null },
+    { id: '1', episode_id: 'VCR-EP-001', title: 'Morning Show 1', status: 'DRAFT', program_id: 'prog-1', created_by: 'rj-1', assigned_rj: 'rj-1', audio_file_id: null },
+    { id: '2', episode_id: 'VCR-EP-002', title: 'Morning Show 2', status: 'DRAFT', program_id: 'prog-1', created_by: 'rj-2', assigned_rj: null, audio_file_id: 'af-2' },
     { id: '3', episode_id: 'VCR-EP-003', title: 'Campus News 1', status: 'PENDING_QC', program_id: 'prog-2', created_by: 'rj-1', assigned_rj: null },
     { id: '4', episode_id: 'VCR-EP-004', title: 'Tech Talk 1', status: 'APPROVED', program_id: 'prog-3', created_by: 'rj-1', assigned_rj: 'rj-1' },
     { id: '5', episode_id: 'VCR-EP-005', title: 'Tech Talk 2', status: 'APPROVED', program_id: 'prog-3', created_by: 'rj-3', assigned_rj: null },
@@ -94,10 +110,11 @@ describe('episode status tabs and navigation', () => {
     { id: '7', episode_id: 'VCR-EP-007', title: 'Old Archive 1', status: 'ARCHIVED', program_id: 'prog-1', created_by: 'rj-1', assigned_rj: null },
   ];
 
-  it('defines all 6 tabs with the exact expected labels', () => {
+  it('defines all 7 tabs with the exact expected labels including "Raw Audio Uploaded" after "Drafts"', () => {
     expect(EPISODE_TABS.map((t) => t.label)).toEqual([
       'All Episodes',
       'Drafts',
+      'Raw Audio Uploaded',
       'Pending QC',
       'Approved / QC Done',
       'Rejected',
@@ -112,10 +129,18 @@ describe('episode status tabs and navigation', () => {
     expect(approvedTab?.status).toBe('APPROVED');
   });
 
+  it('maps RAW_AUDIO tab correctly right after Drafts', () => {
+    const draftIdx = EPISODE_TABS.findIndex((t) => t.key === 'DRAFT');
+    const rawAudioIdx = EPISODE_TABS.findIndex((t) => t.key === 'RAW_AUDIO');
+    expect(rawAudioIdx).toBe(draftIdx + 1);
+    expect(EPISODE_TABS[rawAudioIdx].label).toBe('Raw Audio Uploaded');
+  });
+
   it('computes accurate status counts for all episodes when unfiltered', () => {
     const counts = deriveCounts(sampleEpisodes);
     expect(counts.ALL).toBe(7);
-    expect(counts.DRAFT).toBe(2);
+    expect(counts.DRAFT).toBe(1);
+    expect(counts.RAW_AUDIO).toBe(1);
     expect(counts.PENDING_QC).toBe(1);
     expect(counts.APPROVED).toBe(2);
     expect(counts.REJECTED).toBe(1);
@@ -125,27 +150,33 @@ describe('episode status tabs and navigation', () => {
   it('filters table by tab while preserving all other tabs count badges', () => {
     const counts = deriveCounts(sampleEpisodes);
     const drafts = filterEpisodes(sampleEpisodes, 'DRAFT');
+    const rawAudio = filterEpisodes(sampleEpisodes, 'RAW_AUDIO');
     const approved = filterEpisodes(sampleEpisodes, 'APPROVED');
     const all = filterEpisodes(sampleEpisodes, 'ALL');
 
     expect(drafts).toHaveLength(counts.DRAFT);
+    expect(rawAudio).toHaveLength(counts.RAW_AUDIO);
     expect(approved).toHaveLength(counts.APPROVED);
     expect(all).toHaveLength(counts.ALL);
 
-    expect(drafts.every((ep) => ep.status === 'DRAFT')).toBe(true);
+    expect(drafts.every((ep) => ep.status === 'DRAFT' && !ep.audio_file_id)).toBe(true);
+    expect(rawAudio.every((ep) => ep.status === 'DRAFT' && ep.audio_file_id)).toBe(true);
     expect(approved.every((ep) => ep.status === 'APPROVED')).toBe(true);
   });
 
   it('correctly recalculates counts when filtered by program', () => {
     const countsProg1 = deriveCounts(sampleEpisodes, { programId: 'prog-1' });
     expect(countsProg1.ALL).toBe(3);
-    expect(countsProg1.DRAFT).toBe(2);
+    expect(countsProg1.DRAFT).toBe(1);
+    expect(countsProg1.RAW_AUDIO).toBe(1);
     expect(countsProg1.PENDING_QC).toBe(0);
     expect(countsProg1.APPROVED).toBe(0);
     expect(countsProg1.ARCHIVED).toBe(1);
 
     const prog1Drafts = filterEpisodes(sampleEpisodes, 'DRAFT', { programId: 'prog-1' });
-    expect(prog1Drafts).toHaveLength(2);
+    expect(prog1Drafts).toHaveLength(1);
+    const prog1Raw = filterEpisodes(sampleEpisodes, 'RAW_AUDIO', { programId: 'prog-1' });
+    expect(prog1Raw).toHaveLength(1);
   });
 
   it('correctly recalculates counts when filtered by Only Mine', () => {
@@ -153,6 +184,7 @@ describe('episode status tabs and navigation', () => {
     // rj-1 created or assigned: 1, 3, 4, 7 (4 total)
     expect(countsMine.ALL).toBe(4);
     expect(countsMine.DRAFT).toBe(1);
+    expect(countsMine.RAW_AUDIO).toBe(0);
     expect(countsMine.PENDING_QC).toBe(1);
     expect(countsMine.APPROVED).toBe(1);
     expect(countsMine.ARCHIVED).toBe(1);
@@ -164,6 +196,7 @@ describe('episode status tabs and navigation', () => {
     expect(countsSearch.ALL).toBe(2);
     expect(countsSearch.APPROVED).toBe(2);
     expect(countsSearch.DRAFT).toBe(0);
+    expect(countsSearch.RAW_AUDIO).toBe(0);
 
     const countsById = deriveCounts(sampleEpisodes, { search: 'EP-006' });
     expect(countsById.ALL).toBe(1);

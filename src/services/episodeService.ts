@@ -33,12 +33,13 @@ export interface EpisodeInput {
 export interface EpisodeFilters {
   programId?: string;
   status?: EpisodeStatus | EpisodeStatus[];
+  hasRawAudio?: boolean;
   mineOnly?: string;
   search?: string;
   limit?: number;
 }
 
-export type EpisodeStatusCounts = Record<EpisodeStatus | 'ALL', number>;
+export type EpisodeStatusCounts = Record<EpisodeStatus | 'ALL' | 'RAW_AUDIO', number>;
 
 export const episodeService = {
   async getEpisodes(filters: EpisodeFilters = {}): Promise<EpisodeWithRelations[]> {
@@ -53,6 +54,11 @@ export const episodeService = {
         ? query.in('status', filters.status)
         : query.eq('status', filters.status);
     }
+    if (filters.hasRawAudio === true) {
+      query = query.not('audio_file_id', 'is', null);
+    } else if (filters.hasRawAudio === false) {
+      query = query.is('audio_file_id', null).is('final_audio_file_id', null);
+    }
     if (filters.mineOnly) {
       query = query.or(`created_by.eq.${filters.mineOnly},assigned_rj.eq.${filters.mineOnly}`);
     }
@@ -66,15 +72,20 @@ export const episodeService = {
   },
 
   async getStatusCounts(
-    filters: Omit<EpisodeFilters, 'status' | 'limit'> = {},
+    filters: Omit<EpisodeFilters, 'status' | 'limit' | 'hasRawAudio'> = {},
   ): Promise<EpisodeStatusCounts> {
-    const buildQuery = (status?: EpisodeStatus) => {
+    const buildQuery = (status?: EpisodeStatus, hasRawAudio?: boolean) => {
       let q = supabase
         .from('episodes')
         .select('*', { count: 'exact', head: true });
 
       if (filters.programId) q = q.eq('program_id', filters.programId);
       if (status) q = q.eq('status', status);
+      if (hasRawAudio === true) {
+        q = q.not('audio_file_id', 'is', null);
+      } else if (hasRawAudio === false) {
+        q = q.is('audio_file_id', null).is('final_audio_file_id', null);
+      }
       if (filters.mineOnly) {
         q = q.or(`created_by.eq.${filters.mineOnly},assigned_rj.eq.${filters.mineOnly}`);
       }
@@ -85,9 +96,10 @@ export const episodeService = {
       return q;
     };
 
-    const [allRes, draftRes, pendingRes, approvedRes, rejectedRes, archivedRes] = await Promise.all([
+    const [allRes, draftRes, rawAudioRes, pendingRes, approvedRes, rejectedRes, archivedRes] = await Promise.all([
       buildQuery(),
-      buildQuery('DRAFT'),
+      buildQuery('DRAFT', false),
+      buildQuery('DRAFT', true),
       buildQuery('PENDING_QC'),
       buildQuery('APPROVED'),
       buildQuery('REJECTED'),
@@ -96,6 +108,7 @@ export const episodeService = {
 
     if (allRes.error) throw toAppError(allRes.error);
     if (draftRes.error) throw toAppError(draftRes.error);
+    if (rawAudioRes.error) throw toAppError(rawAudioRes.error);
     if (pendingRes.error) throw toAppError(pendingRes.error);
     if (approvedRes.error) throw toAppError(approvedRes.error);
     if (rejectedRes.error) throw toAppError(rejectedRes.error);
@@ -104,6 +117,7 @@ export const episodeService = {
     return {
       ALL: allRes.count ?? 0,
       DRAFT: draftRes.count ?? 0,
+      RAW_AUDIO: rawAudioRes.count ?? 0,
       PENDING_QC: pendingRes.count ?? 0,
       APPROVED: approvedRes.count ?? 0,
       REJECTED: rejectedRes.count ?? 0,

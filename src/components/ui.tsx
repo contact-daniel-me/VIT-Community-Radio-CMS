@@ -93,7 +93,7 @@ export function UnifiedStatusBadge({
     return <span className="badge badge-pink">Final Uploaded</span>;
   }
   if (episode?.audio_file_id) {
-    return <span className="badge badge-orange">Audio Uploaded</span>;
+    return <span className="badge badge-orange">Raw Audio Uploaded</span>;
   }
   if (booking?.script_status === 'YES') {
     return <span className="badge badge-blue">Studio Booked</span>;

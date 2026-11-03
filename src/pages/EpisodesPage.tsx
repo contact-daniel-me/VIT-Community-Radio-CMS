@@ -14,7 +14,7 @@ import { formatDate, formatDuration } from '@/utils/datetime';
 import { downloadBulkZip } from '@/utils/download';
 import type { EpisodeStatus } from '@/types/database';
 
-type TabKey = 'ALL' | 'DRAFT' | 'PENDING_QC' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
+type TabKey = 'ALL' | 'DRAFT' | 'RAW_AUDIO' | 'PENDING_QC' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
 
 interface EpisodeTabItem {
   key: TabKey;
@@ -25,6 +25,7 @@ interface EpisodeTabItem {
 const EPISODE_TABS: EpisodeTabItem[] = [
   { key: 'ALL', label: 'All Episodes', status: '' },
   { key: 'DRAFT', label: 'Drafts', status: 'DRAFT' },
+  { key: 'RAW_AUDIO', label: 'Raw Audio Uploaded', status: 'DRAFT' },
   { key: 'PENDING_QC', label: 'Pending QC', status: 'PENDING_QC' },
   { key: 'APPROVED', label: 'Approved / QC Done', status: 'APPROVED' },
   { key: 'REJECTED', label: 'Rejected', status: 'REJECTED' },
@@ -39,14 +40,15 @@ export function EpisodesPage() {
   const rawStatus = (params.get('status') ?? '').toUpperCase();
   const activeTab: TabKey =
     rawStatus === 'DRAFT' ||
+    rawStatus === 'RAW_AUDIO' ||
+    rawStatus === 'RAW_AUDIO_UPLOADED' ||
     rawStatus === 'PENDING_QC' ||
     rawStatus === 'APPROVED' ||
     rawStatus === 'REJECTED' ||
     rawStatus === 'ARCHIVED'
-      ? (rawStatus as TabKey)
+      ? (rawStatus === 'RAW_AUDIO_UPLOADED' ? 'RAW_AUDIO' : (rawStatus as TabKey))
       : 'ALL';
 
-  const statusFilter: EpisodeStatus | '' = activeTab === 'ALL' ? '' : (activeTab as EpisodeStatus);
   const isRj = profile.role === 'RJ';
   const mineOnly = isRj || params.get('mine') === '1';
   const search = params.get('q') ?? '';
@@ -84,11 +86,12 @@ export function EpisodesPage() {
     () =>
       episodeService.getEpisodes({
         programId: programFilter || undefined,
-        status: statusFilter || undefined,
+        status: activeTab === 'ALL' ? undefined : (activeTab === 'RAW_AUDIO' ? 'DRAFT' : activeTab),
+        hasRawAudio: activeTab === 'RAW_AUDIO' ? true : (activeTab === 'DRAFT' ? false : undefined),
         mineOnly: mineOnly ? profile.id : undefined,
         search: search || undefined,
       }),
-    [programFilter, statusFilter, mineOnly, search, profile.id],
+    [programFilter, activeTab, mineOnly, search, profile.id],
   );
 
   const [form, setForm] = useState<EpisodeInput | null>(null);
@@ -692,9 +695,14 @@ function EpisodeEmptyState({
       case 'DRAFT':
         return {
           title: 'No draft episodes',
-          desc: 'There are no episodes in draft status. Create a draft to start producing a new radio show.',
+          desc: 'There are no episodes in draft without audio. Create a draft to start producing a new radio show.',
           actionText: canCreate ? 'New episode draft' : undefined,
           actionFn: onCreate,
+        };
+      case 'RAW_AUDIO':
+        return {
+          title: 'No raw audio episodes',
+          desc: 'There are no draft episodes with raw audio uploaded. Attach audio to a draft to proceed.',
         };
       case 'PENDING_QC':
         return {

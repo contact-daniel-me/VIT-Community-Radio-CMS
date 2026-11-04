@@ -101,6 +101,17 @@ export function HomepageScheduleDialog({
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const applyTodayMidnightExpiry = () => {
+    setHasExpiry(true);
+    const todayStr = toLocalDateString(new Date());
+    let targetDate = todayStr;
+    if (mode === 'schedule' && startDate && startDate > todayStr) {
+      targetDate = startDate;
+    }
+    setEndDate(targetDate);
+    setEndTime('23:59');
+  };
+
   const applyQuickExpiry = (days: number) => {
     setHasExpiry(true);
     let baseTime = Date.now();
@@ -453,6 +464,14 @@ export function HomepageScheduleDialog({
                       Quick duration:
                     </span>
                     <div style={{ display: 'inline-flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="small secondary"
+                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }}
+                        onClick={applyTodayMidnightExpiry}
+                      >
+                        Today (11:59 PM)
+                      </button>
                       <button
                         type="button"
                         className="small secondary"

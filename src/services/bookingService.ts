@@ -326,33 +326,54 @@ export const bookingService = {
       ? (input.override_reason?.trim() || 'Administrator booking override')
       : null;
 
-    const { data, error } = await supabase
+    const payload: Record<string, unknown> = {
+      rj_id: effectiveRjId,
+      booking_date: input.booking_date,
+      start_time: startTime,
+      end_time: endTime,
+      program_id: input.program_id,
+      language: input.language,
+      script_status: input.script_status,
+      script_approver: input.script_approver?.trim() || null,
+      self_edit: input.self_edit,
+      editor_id: input.self_edit ? null : (input.editor_id || null),
+      notes: safeNotes,
+      origin: effectiveOrigin,
+      override_reason: effectiveOverrideReason,
+      created_by: createdBy,
+    };
+    if (input.studio_name) {
+      payload.studio_name = input.studio_name;
+    } else {
+      payload.studio_name = 'Studio 1';
+    }
+
+    let { data, error } = await supabase
       .from('studio_bookings')
-      .insert({
-        rj_id: effectiveRjId,
-        booking_date: input.booking_date,
-        start_time: startTime,
-        end_time: endTime,
-        program_id: input.program_id,
-        language: input.language,
-        script_status: input.script_status,
-        script_approver: input.script_approver?.trim() || null,
-        self_edit: input.self_edit,
-        editor_id: input.self_edit ? null : (input.editor_id || null),
-        notes: safeNotes,
-        origin: effectiveOrigin,
-        override_reason: effectiveOverrideReason,
-        studio_name: input.studio_name || 'Studio 1',
-        created_by: createdBy,
-      })
+      .insert(payload as any)
       .select('*')
       .single();
 
-    if (error) throw translateBookingError(error);
+    // If studio_name column is not present on an older database schema, retry without it
+    if (error && (error.code === '42703' || /studio_name/i.test(error.message)) && 'studio_name' in payload) {
+      delete payload.studio_name;
+      const retry = await supabase
+        .from('studio_bookings')
+        .insert(payload as any)
+        .select('*')
+        .single();
+      data = retry.data;
+      error = retry.error;
+    }
+
+    if (error) {
+      console.error('[bookingService.createBooking] insert error:', error);
+      throw translateBookingError(error);
+    }
     if (!data) {
       throw new AppError('UNKNOWN', 'The booking could not be created. Please try again.');
     }
-    return data;
+    return data as StudioBookingRow;
   },
 
   /**
@@ -539,13 +560,49 @@ export const bookingService = {
   },
 
   async approveRequest(requestId: string, adminId: string): Promise<void> {
+    // 1. Try atomic database RPC function first
+    try {
+      const { data: rpcData, error: rpcError } = await (supabase as any).rpc('approve_booking_request', {
+        p_request_id: requestId,
+      });
+
+      if (!rpcError && rpcData) {
+        return;
+      }
+
+      if (rpcError) {
+        const isMissingRpc =
+          rpcError.code === '42883' ||
+          rpcError.code === 'PGRST202' ||
+          /could not find the function|does not exist/i.test(rpcError.message || '');
+        if (!isMissingRpc) {
+          console.error('[bookingService.approveRequest] RPC error:', rpcError);
+          throw translateBookingError(rpcError);
+        }
+      }
+    } catch (err: unknown) {
+      if (err instanceof AppError) throw err;
+      // Continue to client-side fallback if RPC failed due to missing function
+      const isPostgrest = typeof err === 'object' && err !== null && 'code' in err;
+      if (isPostgrest) {
+        const code = (err as { code: string }).code;
+        if (code !== '42883' && code !== 'PGRST202') {
+          throw translateBookingError(err);
+        }
+      }
+    }
+
+    // 2. Fallback to client-side mutation if RPC function is not yet deployed
     const { data: request, error: reqError } = await supabase
       .from('studio_booking_requests')
       .select('*')
       .eq('id', requestId)
       .single();
       
-    if (reqError || !request) throw new AppError('NOT_FOUND', 'Booking request not found.');
+    if (reqError || !request) {
+      console.error('[bookingService.approveRequest] request fetch error:', reqError);
+      throw new AppError('NOT_FOUND', 'Booking request not found.');
+    }
     if (request.status !== 'PENDING') throw new AppError('VALIDATION', 'Request is no longer pending.');
 
     // Attempt to book it directly. If someone else took it, this will safely throw CONFLICT.
@@ -576,7 +633,10 @@ export const bookingService = {
       })
       .eq('id', requestId);
 
-    if (updateError) throw translateBookingError(updateError);
+    if (updateError) {
+      console.error('[bookingService.approveRequest] request update error:', updateError);
+      throw translateBookingError(updateError);
+    }
   },
 
   async rejectRequest(requestId: string, adminId: string, reason: string | null): Promise<void> {
@@ -641,8 +701,8 @@ function translateBookingError(error: unknown): AppError {
     [/not an editor|editor account is not active/i, 'That person is not available as an editor.'],
     [/24 hours in advance/i, 'Studio bookings must be made at least 24 hours in advance.'],
     [
-      /Only an administrator can create an override/i,
-      'Only an administrator can book inside the 24-hour window.',
+      /Only an administrator.*override|Only an administrator or producer/i,
+      'Only administrators and producers can book inside the 24-hour window or create overrides.',
     ],
     [/already started/i, 'This booking has already started and can no longer be cancelled here.'],
     [
@@ -657,7 +717,35 @@ function translateBookingError(error: unknown): AppError {
       /row-level security/i,
       'You do not have permission to create or change this booking.',
     ],
+    [
+      /request is no longer pending/i,
+      'This booking request has already been reviewed or cancelled.',
+    ],
+    [
+      /booking request not found/i,
+      'The booking request was not found.',
+    ],
+    [
+      /Only administrators and producers can approve/i,
+      'Only administrators and producers can approve booking requests.',
+    ],
+    [
+      /violates foreign key constraint/i,
+      'A referenced account or program could not be found.',
+    ],
+    [
+      /violates not-null constraint/i,
+      'A required booking detail is missing.',
+    ],
   ];
+
+  const code = typeof error === 'object' && error !== null && 'code' in error
+    ? String((error as { code: unknown }).code)
+    : '';
+
+  if (code === '23505' || code === '23P01') {
+    return new AppError('CONFLICT', 'This studio slot was just taken by someone else. Please pick another time.', error);
+  }
 
   for (const [pattern, text] of rules) {
     if (pattern.test(message)) {

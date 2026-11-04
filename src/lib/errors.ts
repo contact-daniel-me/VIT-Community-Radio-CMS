@@ -71,17 +71,15 @@ export function toAppError(error: unknown): AppError {
         ? 'PERMISSION'
         : code === '23505' || code === '23P01'
           ? 'CONFLICT'
-          : code === '23514' || code === '23503' || code === '22P02'
+          : code === '23514' || code === '23503' || code === '22P02' || code === '23502'
             ? 'VALIDATION'
-            : code === 'PGRST116'
+            : code === 'PGRST116' || code === 'P0002'
               ? 'NOT_FOUND'
               : code === 'PGRST301' || code === '401'
                 ? 'AUTH'
                 : 'UNKNOWN';
 
-    if (import.meta.env.DEV) {
-      console.error('[supabase]', code, error.message, error.details);
-    }
+    console.error('[supabase error]', code, error.message, error.details, error.hint);
 
     return new AppError(
       kind,

@@ -251,7 +251,7 @@ export function RecordingDialog({
                     {file.name} &middot; {formatFileSize(file.size)}
                   </p>
                 )}
-                <p className="small muted">MP3 only, up to 200 MB.</p>
+                <p className="small muted">MP3 only. Maximum file size: 50 MB.</p>
               </div>
 
               {stage === 'working' && (

@@ -514,7 +514,7 @@ export function EpisodeDetailPage() {
             </div>
 
             <p className="small muted" style={{ marginTop: '1rem' }}>
-              MP3 only, up to 200 MB. Uploading again replaces the current file.
+              MP3 only. Maximum file size: 50 MB. Uploading again replaces the current file.
             </p>
           </section>
 

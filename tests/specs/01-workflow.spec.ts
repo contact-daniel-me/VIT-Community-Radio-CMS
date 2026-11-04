@@ -70,7 +70,7 @@ describe('content and broadcast workflow', () => {
       `insert into public.audio_files
          (episode_id, file_name, storage_path, mime_type, file_size, duration_seconds, uploaded_by)
        values ($1::uuid, 'ep12.mp3', 'episodes/' || ($1::uuid)::text || '/ep12.mp3',
-               'audio/mpeg', 55680000, 3480, $2::uuid)
+               'audio/mpeg', 25000000, 3480, $2::uuid)
        returning id`,
       [episodeId, rj],
     );

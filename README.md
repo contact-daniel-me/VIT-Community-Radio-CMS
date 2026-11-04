@@ -223,7 +223,7 @@ Two behaviours worth understanding when reading the code:
 
 ## Storage
 
-Private bucket `radio-audio`, 200 MB limit, **MP3 only** (`audio/mpeg`, plus the
+Private bucket `radio-audio`, 50 MB limit, **MP3 only** (`audio/mpeg`, plus the
 `audio/mp3` alias some browsers send).
 
 ```

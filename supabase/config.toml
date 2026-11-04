@@ -29,7 +29,7 @@ port = 54324
 [storage]
 enabled = true
 # Matches the CHECK constraint on audio_files.file_size and the bucket limit.
-file_size_limit = "200MiB"
+file_size_limit = "50MiB"
 
 [auth]
 enabled = true

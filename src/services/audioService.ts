@@ -3,7 +3,7 @@ import { AppError, toAppError } from '@/lib/errors';
 import { unwrap } from '@/lib/query';
 import type { AudioFileRow } from '@/types/database';
 
-export const MAX_AUDIO_BYTES = 200 * 1024 * 1024; // 200 MB, matches the DB CHECK
+export const MAX_AUDIO_BYTES = 50 * 1024 * 1024; // 50 MB, matches the DB CHECK
 
 /**
  * Station policy: MP3 only.
@@ -37,9 +37,10 @@ export function validateAudioFile(file: File): { mimeType: string } {
     throw new AppError('VALIDATION', 'That file is empty.');
   }
   if (file.size > MAX_AUDIO_BYTES) {
+    const sizeMb = (file.size / 1024 / 1024).toFixed(1);
     throw new AppError(
       'VALIDATION',
-      `That file is ${(file.size / 1024 / 1024).toFixed(0)} MB. The limit is 200 MB.`,
+      `That file is ${sizeMb} MB. The limit is 50 MB.`,
     );
   }
 

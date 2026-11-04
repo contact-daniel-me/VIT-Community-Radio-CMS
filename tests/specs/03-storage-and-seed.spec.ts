@@ -239,8 +239,8 @@ describe('development seed', () => {
       `select count(*)::int as count from public.programs
         where description not like 'SAMPLE DATA%'`,
     );
-    expect(realProgrammes[0].count).toBe(25);
-    expect(rows.length).toBeLessThanOrEqual(25);
+    expect(realProgrammes[0].count).toBe(27);
+    expect(rows.length).toBeLessThanOrEqual(27);
   });
 
   it('lets the seeded QC user approve a seeded pending episode', async () => {

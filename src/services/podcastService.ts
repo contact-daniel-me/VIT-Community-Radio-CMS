@@ -104,10 +104,85 @@ export interface EpisodePage {
   hasMore: boolean;
 }
 
+let inMemoryLatestRss: PodcastEpisodeRow[] = [];
+let lastSyncCheckTime = 0;
+const SYNC_COOLDOWN_MS = 60 * 1000; // 1 minute cooldown between automatic network checks
+
 export const podcastService = {
   /**
+   * Automatically checks the Spotify/Anchor RSS feed for new episodes and syncs them to Supabase.
+   * Returns whether new episodes were detected and added.
+   */
+  async autoSyncLatest(force = false): Promise<{ hasNew: boolean; count: number }> {
+    const now = Date.now();
+    if (!force && now - lastSyncCheckTime < SYNC_COOLDOWN_MS && inMemoryLatestRss.length > 0) {
+      return { hasNew: false, count: 0 };
+    }
+    lastSyncCheckTime = now;
+
+    try {
+      // 1. Fetch latest items from RSS feed
+      const rssEpisodes = await fetchFallbackRSS();
+      if (!rssEpisodes || rssEpisodes.length === 0) {
+        return { hasNew: false, count: 0 };
+      }
+      inMemoryLatestRss = rssEpisodes;
+
+      // 2. Get the latest pub_date currently in the database
+      const { data: latestDbRow } = await supabase
+        .from('podcast_episodes')
+        .select('pub_date')
+        .order('pub_date', { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+
+      const latestDbDate = latestDbRow?.pub_date ? new Date(latestDbRow.pub_date).getTime() : 0;
+
+      // 3. Find episodes from RSS that are newer than what is in DB
+      const newerEpisodes = rssEpisodes.filter((ep) => {
+        if (!latestDbDate) return true;
+        const epDate = ep.pub_date ? new Date(ep.pub_date).getTime() : 0;
+        return epDate > latestDbDate;
+      });
+
+      // Take newer episodes (or at least top 30 to update metadata)
+      const toSync = newerEpisodes.length > 0 ? newerEpisodes : rssEpisodes.slice(0, 30);
+
+      // 4. Persist to database via security definer RPC
+      const payload = toSync.map((e) => ({
+        rss_guid: e.rss_guid,
+        title: e.title,
+        description: e.description,
+        audio_url: e.audio_url,
+        spotify_url: e.spotify_url,
+        artwork_url: e.artwork_url,
+        duration: e.duration,
+        pub_date: e.pub_date,
+        episode_number: e.episode_number,
+      }));
+
+      const { data: rpcRes, error } = await supabase.rpc('sync_podcast_episodes', {
+        p_episodes: payload as unknown as import('@/types/database').Json,
+      });
+
+      if (error && import.meta.env.DEV) {
+        console.warn('[podcastService] sync_podcast_episodes error:', error.message);
+      }
+
+      const syncedCount = (rpcRes as { synced?: number })?.synced ?? newerEpisodes.length;
+      return {
+        hasNew: newerEpisodes.length > 0,
+        count: syncedCount,
+      };
+    } catch (e) {
+      console.warn('[podcastService] autoSyncLatest failed gracefully:', e);
+      return { hasNew: false, count: 0 };
+    }
+  },
+
+  /**
    * Fetch a paginated slice of episodes from the Supabase cache.
-   * All filtering and sorting happens in the database — no RSS fetch.
+   * Seamlessly merges any brand new RSS episodes into the top of the list.
    */
   async getEpisodes(query: EpisodeQuery = {}): Promise<EpisodePage> {
     const { search = '', sort = 'newest', page = 0, fromDate, toDate } = query;
@@ -146,7 +221,7 @@ export const podcastService = {
 
     // Fallback to client-side RSS if the database is completely empty
     if (total === 0 && !search && !fromDate && !toDate) {
-      const fallback = await fetchFallbackRSS();
+      const fallback = inMemoryLatestRss.length > 0 ? inMemoryLatestRss : await fetchFallbackRSS();
       total = fallback.length;
       
       // RSS is typically newest first. If they want oldest first:
@@ -155,6 +230,21 @@ export const podcastService = {
       }
       
       episodes = fallback.slice(from, to + 1);
+    } else if (page === 0 && sort === 'newest' && !search && !fromDate && !toDate && inMemoryLatestRss.length > 0) {
+      // If we have newer RSS episodes in memory that are newer than the top database row,
+      // merge them so the user sees them immediately even if DB write is in progress.
+      const topDbDate = episodes[0]?.pub_date ? new Date(episodes[0].pub_date).getTime() : 0;
+      const freshItems = inMemoryLatestRss.filter((ep) => {
+        const epDate = ep.pub_date ? new Date(ep.pub_date).getTime() : 0;
+        return epDate > topDbDate;
+      });
+
+      if (freshItems.length > 0) {
+        const seen = new Set(freshItems.map((e) => e.rss_guid));
+        const merged = [...freshItems, ...episodes.filter((e) => !seen.has(e.rss_guid))];
+        episodes = merged.slice(0, PAGE_SIZE);
+        total += freshItems.length;
+      }
     }
 
     const hasMore = from + episodes.length < total;

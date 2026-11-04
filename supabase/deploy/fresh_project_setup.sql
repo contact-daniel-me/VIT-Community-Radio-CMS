@@ -5559,6 +5559,113 @@ grant select on public.v_public_studio_calendar to anon, authenticated;
 
 
 -- ###########################################################################
+-- SOURCE: supabase/migrations/20260923000001_audio_upload_limit_50mb.sql
+-- ###########################################################################
+
+
+-- =============================================================================
+-- Migration: 20260923000001_audio_upload_limit_50mb.sql
+-- Description: Update audio file upload limit from 200 MB to 50 MB (52,428,800 bytes)
+-- =============================================================================
+
+-- 1. Clamp any legacy development / test audio files that exceed 50 MB
+update public.audio_files
+set file_size = 52428800
+where file_size > 52428800;
+
+-- 2. Update audio_files check constraint to 50 MB
+alter table public.audio_files
+  drop constraint if exists audio_files_file_size_check;
+
+alter table public.audio_files
+  add constraint audio_files_file_size_check
+  check (file_size > 0 and file_size <= 52428800);
+
+-- 3. Update radio-audio bucket file size limit to 50 MB (52,428,800 bytes)
+update storage.buckets
+set file_size_limit = 52428800
+where id = 'radio-audio';
+
+
+
+-- ###########################################################################
+-- SOURCE: supabase/migrations/20260924000001_sync_podcast_episodes_rpc.sql
+-- ###########################################################################
+
+
+-- =============================================================================
+-- Migration: 20260924000001_sync_podcast_episodes_rpc.sql
+-- Description: RPC function to sync podcast episodes from public RSS feed
+-- =============================================================================
+
+create or replace function public.sync_podcast_episodes(p_episodes jsonb)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_inserted integer := 0;
+  v_total integer := 0;
+begin
+  if p_episodes is null or jsonb_array_length(p_episodes) = 0 then
+    select count(*) into v_total from public.podcast_episodes;
+    return json_build_object('success', true, 'synced', 0, 'total', v_total);
+  end if;
+
+  insert into public.podcast_episodes (
+    rss_guid,
+    title,
+    description,
+    audio_url,
+    spotify_url,
+    artwork_url,
+    duration,
+    pub_date,
+    episode_number,
+    last_synced_at
+  )
+  select
+    item->>'rss_guid',
+    coalesce(nullif(btrim(item->>'title'), ''), 'Untitled Episode'),
+    item->>'description',
+    item->>'audio_url',
+    item->>'spotify_url',
+    item->>'artwork_url',
+    item->>'duration',
+    nullif(item->>'pub_date', '')::timestamptz,
+    nullif(item->>'episode_number', '')::integer,
+    now()
+  from jsonb_array_elements(p_episodes) as item
+  where item->>'rss_guid' is not null
+    and item->>'audio_url' is not null
+  on conflict (rss_guid) do update set
+    title          = excluded.title,
+    description    = coalesce(excluded.description, podcast_episodes.description),
+    audio_url      = excluded.audio_url,
+    spotify_url    = coalesce(excluded.spotify_url, podcast_episodes.spotify_url),
+    artwork_url    = coalesce(excluded.artwork_url, podcast_episodes.artwork_url),
+    duration       = coalesce(excluded.duration, podcast_episodes.duration),
+    pub_date       = coalesce(excluded.pub_date, podcast_episodes.pub_date),
+    episode_number = coalesce(excluded.episode_number, podcast_episodes.episode_number),
+    last_synced_at = now();
+
+  get diagnostics v_inserted = row_count;
+  select count(*) into v_total from public.podcast_episodes;
+
+  return json_build_object(
+    'success', true,
+    'synced', v_inserted,
+    'total', v_total
+  );
+end;
+$$;
+
+-- Allow public and authenticated callers to sync podcast episodes cache
+grant execute on function public.sync_podcast_episodes(jsonb) to anon, authenticated;
+
+
+-- ###########################################################################
 -- SOURCE: supabase/seed.sql
 -- ###########################################################################
 
@@ -5783,12 +5890,12 @@ values
   ('c0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001',
    'campus-connect-12.mp3',
    'episodes/b0000000-0000-4000-8000-000000000001/campus-connect-12.mp3',
-   'audio/mpeg', 55680000, 3480, '33333333-3333-4333-8333-333333333333'),
+   'audio/mpeg', 45680000, 3480, '33333333-3333-4333-8333-333333333333'),
 
   ('c0000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000002',
    'campus-pulse-34.mp3',
    'episodes/b0000000-0000-4000-8000-000000000002/campus-pulse-34.mp3',
-   'audio/mpeg', 56800000, 3550, '44444444-4444-4444-8444-444444444444'),
+   'audio/mpeg', 46800000, 3550, '44444444-4444-4444-8444-444444444444'),
 
   ('c0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000003',
    'vit-voices-07.mp3',
@@ -5803,12 +5910,12 @@ values
   ('c0000000-0000-4000-8000-000000000005', 'b0000000-0000-4000-8000-000000000005',
    'campus-connect-13.mp3',
    'episodes/b0000000-0000-4000-8000-000000000005/campus-connect-13.mp3',
-   'audio/mpeg', 52800000, 3300, '33333333-3333-4333-8333-333333333333'),
+   'audio/mpeg', 42800000, 3300, '33333333-3333-4333-8333-333333333333'),
 
   ('c0000000-0000-4000-8000-000000000006', 'b0000000-0000-4000-8000-000000000006',
    'campus-pulse-35.mp3',
    'episodes/b0000000-0000-4000-8000-000000000006/campus-pulse-35.mp3',
-   'audio/mpeg', 57600000, 3600, '44444444-4444-4444-8444-444444444444'),
+   'audio/mpeg', 47600000, 3600, '44444444-4444-4444-8444-444444444444'),
 
   ('c0000000-0000-4000-8000-000000000007', 'b0000000-0000-4000-8000-000000000007',
    'vit-voices-08-cut1.mp3',

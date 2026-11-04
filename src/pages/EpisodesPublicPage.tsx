@@ -22,6 +22,7 @@ export function EpisodesPublicPage() {
 
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Debounce search input.
@@ -59,6 +60,32 @@ export function EpisodesPublicPage() {
 
   useEffect(() => {
     void loadFirst();
+  }, [loadFirst]);
+
+  // Automatically check for and sync latest episodes from Spotify RSS on mount and every 3 minutes
+  useEffect(() => {
+    let mounted = true;
+    const runAutoSync = async (force = false) => {
+      try {
+        const { hasNew } = await podcastService.autoSyncLatest(force);
+        if (mounted && hasNew) {
+          void loadFirst();
+        }
+      } catch {
+        // Non-blocking background sync
+      }
+    };
+
+    void runAutoSync();
+
+    const interval = setInterval(() => {
+      void runAutoSync();
+    }, 3 * 60 * 1000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, [loadFirst]);
 
   // Load the next page without replacing existing episodes.
@@ -103,9 +130,37 @@ export function EpisodesPublicPage() {
               <p className="eyebrow">On demand</p>
               <h1 className="section-title">Episodes Library</h1>
             </div>
-            <p className="section-note">
-              {loading ? 'Loading…' : `${total.toLocaleString()} episodes`}
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <p className="section-note">
+                {loading ? 'Loading…' : `${total.toLocaleString()} episodes`}
+              </p>
+              <button
+                type="button"
+                className="btn btn-outline small"
+                title="Sync latest episodes from Spotify RSS"
+                onClick={async () => {
+                  setSyncing(true);
+                  try {
+                    await podcastService.autoSyncLatest(true);
+                    await loadFirst();
+                  } finally {
+                    setSyncing(false);
+                  }
+                }}
+                disabled={syncing || loading}
+                style={{
+                  padding: '0.2rem 0.6rem',
+                  fontSize: '0.78rem',
+                  borderRadius: '6px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  cursor: syncing ? 'wait' : 'pointer',
+                }}
+              >
+                {syncing ? '↻ Syncing…' : '↻ Sync latest'}
+              </button>
+            </div>
           </div>
 
           <div className="episodes-controls-wrapper">

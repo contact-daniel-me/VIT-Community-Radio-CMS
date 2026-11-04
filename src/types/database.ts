@@ -989,6 +989,16 @@ export type Database = {
         };
         Returns: EpisodeRow;
       };
+      sync_podcast_episodes: {
+        Args: {
+          p_episodes: Json;
+        };
+        Returns: {
+          success: boolean;
+          synced: number;
+          total: number;
+        };
+      };
     };
     Enums: {
       user_role: UserRole;

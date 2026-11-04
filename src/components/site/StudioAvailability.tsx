@@ -4,6 +4,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/hooks/useAuth';
 import { StudioCalendar, StudioDayList } from '@/components/studio/StudioCalendar';
 import { BookingDialog } from '@/components/studio/BookingDialog';
+import { BookingNotesDialog } from '@/components/studio/BookingNotesDialog';
 import { UnifiedStatusBadge } from '@/components/ui';
 import { bookingService, type BookingWithPeople } from '@/services/bookingService';
 import { can } from '@/lib/permissions';
@@ -12,6 +13,7 @@ import {
   addDays,
   addMonths,
   addYears,
+  extractBookingScript,
   formatBookingDate,
   formatSlotTime,
   getDisplayNotes,
@@ -33,6 +35,7 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
   const [monday, setMonday] = useState(() => mondayOf(new Date()));
   const [selected, setSelected] = useState<CalendarSlot | null>(null);
   const [prompt, setPrompt] = useState<CalendarSlot | null>(null);
+  const [viewingNotesBooking, setViewingNotesBooking] = useState<BookingWithPeople | null>(null);
   const [activeDay, setActiveDay] = useState(() => {
     const today = isoDate(new Date());
     const days = weekdaysFrom(mondayOf(new Date()));
@@ -424,6 +427,15 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
                       b.episode?.title,
                     );
                     const cleanNotes = getDisplayNotes(b.notes);
+                    const script = extractBookingScript(b.notes);
+                    const hasNotes = Boolean(b.notes && b.notes.trim());
+                    const preview =
+                      cleanNotes ||
+                      (script
+                        ? script.type === 'file'
+                          ? `Script file: ${script.content}`
+                          : script.content
+                        : b.notes?.trim());
                     return (
                       <tr
                         key={b.id}
@@ -488,14 +500,41 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
                         <td>
                           <UnifiedStatusBadge booking={b} episode={b.episode} />
                         </td>
-                        <td
-                          style={{
-                            maxWidth: '220px',
-                            fontSize: '0.82rem',
-                            color: 'var(--ink-muted)',
-                          }}
-                        >
-                          {cleanNotes || (
+                        <td className="studio-notes-col">
+                          {hasNotes ? (
+                            <div className="studio-notes-cell">
+                              <span
+                                className="studio-notes-preview"
+                                title="Click to view full notes and script"
+                                onClick={() => setViewingNotesBooking(b)}
+                              >
+                                {preview}
+                              </span>
+                              <button
+                                type="button"
+                                className="studio-notes-view-btn"
+                                title="View full notes"
+                                aria-label={`View notes for ${b.reference}`}
+                                onClick={() => setViewingNotesBooking(b)}
+                              >
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  width="13"
+                                  height="13"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  aria-hidden="true"
+                                >
+                                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                  <circle cx="12" cy="12" r="3" />
+                                </svg>
+                                <span>View</span>
+                              </button>
+                            </div>
+                          ) : (
                             <span style={{ color: 'var(--ink-faint)' }}>&mdash;</span>
                           )}
                         </td>
@@ -579,6 +618,30 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
           }
           onClose={() => setSelected(null)}
           onBooked={refresh}
+        />
+      )}
+
+      {viewingNotesBooking && (
+        <BookingNotesDialog
+          booking={{
+            reference: viewingNotesBooking.reference,
+            showTitle: getDisplayShowName(
+              viewingNotesBooking.program?.name,
+              viewingNotesBooking.notes,
+              viewingNotesBooking.episode?.title,
+            ),
+            rjName: viewingNotesBooking.rj?.full_name,
+            rjEmail: viewingNotesBooking.rj?.email,
+            date: viewingNotesBooking.booking_date,
+            startTime: viewingNotesBooking.start_time,
+            endTime: viewingNotesBooking.end_time,
+            status: viewingNotesBooking.status,
+            notes: viewingNotesBooking.notes,
+            editorName: viewingNotesBooking.self_edit
+              ? 'Self-edit'
+              : viewingNotesBooking.editor?.full_name,
+          }}
+          onClose={() => setViewingNotesBooking(null)}
         />
       )}
     </section>

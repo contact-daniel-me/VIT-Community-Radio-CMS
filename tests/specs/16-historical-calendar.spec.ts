@@ -4,6 +4,7 @@ import {
   addMonths,
   addYears,
   deriveWeek,
+  extractBookingScript,
   formatBookingDate,
   getDisplayNotes,
   getDisplayShowName,
@@ -143,6 +144,29 @@ Please prepare the studio with 2 microphones.`;
       const clean = getDisplayNotes(rawNotes);
       expect(clean).toBe('Please prepare the studio with 2 microphones.');
       expect(getDisplayNotes('[Show: Test]')).toBeNull();
+
+      // Handles inline space format without initial newline
+      const inlineNotes = 'Need audio recorded [Submitted Script: # TITLE: Story concept and characters]';
+      expect(getDisplayNotes(inlineNotes)).toBe('Need audio recorded');
+    });
+
+    it('extracts text and file scripts accurately for view dialog', () => {
+      const textScriptNotes = 'Check mic [Submitted Script: Scene 1: Morning at campus]';
+      const extractedText = extractBookingScript(textScriptNotes);
+      expect(extractedText).toEqual({
+        type: 'text',
+        content: 'Scene 1: Morning at campus',
+      });
+
+      const fileScriptNotes = '[Submitted Script File: ep1-final-script.pdf]';
+      const extractedFile = extractBookingScript(fileScriptNotes);
+      expect(extractedFile).toEqual({
+        type: 'file',
+        content: 'ep1-final-script.pdf',
+      });
+
+      expect(extractBookingScript('Just regular notes')).toBeNull();
+      expect(extractBookingScript(null)).toBeNull();
     });
   });
 

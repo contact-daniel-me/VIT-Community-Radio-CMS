@@ -316,11 +316,27 @@ export function getDisplayShowName(
 export function getDisplayNotes(notes?: string | null): string | null {
   if (!notes) return null;
   const cleaned = notes
-    .replace(/^\[(?:Show|Other Show|Special Link|Studio Tour):\s*[^\]]+\]\n?/i, '')
-    .replace(/\[Submitted Script:\n[\s\S]*?\n\]/g, '')
-    .replace(/\[Submitted Script File:\s*[^\]]+\]/g, '')
+    .replace(/^\[(?:Show|Other Show|Special Link|Studio Tour):\s*[^\]]+\]\r?\n?/i, '')
+    .replace(/\[Submitted Script:\s*[\s\S]*?(?:\]\r?\n?|\]|$)/gi, '')
+    .replace(/\[Submitted Script File:\s*[^\]]+\]/gi, '')
     .trim();
   return cleaned || null;
 }
+
+export function extractBookingScript(
+  notes?: string | null,
+): { type: 'text' | 'file'; content: string } | null {
+  if (!notes) return null;
+  const fileMatch = notes.match(/\[Submitted Script File:\s*([^\]]+)\]/i);
+  if (fileMatch) {
+    return { type: 'file', content: fileMatch[1].trim() };
+  }
+  const textMatch = notes.match(/\[Submitted Script:\s*([\s\S]*?)(?:\]\s*$|\])/i);
+  if (textMatch) {
+    return { type: 'text', content: textMatch[1].trim() };
+  }
+  return null;
+}
+
 
 

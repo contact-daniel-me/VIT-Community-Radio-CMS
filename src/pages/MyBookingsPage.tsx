@@ -12,6 +12,7 @@ import { formatDateTime } from '@/utils/datetime';
 import {
   formatBookingDate,
   formatSlotTime,
+  extractBookingScript,
   getDisplayNotes,
   getDisplayShowName,
   isStudioTourBooking,
@@ -21,18 +22,7 @@ import type { StudioBookingRequestRow } from '@/types/database';
 
 type Tab = 'upcoming' | 'past' | 'cancelled' | 'requests';
 
-function getDisplayScript(notes?: string | null): { type: 'text' | 'file'; content: string } | null {
-  if (!notes) return null;
-  const textMatch = notes.match(/\[Submitted Script:\n([\s\S]*?)\n\]/);
-  if (textMatch) {
-    return { type: 'text', content: textMatch[1].trim() };
-  }
-  const fileMatch = notes.match(/\[Submitted Script File:\s*([^\]]+)\]/);
-  if (fileMatch) {
-    return { type: 'file', content: fileMatch[1].trim() };
-  }
-  return null;
-}
+const getDisplayScript = extractBookingScript;
 
 export function MyBookingsPage() {
   const profile = useCurrentUser();

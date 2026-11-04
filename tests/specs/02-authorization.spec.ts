@@ -128,15 +128,24 @@ describe('row level security', () => {
     );
   });
 
-  it('gives nobody a DELETE path on programs, episodes or schedules', async () => {
-    // Not even a filtered no-op: DELETE is never granted, so these fail outright.
-    // Business rule 13 -- deactivate, archive or cancel instead.
-    for (const table of ['programs', 'episodes', 'schedules']) {
+  it('gives nobody a DELETE path on programs or episodes, and non-admins cannot delete schedules', async () => {
+    // Programs and episodes have no direct DELETE path.
+    for (const table of ['programs', 'episodes']) {
       await expectFailure(
         () => db.asUser(admin, `delete from public.${table}`),
         /permission denied/i,
       );
     }
+    // Schedules cannot be deleted by non-admin users
+    await expectFailure(
+      () => db.asUser(rjOwner, `select public.delete_schedule('00000000-0000-0000-0000-000000000001'::uuid)`),
+      /Only administrators can delete/i,
+    );
+    const rjDelete = await db.asUser(
+      rjOwner,
+      `delete from public.schedules where id = '00000000-0000-0000-0000-000000000001' returning id`,
+    );
+    expect(rjDelete.length).toBe(0);
   });
 
   // ---------------------------------------------------------------------------

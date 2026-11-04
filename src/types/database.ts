@@ -937,6 +937,10 @@ export type Database = {
         Args: { p_schedule_id: string; p_reason?: string | null };
         Returns: ScheduleRow;
       };
+      delete_schedule: {
+        Args: { p_schedule_id: string };
+        Returns: void;
+      };
       start_broadcast: { Args: { p_schedule_id: string }; Returns: BroadcastStateRow };
       end_broadcast: { Args: Record<PropertyKey, never>; Returns: BroadcastStateRow };
       sync_broadcast_state: { Args: Record<PropertyKey, never>; Returns: BroadcastStateRow };

@@ -116,9 +116,26 @@ export const scheduleService = {
   },
 
   async deleteSchedule(id: string): Promise<void> {
-    const { count, error } = await supabase.from('schedules').delete({ count: 'exact' }).eq('id', id);
-    if (error) throw new Error(error.message);
-    if (count === 0) throw new Error('You do not have permission to delete this schedule, or it does not exist.');
+    const { error: rpcError } = await supabase.rpc('delete_schedule', { p_schedule_id: id });
+    if (!rpcError) {
+      return;
+    }
+
+    // If the RPC does not exist yet (e.g. migration hasn't been applied to remote db yet), fall back to direct delete
+    const isMissingRpc =
+      rpcError.code === 'PGRST202' ||
+      rpcError.message?.toLowerCase().includes('could not find the function') ||
+      rpcError.message?.toLowerCase().includes('function public.delete_schedule') ||
+      rpcError.message?.toLowerCase().includes('does not exist');
+
+    if (isMissingRpc) {
+      const { count, error } = await supabase.from('schedules').delete({ count: 'exact' }).eq('id', id);
+      if (error) throw new Error(error.message);
+      if (count === 0) throw new Error('You do not have permission to delete this schedule, or it does not exist.');
+      return;
+    }
+
+    throw new Error(rpcError.message);
   },
 
   /**

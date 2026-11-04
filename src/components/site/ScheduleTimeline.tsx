@@ -1,5 +1,6 @@
 import type { PublicScheduleRow } from '@/types/database';
 import { formatTime } from '@/utils/datetime';
+import { ConfirmButton } from '@/components/ui';
 
 type SlotState = 'live' | 'next' | 'done' | 'later';
 
@@ -29,7 +30,15 @@ const STATE_LABEL: Record<SlotState, string> = {
   later: '',
 };
 
-export function ScheduleTimeline({ slots }: { slots: PublicScheduleRow[] }) {
+export function ScheduleTimeline({
+  slots,
+  isAdmin = false,
+  onDelete,
+}: {
+  slots: PublicScheduleRow[];
+  isAdmin?: boolean;
+  onDelete?: (id: string) => Promise<void> | void;
+}) {
   const now = Date.now();
   const nextId =
     slots.find((s) => s.status !== 'COMPLETED' && new Date(s.end_time).getTime() > now)?.id ??
@@ -71,6 +80,28 @@ export function ScheduleTimeline({ slots }: { slots: PublicScheduleRow[] }) {
 
             {STATE_LABEL[state] && (
               <span className={`timeline-state state-${state}`}>{STATE_LABEL[state]}</span>
+            )}
+
+            {isAdmin && onDelete && (
+              <div className="timeline-admin-actions" style={{ marginLeft: '1rem', alignSelf: 'center' }}>
+                {slot.status === 'ON_AIR' ? (
+                  <span
+                    className="small muted"
+                    title="Cannot delete while broadcast is on air"
+                    style={{ fontSize: '0.8rem', opacity: 0.7 }}
+                  >
+                    On Air
+                  </span>
+                ) : (
+                  <ConfirmButton
+                    className="small danger outline"
+                    confirmLabel="Delete slot?"
+                    onConfirm={() => void onDelete(slot.id)}
+                  >
+                    Delete
+                  </ConfirmButton>
+                )}
+              </div>
             )}
           </li>
         );

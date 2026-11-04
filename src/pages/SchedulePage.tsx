@@ -382,8 +382,19 @@ export function SchedulePage() {
                     {slot.episode_title ?? 'Live show'}
                   </span>
                 </span>
-                <span className="small muted">
-                  {formatDate(slot.start_time)} &middot; {formatTime(slot.start_time)}
+                <span className="row" style={{ gap: '0.75rem', alignItems: 'center' }}>
+                  <span className="small muted">
+                    {formatDate(slot.start_time)} &middot; {formatTime(slot.start_time)}
+                  </span>
+                  {profile.role === 'ADMIN' && (
+                    <ConfirmButton
+                      className="small danger outline"
+                      confirmLabel="Delete forever?"
+                      onConfirm={() => void remove(slot.id)}
+                    >
+                      Delete
+                    </ConfirmButton>
+                  )}
                 </span>
               </div>
             ))}

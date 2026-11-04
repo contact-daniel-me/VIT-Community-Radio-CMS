@@ -1225,6 +1225,12 @@
 /* ---------- Historical Studio Bookings Table ----------------------------- */
 .studio-historical-card {
   padding: 1.25rem 1.4rem;
+  overflow: hidden;
+}
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .studio-historical-table {
   width: 100%;
@@ -1260,32 +1266,30 @@
   border-radius: var(--r-sm);
   background: var(--bg-sunk);
   border: 1px solid var(--border);
+  white-space: nowrap;
 }
 
 /* ---------- Studio Historical Notes Column & Modal ------------------------ */
 .studio-notes-col {
-  max-width: 260px;
-  min-width: 180px;
+  max-width: 240px;
+  min-width: 150px;
 }
 .studio-notes-cell {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  justify-content: space-between;
+  gap: 0.45rem;
+  justify-content: flex-start;
 }
 .studio-notes-preview {
   flex: 1;
   min-width: 0;
   font-size: 0.82rem;
   color: var(--ink-muted);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: pointer;
-  line-height: 1.35;
-  word-break: break-word;
+  line-height: 1.4;
 }
 .studio-notes-preview:hover {
   color: var(--ink);
@@ -1297,7 +1301,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.22rem 0.55rem;
+  padding: 0.2rem 0.5rem;
   font-size: 0.74rem;
   font-weight: 600;
   color: var(--accent);

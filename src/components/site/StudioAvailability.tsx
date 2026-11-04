@@ -452,13 +452,14 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
                           {formatSlotTime(b.start_time.slice(0, 5))} &ndash;{' '}
                           {formatSlotTime(b.end_time.slice(0, 5))}
                         </td>
-                        <td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
                           <span
                             className="ref-tag"
                             style={{
                               fontFamily: 'var(--font-mono)',
                               fontSize: '0.82rem',
                               fontWeight: 600,
+                              whiteSpace: 'nowrap',
                             }}
                           >
                             {b.reference}
@@ -476,19 +477,26 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
                               </div>
                             )}
                         </td>
-                        <td>
-                          <div style={{ fontWeight: 550 }}>
+                        <td style={{ maxWidth: '190px' }}>
+                          <div style={{ fontWeight: 550, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {b.rj?.full_name || 'Unassigned'}
                           </div>
                           {b.rj?.email && (
                             <div
-                              style={{ fontSize: '0.78rem', color: 'var(--ink-faint)' }}
+                              style={{
+                                fontSize: '0.78rem',
+                                color: 'var(--ink-faint)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={b.rj.email}
                             >
                               {b.rj.email}
                             </div>
                           )}
                         </td>
-                        <td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
                           {b.self_edit ? (
                             <span className="badge badge-grey">Self-edit</span>
                           ) : b.editor?.full_name ? (
@@ -497,7 +505,7 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
                             <span style={{ color: 'var(--ink-faint)' }}>&mdash;</span>
                           )}
                         </td>
-                        <td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
                           <UnifiedStatusBadge booking={b} episode={b.episode} />
                         </td>
                         <td className="studio-notes-col">

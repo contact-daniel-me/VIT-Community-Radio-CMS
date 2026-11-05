@@ -101,11 +101,11 @@ export function HomepageScheduleDialog({
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const applyTodayMidnightExpiry = () => {
+  const applySameDayMidnightExpiry = () => {
     setHasExpiry(true);
     const todayStr = toLocalDateString(new Date());
     let targetDate = todayStr;
-    if (mode === 'schedule' && startDate && startDate > todayStr) {
+    if (mode === 'schedule' && startDate) {
       targetDate = startDate;
     }
     setEndDate(targetDate);
@@ -468,9 +468,9 @@ export function HomepageScheduleDialog({
                         type="button"
                         className="small secondary"
                         style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }}
-                        onClick={applyTodayMidnightExpiry}
+                        onClick={applySameDayMidnightExpiry}
                       >
-                        Today (11:59 PM)
+                        Same Day (11:59 PM)
                       </button>
                       <button
                         type="button"

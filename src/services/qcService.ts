@@ -108,6 +108,90 @@ export function computeEpisodeLifecycle(
   };
 }
 
+function toEpoch(iso: string | null | undefined): number {
+  if (!iso) return 0;
+  const t = new Date(iso).getTime();
+  return isNaN(t) ? 0 : t;
+}
+
+export function getEpisodeReviewedDate(ep: EpisodeWithRelations | EpisodeWithLifecycle): string {
+  return ep.reviewed_at ?? ep.updated_at ?? ep.submitted_at ?? ep.created_at ?? '';
+}
+
+export function getEpisodeScheduledDate(ep: EpisodeWithLifecycle): string {
+  const dates: number[] = [];
+  if (ep.activeSchedule?.start_time) {
+    const t = toEpoch(ep.activeSchedule.start_time);
+    if (t > 0) dates.push(t);
+  }
+  if (ep.homepageScheduledAt) {
+    const t = toEpoch(ep.homepageScheduledAt);
+    if (t > 0) dates.push(t);
+  } else if (ep.homepage_publish_at) {
+    const t = toEpoch(ep.homepage_publish_at);
+    if (t > 0) dates.push(t);
+  }
+  if (dates.length > 0) {
+    dates.sort((a, b) => a - b);
+    return new Date(dates[0]).toISOString();
+  }
+  return getEpisodeReviewedDate(ep);
+}
+
+export function getEpisodePublicationDate(ep: EpisodeWithLifecycle): string {
+  return ep.publishedAt ?? ep.homepage_publish_at ?? ep.reviewed_at ?? ep.updated_at ?? '';
+}
+
+/**
+ * Reorganizes QC Done episodes in the requested business order:
+ * 1. Not Scheduled (top) – sorted by QC review/completion date (newest first).
+ * 2. Scheduled (middle) – sorted by scheduled broadcast/release date (nearest upcoming first).
+ * 3. Published (bottom) – sorted by actual publication date (most recently published first).
+ */
+export function sortCompletedQCEpisodes(episodes: EpisodeWithLifecycle[]): EpisodeWithLifecycle[] {
+  const STATUS_PRIORITY: Record<BroadcastLifecycleStatus, number> = {
+    NOT_SCHEDULED: 1,
+    SCHEDULED: 2,
+    PUBLISHED: 3,
+  };
+
+  return [...episodes].sort((a, b) => {
+    // 1. Status Ordering: NOT_SCHEDULED (1) -> SCHEDULED (2) -> PUBLISHED (3)
+    const priorityDiff = STATUS_PRIORITY[a.lifecycleStatus] - STATUS_PRIORITY[b.lifecycleStatus];
+    if (priorityDiff !== 0) return priorityDiff;
+
+    // 2. Intra-category date ordering:
+    if (a.lifecycleStatus === 'NOT_SCHEDULED') {
+      // Newest QC review / completion date first (descending)
+      const diff = toEpoch(getEpisodeReviewedDate(b)) - toEpoch(getEpisodeReviewedDate(a));
+      if (diff !== 0) return diff;
+      return (a.title || '').localeCompare(b.title || '');
+    }
+
+    if (a.lifecycleStatus === 'SCHEDULED') {
+      // Nearest upcoming release date first (ascending: earlier date comes first)
+      const diff = toEpoch(getEpisodeScheduledDate(a)) - toEpoch(getEpisodeScheduledDate(b));
+      if (diff !== 0) return diff;
+      // Tie-breaker: newest reviewed first
+      const revDiff = toEpoch(getEpisodeReviewedDate(b)) - toEpoch(getEpisodeReviewedDate(a));
+      if (revDiff !== 0) return revDiff;
+      return (a.title || '').localeCompare(b.title || '');
+    }
+
+    if (a.lifecycleStatus === 'PUBLISHED') {
+      // Most recently published first (descending: newer publication date comes first)
+      const diff = toEpoch(getEpisodePublicationDate(b)) - toEpoch(getEpisodePublicationDate(a));
+      if (diff !== 0) return diff;
+      // Tie-breaker: newest reviewed first
+      const revDiff = toEpoch(getEpisodeReviewedDate(b)) - toEpoch(getEpisodeReviewedDate(a));
+      if (revDiff !== 0) return revDiff;
+      return (a.title || '').localeCompare(b.title || '');
+    }
+
+    return 0;
+  });
+}
+
 export const qcService = {
   /** Oldest submission first: the QC desk works a queue, not a pile. */
   async getPendingQC(): Promise<EpisodeWithRelations[]> {
@@ -190,10 +274,10 @@ export const qcService = {
       };
     });
 
-    return withLifecycle.sort((a, b) =>
-      (b.reviewed_at ?? b.updated_at ?? '').localeCompare(a.reviewed_at ?? a.updated_at ?? ''),
-    );
+    return sortCompletedQCEpisodes(withLifecycle);
   },
+
+  sortCompletedQC: sortCompletedQCEpisodes,
 
   getLifecycleCounts(episodes: EpisodeWithLifecycle[]): LifecycleCounts {
     let notScheduled = 0;

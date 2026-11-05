@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { describe, it, expect } from 'vitest';
-import { computeEpisodeLifecycle, qcService, type EpisodeWithLifecycle } from '@/services/qcService';
+import { computeEpisodeLifecycle, qcService, sortCompletedQCEpisodes, type EpisodeWithLifecycle } from '@/services/qcService';
 import type { EpisodeWithRelations } from '@/services/episodeService';
 import type { ScheduleRow } from '@/types/database';
 
@@ -254,6 +254,140 @@ describe('Broadcast Lifecycle Tracking in QC Dashboard', () => {
       expect(counts.notScheduled).toBe(2);
       expect(counts.scheduled).toBe(1);
       expect(counts.published).toBe(1);
+    });
+  });
+
+  describe('Scenario 8: QC Status Ordering & Date-Wise Grouping', () => {
+    it('orders categories: Not Scheduled (top) -> Scheduled (middle) -> Published (bottom)', () => {
+      const pub: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'ep-pub', title: 'Published Episode' }),
+        lifecycleStatus: 'PUBLISHED',
+        publishedAt: '2026-11-05T10:00:00Z',
+      };
+      const sched: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'ep-sched', title: 'Scheduled Episode' }),
+        lifecycleStatus: 'SCHEDULED',
+        activeSchedule: createMockSchedule({ start_time: '2026-11-07T10:00:00Z' }),
+      };
+      const notSched: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'ep-not-sched', title: 'Not Scheduled Episode' }),
+        lifecycleStatus: 'NOT_SCHEDULED',
+        reviewed_at: '2026-11-05T09:00:00Z',
+      };
+
+      // Input in mixed order: Published first, Scheduled second, Not Scheduled third
+      const sorted = sortCompletedQCEpisodes([pub, sched, notSched]);
+
+      expect(sorted.map((e) => e.id)).toEqual(['ep-not-sched', 'ep-sched', 'ep-pub']);
+      expect(sorted[0].lifecycleStatus).toBe('NOT_SCHEDULED');
+      expect(sorted[1].lifecycleStatus).toBe('SCHEDULED');
+      expect(sorted[2].lifecycleStatus).toBe('PUBLISHED');
+    });
+
+    it('sorts Not Scheduled episodes by QC completion date (newest first)', () => {
+      const olderNotSched: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'ep-older', title: 'Older Review', reviewed_at: '2026-11-01T10:00:00Z' }),
+        lifecycleStatus: 'NOT_SCHEDULED',
+      };
+      const newerNotSched: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'ep-newer', title: 'Newer Review', reviewed_at: '2026-11-05T14:00:00Z' }),
+        lifecycleStatus: 'NOT_SCHEDULED',
+      };
+      const newestNotSched: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'ep-newest', title: 'Newest Review', reviewed_at: '2026-11-05T18:00:00Z' }),
+        lifecycleStatus: 'NOT_SCHEDULED',
+      };
+
+      const sorted = sortCompletedQCEpisodes([olderNotSched, newestNotSched, newerNotSched]);
+
+      expect(sorted.map((e) => e.id)).toEqual(['ep-newest', 'ep-newer', 'ep-older']);
+    });
+
+    it('sorts Scheduled episodes by nearest upcoming release date first (ascending)', () => {
+      const laterSched: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'ep-later', title: 'Later Next Week' }),
+        lifecycleStatus: 'SCHEDULED',
+        homepageScheduledAt: '2026-11-10T09:00:00Z', // 10 Nov
+      };
+      const soonerSched: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'ep-sooner', title: 'Tomorrow Morning' }),
+        lifecycleStatus: 'SCHEDULED',
+        activeSchedule: createMockSchedule({ start_time: '2026-11-06T09:00:00Z' }), // 6 Nov
+      };
+      const middleSched: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'ep-middle', title: 'This Weekend' }),
+        lifecycleStatus: 'SCHEDULED',
+        homepageScheduledAt: '2026-11-08T10:00:00Z', // 8 Nov
+      };
+
+      const sorted = sortCompletedQCEpisodes([laterSched, soonerSched, middleSched]);
+
+      // Nearest upcoming release date first: 6 Nov -> 8 Nov -> 10 Nov
+      expect(sorted.map((e) => e.id)).toEqual(['ep-sooner', 'ep-middle', 'ep-later']);
+    });
+
+    it('sorts Published episodes by most recently published first (descending)', () => {
+      const earlierPub: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'ep-pub-earlier', title: 'Published 3 days ago' }),
+        lifecycleStatus: 'PUBLISHED',
+        publishedAt: '2026-11-02T10:00:00Z',
+      };
+      const latestPub: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'ep-pub-latest', title: 'Published today' }),
+        lifecycleStatus: 'PUBLISHED',
+        publishedAt: '2026-11-05T14:00:00Z',
+      };
+      const middlePub: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'ep-pub-middle', title: 'Published yesterday' }),
+        lifecycleStatus: 'PUBLISHED',
+        publishedAt: '2026-11-04T10:00:00Z',
+      };
+
+      const sorted = sortCompletedQCEpisodes([earlierPub, latestPub, middlePub]);
+
+      // Most recently published first: 5 Nov -> 4 Nov -> 2 Nov
+      expect(sorted.map((e) => e.id)).toEqual(['ep-pub-latest', 'ep-pub-middle', 'ep-pub-earlier']);
+    });
+
+    it('correctly orders a complete mixed list with all criteria combined', () => {
+      const ns1: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'ns-1', reviewed_at: '2026-11-05T16:00:00Z' }),
+        lifecycleStatus: 'NOT_SCHEDULED',
+      };
+      const ns2: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'ns-2', reviewed_at: '2026-11-03T10:00:00Z' }),
+        lifecycleStatus: 'NOT_SCHEDULED',
+      };
+      const sc1: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'sc-1' }),
+        lifecycleStatus: 'SCHEDULED',
+        activeSchedule: createMockSchedule({ start_time: '2026-11-06T09:00:00Z' }),
+      };
+      const sc2: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'sc-2' }),
+        lifecycleStatus: 'SCHEDULED',
+        homepageScheduledAt: '2026-11-10T12:00:00Z',
+      };
+      const pb1: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'pb-1' }),
+        lifecycleStatus: 'PUBLISHED',
+        publishedAt: '2026-11-05T12:00:00Z',
+      };
+      const pb2: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'pb-2' }),
+        lifecycleStatus: 'PUBLISHED',
+        publishedAt: '2026-11-01T10:00:00Z',
+      };
+
+      // Shuffled input
+      const input = [pb2, sc2, ns2, pb1, ns1, sc1];
+      const result = sortCompletedQCEpisodes(input);
+
+      // Expected:
+      // 1. Not Scheduled (top): ns-1 (Nov 5) -> ns-2 (Nov 3)
+      // 2. Scheduled (middle): sc-1 (Nov 6) -> sc-2 (Nov 10)
+      // 3. Published (bottom): pb-1 (Nov 5) -> pb-2 (Nov 1)
+      expect(result.map((e) => e.id)).toEqual(['ns-1', 'ns-2', 'sc-1', 'sc-2', 'pb-1', 'pb-2']);
     });
   });
 });

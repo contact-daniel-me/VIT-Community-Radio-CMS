@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
@@ -469,8 +469,58 @@ export function QcPage() {
           </Empty>
         </section>
       ) : (
-        filteredCompleted.map((episode) => (
-          <section key={episode.id} className="card">
+        filteredCompleted.map((episode, index) => {
+          const isFirstOfGroup =
+            lifecycleFilter === 'ALL' &&
+            (index === 0 || filteredCompleted[index - 1].lifecycleStatus !== episode.lifecycleStatus);
+
+          return (
+            <Fragment key={episode.id}>
+              {isFirstOfGroup && (
+                <div
+                  className="row align-center spread wrap"
+                  style={{
+                    marginTop: index === 0 ? '0.2rem' : '1.75rem',
+                    marginBottom: '0.65rem',
+                    paddingBottom: '0.35rem',
+                    borderBottom: '1px solid var(--border)',
+                  }}
+                >
+                  <div className="row align-center" style={{ gap: '0.5rem' }}>
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontSize: '0.95rem',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      {episode.lifecycleStatus === 'NOT_SCHEDULED' && 'Not Scheduled'}
+                      {episode.lifecycleStatus === 'SCHEDULED' && 'Scheduled for Release'}
+                      {episode.lifecycleStatus === 'PUBLISHED' && 'Published'}
+                    </h3>
+                    <span
+                      className={`badge ${
+                        episode.lifecycleStatus === 'NOT_SCHEDULED'
+                          ? 'badge-orange'
+                          : episode.lifecycleStatus === 'SCHEDULED'
+                          ? 'badge-blue'
+                          : 'badge-green'
+                      }`}
+                    >
+                      {filteredCompleted.filter((e) => e.lifecycleStatus === episode.lifecycleStatus).length}
+                    </span>
+                  </div>
+                  <span className="small muted">
+                    {episode.lifecycleStatus === 'NOT_SCHEDULED' && 'Newest reviewed first'}
+                    {episode.lifecycleStatus === 'SCHEDULED' && 'Nearest upcoming release first'}
+                    {episode.lifecycleStatus === 'PUBLISHED' && 'Most recently published first'}
+                  </span>
+                </div>
+              )}
+
+              <section className="card">
             <div className="card-title">
               <div>
                 <div className="row align-center wrap" style={{ gap: '0.5rem', marginBottom: '0.2rem' }}>
@@ -626,9 +676,11 @@ export function QcPage() {
                 />
               </div>
             )}
-          </section>
-        ))
-      )}
+            </section>
+          </Fragment>
+        );
+      })
+    )}
     </>
   );
 }

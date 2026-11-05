@@ -4,20 +4,22 @@ import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { Banner, Empty, UnifiedStatusBadge, Loading, PageHeader } from '@/components/ui';
 import { AudioPlayer } from '@/components/AudioPlayer';
-import { qcService } from '@/services/qcService';
+import { qcService, type EpisodeWithLifecycle, type BroadcastLifecycleStatus } from '@/services/qcService';
 import { episodeService, type EpisodeWithRelations } from '@/services/episodeService';
 import { mixotaService } from '@/services/mixotaService';
 import { can } from '@/lib/permissions';
 import { errorMessage } from '@/lib/errors';
-import { formatDateTime, formatDuration } from '@/utils/datetime';
+import { formatDate, formatDateTime, formatDuration, formatTime } from '@/utils/datetime';
 
 type QcTab = 'pending' | 'done';
+type LifecycleFilter = 'ALL' | BroadcastLifecycleStatus;
 
 export function QcPage() {
   const profile = useCurrentUser();
   const reviewer = can.reviewQC(profile.role);
 
   const [tab, setTab] = useState<QcTab>('pending');
+  const [lifecycleFilter, setLifecycleFilter] = useState<LifecycleFilter>('ALL');
   const [openId, setOpenId] = useState<string | null>(null);
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
@@ -54,8 +56,28 @@ export function QcPage() {
     );
   };
 
+  const completedEpisodes: EpisodeWithLifecycle[] = completedQueue.data ?? [];
+  const lifecycleCounts = qcService.getLifecycleCounts(completedEpisodes);
+
+  const filterCompletedList = (list: EpisodeWithLifecycle[]) => {
+    let result = list;
+    if (lifecycleFilter !== 'ALL') {
+      result = result.filter((ep) => ep.lifecycleStatus === lifecycleFilter);
+    }
+    if (!searchQuery.trim()) return result;
+    const q = searchQuery.toLowerCase();
+    return result.filter(
+      (ep) =>
+        (ep.title || '').toLowerCase().includes(q) ||
+        (ep.program?.name || '').toLowerCase().includes(q) ||
+        (ep.host_name || '').toLowerCase().includes(q) ||
+        (ep.assignee?.full_name || '').toLowerCase().includes(q) ||
+        (ep.episode_id || '').toLowerCase().includes(q),
+    );
+  };
+
   const filteredPending = filterList(pendingQueue.data ?? []);
-  const filteredCompleted = filterList(completedQueue.data ?? []);
+  const filteredCompleted = filterCompletedList(completedEpisodes);
 
   // For non-reviewers
   const minePending = filterList(
@@ -241,9 +263,56 @@ export function QcPage() {
           onClick={() => setTab('done')}
         >
           QC Done
-          <span className="tab-count">{filteredCompleted.length}</span>
+          <span className="tab-count">{completedEpisodes.length}</span>
         </button>
       </div>
+
+      {tab === 'done' && (
+        <div className="tabs-nav-wrap" style={{ marginTop: '0.75rem', marginBottom: '1.25rem' }}>
+          <div className="tabs" role="tablist" aria-label="Broadcast Lifecycle filters" style={{ margin: 0 }}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={lifecycleFilter === 'ALL'}
+              className={`tab ${lifecycleFilter === 'ALL' ? 'is-active' : ''}`}
+              onClick={() => setLifecycleFilter('ALL')}
+            >
+              All Done
+              <span className="tab-count">{lifecycleCounts.all}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={lifecycleFilter === 'NOT_SCHEDULED'}
+              className={`tab ${lifecycleFilter === 'NOT_SCHEDULED' ? 'is-active' : ''}`}
+              onClick={() => setLifecycleFilter('NOT_SCHEDULED')}
+            >
+              Not Scheduled
+              <span className="tab-count">{lifecycleCounts.notScheduled}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={lifecycleFilter === 'SCHEDULED'}
+              className={`tab ${lifecycleFilter === 'SCHEDULED' ? 'is-active' : ''}`}
+              onClick={() => setLifecycleFilter('SCHEDULED')}
+            >
+              Scheduled
+              <span className="tab-count">{lifecycleCounts.scheduled}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={lifecycleFilter === 'PUBLISHED'}
+              className={`tab ${lifecycleFilter === 'PUBLISHED' ? 'is-active' : ''}`}
+              onClick={() => setLifecycleFilter('PUBLISHED')}
+            >
+              Published
+              <span className="tab-count">{lifecycleCounts.published}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       <Banner>{error}</Banner>
       <Banner kind="success">{notice}</Banner>
@@ -364,6 +433,12 @@ export function QcPage() {
           <Empty>
             {searchQuery.trim()
               ? `No completed QC files match "${searchQuery.trim()}".`
+              : lifecycleFilter === 'NOT_SCHEDULED'
+              ? 'No QC-approved episodes are currently unscheduled.'
+              : lifecycleFilter === 'SCHEDULED'
+              ? 'No QC-approved episodes are currently scheduled for broadcast.'
+              : lifecycleFilter === 'PUBLISHED'
+              ? 'No episodes have completed broadcast publishing yet.'
               : 'No episodes have completed QC review yet.'}
           </Empty>
         </section>
@@ -377,6 +452,15 @@ export function QcPage() {
                     <Link to={`/admin/episodes/${episode.id}`}>{episode.title}</Link>
                   </h2>
                   <UnifiedStatusBadge episode={episode} />
+                  {episode.lifecycleStatus === 'NOT_SCHEDULED' && (
+                    <span className="badge badge-orange">Not Scheduled</span>
+                  )}
+                  {episode.lifecycleStatus === 'SCHEDULED' && (
+                    <span className="badge badge-blue">Scheduled</span>
+                  )}
+                  {episode.lifecycleStatus === 'PUBLISHED' && (
+                    <span className="badge badge-green">Published</span>
+                  )}
                 </div>
                 <p className="small muted" style={{ margin: 0 }}>
                   {episode.program?.name} &middot; Host{' '}
@@ -391,6 +475,89 @@ export function QcPage() {
             </div>
 
             {episode.description && <p className="small">{episode.description}</p>}
+
+            {/* Broadcast Lifecycle Details */}
+            {episode.lifecycleStatus === 'SCHEDULED' && episode.activeSchedule && (
+              <div
+                className="row align-center wrap small"
+                style={{
+                  marginTop: '0.65rem',
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '6px',
+                  background: 'var(--status-approved-badge-bg)',
+                  border: '1px solid var(--status-approved-badge-border)',
+                  color: 'var(--text)',
+                  gap: '0.8rem',
+                }}
+              >
+                <div>
+                  <strong style={{ color: 'var(--status-approved-badge-text)' }}>📅 Broadcast Schedule:</strong>{' '}
+                  {formatDate(episode.activeSchedule.start_time)} &middot;{' '}
+                  {formatTime(episode.activeSchedule.start_time)} – {formatTime(episode.activeSchedule.end_time)}
+                </div>
+                {episode.program?.name && (
+                  <div>
+                    <strong>Program:</strong> {episode.program.name}
+                  </div>
+                )}
+                {episode.activeSchedule.notes && (
+                  <div className="muted">
+                    <em>{episode.activeSchedule.notes}</em>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {episode.lifecycleStatus === 'PUBLISHED' && (
+              <div
+                className="row align-center wrap small"
+                style={{
+                  marginTop: '0.65rem',
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '6px',
+                  background: 'var(--status-qc-done-badge-bg)',
+                  border: '1px solid var(--status-qc-done-badge-border)',
+                  color: 'var(--text)',
+                  gap: '0.8rem',
+                }}
+              >
+                <div>
+                  <strong style={{ color: 'var(--status-qc-done-badge-text)' }}>🌐 Published:</strong>{' '}
+                  {episode.publishedAt ? formatDateTime(episode.publishedAt) : 'Live in broadcast catalog'}
+                </div>
+                {episode.program?.name && (
+                  <div>
+                    <strong>Program:</strong> {episode.program.name}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {episode.lifecycleStatus === 'NOT_SCHEDULED' && (
+              <div
+                className="row spread align-center wrap small"
+                style={{
+                  marginTop: '0.65rem',
+                  padding: '0.45rem 0.75rem',
+                  borderRadius: '6px',
+                  background: 'var(--status-audio-upload-badge-bg)',
+                  border: '1px solid var(--status-audio-upload-badge-border)',
+                  color: 'var(--status-audio-upload-badge-text)',
+                }}
+              >
+                <span>Pending broadcast schedule &middot; Approved final audio ready</span>
+                {can.schedule(profile.role) && (
+                  <Link
+                    to="/schedule/edit"
+                    className="small"
+                    style={{ fontWeight: 600, color: 'inherit', textDecoration: 'underline' }}
+                  >
+                    Schedule slot &rarr;
+                  </Link>
+                )}
+              </div>
+            )}
+
             {episode.final_audio_file && (
               <div style={{ marginTop: '0.6rem' }}>
                 <p className="small muted" style={{ marginBottom: '0.2rem' }}>

@@ -1,15 +1,18 @@
 import { supabase } from '@/lib/supabase';
 import { AppError } from '@/lib/errors';
 import { unwrap } from '@/lib/query';
-import type { EpisodeRow, QcReviewRow, ScheduleRow } from '@/types/database';
+import type { EpisodeRow, QcReviewRow, ScheduleRow, ScheduleDetailsRow } from '@/types/database';
 import { episodeService, type EpisodeWithRelations } from './episodeService';
 
 export type BroadcastLifecycleStatus = 'NOT_SCHEDULED' | 'SCHEDULED' | 'PUBLISHED';
 
 export interface EpisodeWithLifecycle extends EpisodeWithRelations {
   lifecycleStatus: BroadcastLifecycleStatus;
-  activeSchedule?: ScheduleRow | null;
+  activeSchedule?: ScheduleRow | ScheduleDetailsRow | null;
   publishedAt?: string | null;
+  homepageScheduledAt?: string | null;
+  homepageExpiresAt?: string | null;
+  lifecycleTarget?: 'BROADCAST' | 'HOMEPAGE' | 'BOTH' | null;
 }
 
 export interface LifecycleCounts {
@@ -25,26 +28,46 @@ export interface QcReviewWithReviewer extends QcReviewRow {
 
 /**
  * Pure helper to compute an episode's broadcast lifecycle status.
+ * Handles both Broadcast Transmission schedules (schedules / v_schedule_details)
+ * and Homepage Release schedules (show_on_homepage & homepage_publish_at).
  */
 export function computeEpisodeLifecycle(
   episode: EpisodeWithRelations,
-  epSchedules: ScheduleRow[],
+  epSchedules: (ScheduleRow | ScheduleDetailsRow)[],
   now: Date = new Date(),
 ): {
   lifecycleStatus: BroadcastLifecycleStatus;
-  activeSchedule: ScheduleRow | null;
+  activeSchedule: ScheduleRow | ScheduleDetailsRow | null;
   publishedAt: string | null;
+  homepageScheduledAt: string | null;
+  homepageExpiresAt: string | null;
+  lifecycleTarget: 'BROADCAST' | 'HOMEPAGE' | 'BOTH' | null;
 } {
-  // 1. Check if Published:
-  // A) Active homepage release
+  const hasHomepage = Boolean(episode.show_on_homepage);
+  const pubTime = episode.homepage_publish_at ? new Date(episode.homepage_publish_at) : null;
+  const expTime = episode.homepage_expires_at ? new Date(episode.homepage_expires_at) : null;
+
+  // 1. Check Homepage Release states:
+  // A) Homepage Live/Published: enabled, publish time arrived (or null/immediate), and not expired
   const isHomepagePublished =
-    Boolean(episode.show_on_homepage) &&
-    (!episode.homepage_publish_at || new Date(episode.homepage_publish_at) <= now) &&
-    (!episode.homepage_expires_at || new Date(episode.homepage_expires_at) > now);
+    hasHomepage &&
+    (!pubTime || pubTime <= now) &&
+    (!expTime || expTime > now);
 
-  // B) Broadcast completed schedule
+  // B) Homepage Scheduled: enabled, publish time in the future, and not expired
+  const isHomepageScheduled =
+    hasHomepage &&
+    Boolean(pubTime && pubTime > now) &&
+    Boolean(!expTime || (pubTime && expTime > pubTime));
+
+  // 2. Check Broadcast Schedule states:
   const completedSchedule = epSchedules.find((s) => s.status === 'COMPLETED');
+  const activeBroadcastSchedule = epSchedules.find(
+    (s) => s.status === 'SCHEDULED' || s.status === 'ON_AIR',
+  );
 
+  // 3. Status Resolution:
+  // Step A: Published (either active homepage release or broadcast completed)
   if (isHomepagePublished || completedSchedule) {
     const publishedAt = isHomepagePublished
       ? (episode.homepage_publish_at ?? episode.reviewed_at ?? episode.updated_at)
@@ -52,30 +75,36 @@ export function computeEpisodeLifecycle(
 
     return {
       lifecycleStatus: 'PUBLISHED',
-      activeSchedule: completedSchedule ?? null,
+      activeSchedule: completedSchedule ?? activeBroadcastSchedule ?? null,
       publishedAt,
+      homepageScheduledAt: null,
+      homepageExpiresAt: isHomepagePublished ? (episode.homepage_expires_at ?? null) : null,
+      lifecycleTarget:
+        isHomepagePublished && completedSchedule ? 'BOTH' : isHomepagePublished ? 'HOMEPAGE' : 'BROADCAST',
     };
   }
 
-  // 2. Check if Scheduled:
-  // Active broadcast schedule (SCHEDULED or ON_AIR)
-  const activeSchedule = epSchedules.find(
-    (s) => s.status === 'SCHEDULED' || s.status === 'ON_AIR',
-  );
-
-  if (activeSchedule) {
+  // Step B: Scheduled (either upcoming broadcast slot or scheduled future homepage release)
+  if (activeBroadcastSchedule || isHomepageScheduled) {
     return {
       lifecycleStatus: 'SCHEDULED',
-      activeSchedule,
+      activeSchedule: activeBroadcastSchedule ?? null,
       publishedAt: null,
+      homepageScheduledAt: isHomepageScheduled ? (episode.homepage_publish_at ?? null) : null,
+      homepageExpiresAt: isHomepageScheduled ? (episode.homepage_expires_at ?? null) : null,
+      lifecycleTarget:
+        activeBroadcastSchedule && isHomepageScheduled ? 'BOTH' : activeBroadcastSchedule ? 'BROADCAST' : 'HOMEPAGE',
     };
   }
 
-  // 3. Otherwise: Not Scheduled
+  // Step C: Not Scheduled
   return {
     lifecycleStatus: 'NOT_SCHEDULED',
     activeSchedule: null,
     publishedAt: null,
+    homepageScheduledAt: null,
+    homepageExpiresAt: null,
+    lifecycleTarget: null,
   };
 }
 
@@ -94,23 +123,62 @@ export const qcService = {
     if (episodes.length === 0) return [];
 
     const episodeIds = episodes.map((e) => e.id);
-    const { data: schedules, error } = await supabase
-      .from('schedules')
+
+    // Prefer v_schedule_details to include joined program_name and metadata; fallback to schedules table
+    let schedules: (ScheduleRow | ScheduleDetailsRow)[] = [];
+    const { data: vDetails, error: vErr } = await supabase
+      .from('v_schedule_details')
       .select('*')
       .in('episode_id', episodeIds)
       .order('start_time', { ascending: false });
 
-    if (error) {
-      console.error('Failed to fetch schedules for completed QC episodes:', error);
+    if (!vErr && vDetails) {
+      schedules = vDetails;
+    } else {
+      if (vErr) console.warn('v_schedule_details query fallback to schedules table:', vErr);
+      const { data: rawSchedules, error: rawErr } = await supabase
+        .from('schedules')
+        .select('*')
+        .in('episode_id', episodeIds)
+        .order('start_time', { ascending: false });
+
+      if (rawSchedules) schedules = rawSchedules;
+      if (rawErr) console.error('Failed to fetch schedules for completed QC episodes:', rawErr);
     }
 
-    const schedulesByEpisode = new Map<string, ScheduleRow[]>();
+    // Also fetch unlinked active schedules (where episode_id might not have been set on the slot)
+    const { data: unlinkedSchedules } = await supabase
+      .from('v_schedule_details')
+      .select('*')
+      .is('episode_id', null)
+      .in('status', ['SCHEDULED', 'ON_AIR'])
+      .order('start_time', { ascending: false });
+
+    const schedulesByEpisode = new Map<string, (ScheduleRow | ScheduleDetailsRow)[]>();
     (schedules ?? []).forEach((s) => {
       if (!s.episode_id) return;
       const list = schedulesByEpisode.get(s.episode_id) ?? [];
       list.push(s);
       schedulesByEpisode.set(s.episode_id, list);
     });
+
+    // Fallback: match unlinked slots whose notes mention the episode title or episode identifier
+    if (unlinkedSchedules && unlinkedSchedules.length > 0) {
+      for (const ep of episodes) {
+        if (schedulesByEpisode.has(ep.id)) continue;
+        const matched = unlinkedSchedules.find((s) => {
+          if (!s.notes) return false;
+          const notesLower = s.notes.toLowerCase();
+          return (
+            (ep.title && notesLower.includes(ep.title.toLowerCase())) ||
+            (ep.episode_id && notesLower.includes(ep.episode_id.toLowerCase()))
+          );
+        });
+        if (matched) {
+          schedulesByEpisode.set(ep.id, [matched]);
+        }
+      }
+    }
 
     const now = new Date();
     const withLifecycle: EpisodeWithLifecycle[] = episodes.map((ep) => {

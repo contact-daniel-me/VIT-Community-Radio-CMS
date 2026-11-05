@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
@@ -30,6 +30,21 @@ export function QcPage() {
   // Reviewer queries: QC Pending and QC Done
   const pendingQueue = useAsync(() => (reviewer ? qcService.getPendingQC() : Promise.resolve([])), [reviewer]);
   const completedQueue = useAsync(() => (reviewer ? qcService.getCompletedQC() : Promise.resolve([])), [reviewer]);
+
+  // Keep queue synced automatically when admin switches back to QC page after scheduling in another tab or page
+  useEffect(() => {
+    const handleSync = () => {
+      if (document.visibilityState === 'visible') {
+        void Promise.all([pendingQueue.reload(), completedQueue.reload()]);
+      }
+    };
+    document.addEventListener('visibilitychange', handleSync);
+    window.addEventListener('focus', handleSync);
+    return () => {
+      document.removeEventListener('visibilitychange', handleSync);
+      window.removeEventListener('focus', handleSync);
+    };
+  }, [pendingQueue, completedQueue]);
 
   // Non-reviewer query: their own submissions
   const mine = useAsync(
@@ -235,12 +250,23 @@ export function QcPage() {
         title="Quality Control"
         description="Review audio submissions for broadcast, and view approved episodes that completed QC."
         actions={
-          <input
-            type="search"
-            placeholder="Search by title or program..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <div className="row align-center wrap" style={{ gap: '0.5rem' }}>
+            <input
+              type="search"
+              placeholder="Search by title or program..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <button
+              type="button"
+              className="small secondary"
+              title="Refresh QC queue"
+              disabled={pendingQueue.loading || completedQueue.loading}
+              onClick={() => void Promise.all([pendingQueue.reload(), completedQueue.reload()])}
+            >
+              {pendingQueue.loading || completedQueue.loading ? 'Refreshing...' : '↻ Refresh'}
+            </button>
+          </div>
         }
       />
 
@@ -477,7 +503,7 @@ export function QcPage() {
             {episode.description && <p className="small">{episode.description}</p>}
 
             {/* Broadcast Lifecycle Details */}
-            {episode.lifecycleStatus === 'SCHEDULED' && episode.activeSchedule && (
+            {episode.lifecycleStatus === 'SCHEDULED' && (
               <div
                 className="row align-center wrap small"
                 style={{
@@ -490,17 +516,33 @@ export function QcPage() {
                   gap: '0.8rem',
                 }}
               >
-                <div>
-                  <strong style={{ color: 'var(--status-approved-badge-text)' }}>📅 Broadcast Schedule:</strong>{' '}
-                  {formatDate(episode.activeSchedule.start_time)} &middot;{' '}
-                  {formatTime(episode.activeSchedule.start_time)} – {formatTime(episode.activeSchedule.end_time)}
-                </div>
-                {episode.program?.name && (
+                {episode.activeSchedule && (
                   <div>
-                    <strong>Program:</strong> {episode.program.name}
+                    <strong style={{ color: 'var(--status-approved-badge-text)' }}>📅 Broadcast Schedule:</strong>{' '}
+                    {formatDate(episode.activeSchedule.start_time)} &middot;{' '}
+                    {formatTime(episode.activeSchedule.start_time)} – {formatTime(episode.activeSchedule.end_time)}
                   </div>
                 )}
-                {episode.activeSchedule.notes && (
+                {episode.homepageScheduledAt && (
+                  <div>
+                    <strong style={{ color: 'var(--status-approved-badge-text)' }}>🌐 Homepage Release:</strong>{' '}
+                    {formatDate(episode.homepageScheduledAt)} &middot; {formatTime(episode.homepageScheduledAt)}
+                    {episode.homepageExpiresAt && (
+                      <span className="muted"> (until {formatDate(episode.homepageExpiresAt)} {formatTime(episode.homepageExpiresAt)})</span>
+                    )}
+                  </div>
+                )}
+                {!episode.activeSchedule && !episode.homepageScheduledAt && (
+                  <div>
+                    <strong style={{ color: 'var(--status-approved-badge-text)' }}>📅 Scheduled:</strong> Assigned for upcoming broadcast release.
+                  </div>
+                )}
+                {(episode.program?.name || (episode.activeSchedule as any)?.program_name) && (
+                  <div>
+                    <strong>Program:</strong> {episode.program?.name || (episode.activeSchedule as any)?.program_name}
+                  </div>
+                )}
+                {episode.activeSchedule?.notes && (
                   <div className="muted">
                     <em>{episode.activeSchedule.notes}</em>
                   </div>
@@ -524,6 +566,9 @@ export function QcPage() {
                 <div>
                   <strong style={{ color: 'var(--status-qc-done-badge-text)' }}>🌐 Published:</strong>{' '}
                   {episode.publishedAt ? formatDateTime(episode.publishedAt) : 'Live in broadcast catalog'}
+                  {episode.homepageExpiresAt && (
+                    <span className="muted"> (on homepage until {formatDateTime(episode.homepageExpiresAt)})</span>
+                  )}
                 </div>
                 {episode.program?.name && (
                   <div>
@@ -543,18 +588,30 @@ export function QcPage() {
                   background: 'var(--status-audio-upload-badge-bg)',
                   border: '1px solid var(--status-audio-upload-badge-border)',
                   color: 'var(--status-audio-upload-badge-text)',
+                  gap: '0.5rem',
                 }}
               >
                 <span>Pending broadcast schedule &middot; Approved final audio ready</span>
-                {can.schedule(profile.role) && (
-                  <Link
-                    to="/schedule/edit"
-                    className="small"
-                    style={{ fontWeight: 600, color: 'inherit', textDecoration: 'underline' }}
-                  >
-                    Schedule slot &rarr;
-                  </Link>
-                )}
+                <div className="row align-center" style={{ gap: '0.75rem' }}>
+                  {can.schedule(profile.role) && (
+                    <Link
+                      to="/schedule/edit"
+                      className="small"
+                      style={{ fontWeight: 600, color: 'inherit', textDecoration: 'underline' }}
+                    >
+                      Broadcast schedule &rarr;
+                    </Link>
+                  )}
+                  {(profile.role === 'ADMIN' || profile.role === 'PRODUCER') && (
+                    <Link
+                      to={`/admin/episodes/${episode.id}`}
+                      className="small"
+                      style={{ fontWeight: 600, color: 'inherit', textDecoration: 'underline' }}
+                    >
+                      Homepage release &rarr;
+                    </Link>
+                  )}
+                </div>
               </div>
             )}
 

@@ -100,6 +100,34 @@ describe('Broadcast Lifecycle Tracking in QC Dashboard', () => {
       expect(result.lifecycleStatus).toBe('SCHEDULED');
       expect(result.activeSchedule?.status).toBe('ON_AIR');
     });
+
+    it('classifies approved episode as SCHEDULED when scheduled for future homepage release', () => {
+      const ep = createMockEpisode({
+        show_on_homepage: true,
+        homepage_publish_at: '2026-11-06T09:00:00Z', // In the future relative to refTime
+        homepage_expires_at: '2026-11-06T23:00:00Z',
+      });
+      const result = computeEpisodeLifecycle(ep, [], refTime);
+
+      expect(result.lifecycleStatus).toBe('SCHEDULED');
+      expect(result.homepageScheduledAt).toBe('2026-11-06T09:00:00Z');
+      expect(result.homepageExpiresAt).toBe('2026-11-06T23:00:00Z');
+      expect(result.lifecycleTarget).toBe('HOMEPAGE');
+    });
+
+    it('classifies approved episode as SCHEDULED with target BOTH when both broadcast and homepage scheduled', () => {
+      const ep = createMockEpisode({
+        show_on_homepage: true,
+        homepage_publish_at: '2026-11-07T09:00:00Z',
+      });
+      const sched = createMockSchedule({ status: 'SCHEDULED' });
+      const result = computeEpisodeLifecycle(ep, [sched], refTime);
+
+      expect(result.lifecycleStatus).toBe('SCHEDULED');
+      expect(result.activeSchedule?.id).toBe(sched.id);
+      expect(result.homepageScheduledAt).toBe('2026-11-07T09:00:00Z');
+      expect(result.lifecycleTarget).toBe('BOTH');
+    });
   });
 
   describe('Scenario 3: Schedule cancelled or removed', () => {

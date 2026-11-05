@@ -43,7 +43,9 @@ const isoDayFormatter = new Intl.DateTimeFormat('en-CA', {
  */
 export function parseStationDate(iso: string): Date {
   if (!iso) return new Date(NaN);
-  const trimmed = iso.trim();
+  let trimmed = iso.trim();
+  // Support DD-MM-YYYY or DD/MM/YYYY prefix if entered by user/browser
+  trimmed = trimmed.replace(/^(\d{2})[-/](\d{2})[-/](\d{4})/, (_m, d, m, y) => `${y}-${m}-${d}`);
   // Plain time string: 'HH:MM' or 'HH:MM:SS'
   if (/^\d{2}:\d{2}(:\d{2})?$/.test(trimmed)) {
     const today = stationDay();

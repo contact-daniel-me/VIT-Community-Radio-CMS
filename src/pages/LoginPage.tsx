@@ -100,6 +100,9 @@ export function LoginPage() {
               )}
             </button>
           </div>
+          <p className="small muted" style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: 'var(--muted)' }}>
+            To reset or change your password, contact an administrator.
+          </p>
         </div>
         <button type="submit" className="btn-solid" disabled={busy} style={{ width: '100%', height: '48px', fontSize: '1.05rem', fontWeight: 600, borderRadius: '8px', background: 'var(--brand-red)', color: '#fff', border: 'none', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}>
           {busy ? 'Signing in...' : (

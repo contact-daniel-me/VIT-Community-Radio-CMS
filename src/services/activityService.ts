@@ -34,6 +34,7 @@ const ACTION_LABELS: Record<string, string> = {
   PROFILE_ROLE_CHANGED: 'changed a user role',
   PROFILE_ACTIVATED: 'reactivated a user',
   PROFILE_DEACTIVATED: 'deactivated a user',
+  PASSWORD_RESET: 'reset user password',
 };
 
 export function describeAction(action: string): string {
@@ -43,7 +44,7 @@ export function describeAction(action: string): string {
 /** A short, readable subject for a log line, taken from the stored metadata. */
 export function describeSubject(entry: ActivityLogRow): string {
   const metadata = entry.metadata ?? {};
-  for (const key of ['title', 'name', 'email']) {
+  for (const key of ['title', 'name', 'target_name', 'email', 'target_email']) {
     const value = metadata[key];
     if (typeof value === 'string' && value) return value;
   }

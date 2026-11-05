@@ -948,6 +948,10 @@ export type Database = {
         Args: { p_user_id: string };
         Returns: { id: string; email: string; full_name: string };
       };
+      admin_set_user_password: {
+        Args: { p_user_id: string; p_new_password: string };
+        Returns: { id: string; email: string; full_name: string };
+      };
       delete_episode: {
         Args: { p_episode_id: string };
         Returns: {

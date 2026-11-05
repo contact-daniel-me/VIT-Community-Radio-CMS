@@ -98,4 +98,22 @@ export const userService = {
   async deleteUser(userId: string): Promise<{ id: string; email: string; full_name: string }> {
     return unwrap(supabase.rpc('delete_user', { p_user_id: userId }));
   },
+
+  /**
+   * Set or reset a user's password.
+   *
+   * Only administrators can change user passwords.
+   * Minimum password length is 8 characters.
+   */
+  async updateUserPassword(
+    userId: string,
+    newPassword: string,
+  ): Promise<{ id: string; email: string; full_name: string }> {
+    return unwrap(
+      supabase.rpc('admin_set_user_password', {
+        p_user_id: userId,
+        p_new_password: newPassword,
+      }),
+    );
+  },
 };

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth, useCurrentUser } from '@/hooks/useAuth';
 import { Banner, PageHeader } from '@/components/ui';
 import { authService } from '@/services/authService';
@@ -83,6 +84,13 @@ export function SettingsPage() {
                 {ROLE_SUMMARY[profile.role]} Only an administrator can change this.
               </p>
             </div>
+            <div>
+              <label htmlFor="p-password">Password</label>
+              <input id="p-password" type="password" value="••••••••••••" readOnly disabled />
+              <p className="small muted" style={{ margin: '0.25rem 0 0', color: 'var(--text-muted)' }}>
+                To edit or change your password, contact an administrator.
+              </p>
+            </div>
           </div>
           <div className="actions-row">
             <button type="submit" className="primary" disabled={busy}>
@@ -91,24 +99,45 @@ export function SettingsPage() {
           </div>
         </form>
 
-        <section className="card">
-          <h2>Station</h2>
-          <div className="table-wrap">
-            <table>
-              <tbody>
-                {STATION.map(([label, value]) => (
-                  <tr key={label}>
-                    <th scope="row">{label}</th>
-                    <td>{value}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="small muted" style={{ marginTop: '0.7rem' }}>
-            All times in this CMS are stored in UTC and displayed in station time (IST).
-          </p>
-        </section>
+        <div className="stack" style={{ gap: '1.5rem' }}>
+          <section className="card">
+            <h2>Password & Security</h2>
+            <div className="banner info" style={{ margin: '0.5rem 0 0.75rem' }}>
+              <span>
+                <strong>Password Management:</strong> To edit or reset your password, please contact an administrator.
+              </span>
+            </div>
+            {profile.role === 'ADMIN' ? (
+              <p className="small muted" style={{ margin: 0 }}>
+                As an administrator, you can change and reset user passwords from the{' '}
+                <Link to="/users" style={{ fontWeight: 600, color: 'var(--brand-red)' }}>Users Management</Link> panel.
+              </p>
+            ) : (
+              <p className="small muted" style={{ margin: 0 }}>
+                User credentials are managed by station administrators to protect broadcast operations.
+              </p>
+            )}
+          </section>
+
+          <section className="card">
+            <h2>Station</h2>
+            <div className="table-wrap">
+              <table>
+                <tbody>
+                  {STATION.map(([label, value]) => (
+                    <tr key={label}>
+                      <th scope="row">{label}</th>
+                      <td>{value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="small muted" style={{ marginTop: '0.7rem' }}>
+              All times in this CMS are stored in UTC and displayed in station time (IST).
+            </p>
+          </section>
+        </div>
       </div>
     </>
   );

@@ -7,7 +7,8 @@ import { activityService, describeAction, describeSubject } from '@/services/act
 import { ROLE_LABELS, ROLE_SUMMARY } from '@/lib/permissions';
 import { errorMessage } from '@/lib/errors';
 import { formatDate, formatRelative } from '@/utils/datetime';
-import type { UserRole } from '@/types/database';
+import { EditUserPasswordDialog } from '@/components/admin/EditUserPasswordDialog';
+import type { ProfileRow, UserRole } from '@/types/database';
 
 const ROLES: UserRole[] = ['ADMIN', 'PRODUCER', 'RJ', 'QC'];
 
@@ -36,6 +37,7 @@ export function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [passwordUser, setPasswordUser] = useState<ProfileRow | null>(null);
 
   const changeRole = async (userId: string, role: UserRole) => {
     setError(null);
@@ -243,6 +245,14 @@ export function UsersPage() {
                         )}
                       </td>
                       <td className="actions">
+                        <button
+                          type="button"
+                          className="small secondary"
+                          onClick={() => setPasswordUser(user)}
+                          title={`Edit password for ${user.full_name}`}
+                        >
+                          Password
+                        </button>
                         {!isSelf && (
                           <>
                             <ConfirmButton
@@ -330,6 +340,17 @@ export function UsersPage() {
           </div>
         )}
       </section>
+
+      {passwordUser && (
+        <EditUserPasswordDialog
+          user={passwordUser}
+          onClose={() => setPasswordUser(null)}
+          onSuccess={(msg) => {
+            setNotice(msg);
+            void activity.reload();
+          }}
+        />
+      )}
     </>
   );
 }

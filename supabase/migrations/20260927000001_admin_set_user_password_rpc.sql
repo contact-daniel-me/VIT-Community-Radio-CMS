@@ -67,3 +67,4 @@ comment on function public.admin_set_user_password(uuid, text) is
 revoke execute on function public.admin_set_user_password(uuid, text) from public;
 revoke execute on function public.admin_set_user_password(uuid, text) from anon;
 grant  execute on function public.admin_set_user_password(uuid, text) to authenticated;
+

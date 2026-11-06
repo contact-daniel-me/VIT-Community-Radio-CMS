@@ -1,0 +1,24 @@
+[
+  {
+    "date": "2026-11-06",
+    "timestamp": "2026-11-06T05:42:05.796Z",
+    "dayIndex": 1,
+    "observationType": "ACTUAL_OBSERVED",
+    "elapsedHours": 1.7,
+    "supabaseRecords": 55,
+    "supabaseSize": "491.48 MB",
+    "r2Records": 0,
+    "r2Size": "0 B",
+    "successfulUploads": 0,
+    "failedUploads": 0,
+    "playbackFailures": 0,
+    "averageUploadLatencyMs": 210,
+    "averagePlaybackLatencyMs": 68,
+    "rangeStreamingStatus": "PASS (206 Partial Content)",
+    "signedUrlErrors": 0,
+    "missingObjects": 0,
+    "checksumMismatches": 0,
+    "orphanedObjects": 0,
+    "observedDailyCostUsd": 0
+  }
+]

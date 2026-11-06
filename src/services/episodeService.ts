@@ -1,7 +1,8 @@
-import { AUDIO_BUCKET, supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { AppError, assertWritten, toAppError } from '@/lib/errors';
 import { unwrap } from '@/lib/query';
 import type { AudioFileRow, EpisodeRow, EpisodeStatus } from '@/types/database';
+import { r2Service } from '@/services/r2Service';
 
 /** An episode with the joined bits every list and detail screen needs. */
 export interface EpisodeWithRelations extends EpisodeRow {
@@ -193,25 +194,19 @@ export const episodeService = {
    */
   async deleteEpisode(id: string): Promise<{ title: string; removedFiles: number }> {
     const audio = await unwrap(
-      supabase.from('audio_files').select('storage_path').eq('episode_id', id),
+      supabase.from('audio_files').select('storage_path, storage_provider').eq('episode_id', id),
     );
 
-    const paths = audio.map((row) => row.storage_path).filter(Boolean);
-    if (paths.length > 0) {
-      const { error } = await supabase.storage.from(AUDIO_BUCKET).remove(paths);
-      // Storage refusing is worth stopping for: carrying on would delete the
-      // row and leave the audio behind with no way to reach it.
-      if (error && !/not found/i.test(error.message)) {
-        throw new AppError(
-          'CONFLICT',
-          'The audio could not be removed, so the episode was left alone.',
-          error,
-        );
+    // Clean up any Cloudflare R2 objects before episode row is removed.
+    // Strict preservation requirement: do not delete Supabase Storage objects during hybrid rollout.
+    for (const row of audio) {
+      if (row.storage_provider === 'r2' && row.storage_path) {
+        await r2Service.deleteObject(row.storage_path, id);
       }
     }
 
     const result = await unwrap(supabase.rpc('delete_episode', { p_episode_id: id }));
-    return { title: result.title, removedFiles: paths.length };
+    return { title: result.title, removedFiles: audio.length };
   },
 
   /** Episodes cleared by QC and therefore eligible for the schedule grid. */

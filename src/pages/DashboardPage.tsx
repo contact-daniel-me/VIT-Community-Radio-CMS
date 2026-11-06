@@ -4,6 +4,7 @@ import { useCurrentUser } from '@/hooks/useAuth';
 import { useStationStatus } from '@/hooks/useStationStatus';
 import { Banner, Loading, UnifiedStatusBadge } from '@/components/ui';
 import { AnnouncementsCard } from '@/components/studio/AnnouncementsCard';
+import { StorageHealthCard } from '@/components/admin/StorageHealthCard';
 import { qcService } from '@/services/qcService';
 import { episodeService } from '@/services/episodeService';
 import { activityService } from '@/services/activityService';
@@ -147,6 +148,9 @@ export function DashboardPage() {
         <MetricCard title="QC Done" value={metrics.pipeline.qc_done} status="qc" icon={<CheckCircleIcon />} to="/admin/episodes" />
         <MetricCard title="Total Episodes" value={totalEpisodes} status="total" icon={<PodcastIcon />} to="/admin/episodes" />
       </section>
+
+      {/* STORAGE HEALTH & TELEMETRY SECTION - ADMIN ONLY */}
+      {can.manageUsers(profile.role) && <StorageHealthCard />}
 
       {/* 2. MIDDLE GRID — three independent columns, each card sizes to its own content */}
       <div className="dash-cols" style={{ marginBottom: '2rem' }}>

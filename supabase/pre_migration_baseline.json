@@ -1,0 +1,1026 @@
+{
+  "timestamp": "2026-11-06T03:57:32.111Z",
+  "projectRef": "qqoybhevvnkycepujosm",
+  "environment": "production",
+  "database": {
+    "current_database": "postgres",
+    "current_user": "supabase_read_only_user",
+    "version": "PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit"
+  },
+  "audioFilesColumns": [
+    {
+      "column_default": "gen_random_uuid()",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": null,
+      "column_name": "episode_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": null,
+      "column_name": "file_name",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": null,
+      "column_name": "storage_path",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": null,
+      "column_name": "mime_type",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": null,
+      "column_name": "file_size",
+      "data_type": "bigint",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": null,
+      "column_name": "duration_seconds",
+      "data_type": "integer",
+      "is_nullable": "YES"
+    },
+    {
+      "column_default": null,
+      "column_name": "uploaded_by",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "column_default": "now()",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": "now()",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": null,
+      "column_name": "deleted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    }
+  ],
+  "episodesColumns": [
+    {
+      "column_default": "gen_random_uuid()",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": null,
+      "column_name": "program_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": null,
+      "column_name": "title",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": null,
+      "column_name": "description",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "column_default": null,
+      "column_name": "episode_number",
+      "data_type": "integer",
+      "is_nullable": "YES"
+    },
+    {
+      "column_default": null,
+      "column_name": "host_name",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "column_default": null,
+      "column_name": "assigned_rj",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "column_default": null,
+      "column_name": "audio_file_id",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "column_default": null,
+      "column_name": "duration_seconds",
+      "data_type": "integer",
+      "is_nullable": "YES"
+    },
+    {
+      "column_default": "'DRAFT'::episode_status",
+      "column_name": "status",
+      "data_type": "USER-DEFINED",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": null,
+      "column_name": "submitted_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "column_default": null,
+      "column_name": "reviewed_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "column_default": null,
+      "column_name": "created_by",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "column_default": "now()",
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": "now()",
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": null,
+      "column_name": "final_audio_file_id",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "column_default": null,
+      "column_name": "raw_file_delete_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "column_default": null,
+      "column_name": "archived_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "column_default": null,
+      "column_name": "episode_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": "false",
+      "column_name": "show_on_homepage",
+      "data_type": "boolean",
+      "is_nullable": "NO"
+    },
+    {
+      "column_default": null,
+      "column_name": "homepage_publish_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    },
+    {
+      "column_default": null,
+      "column_name": "homepage_expires_at",
+      "data_type": "timestamp with time zone",
+      "is_nullable": "YES"
+    }
+  ],
+  "audioCounts": {
+    "null_or_empty_storage_paths": 0,
+    "total_audio_files": 55,
+    "valid_storage_paths": 55
+  },
+  "episodeCounts": {
+    "episodes_with_audio": 30,
+    "episodes_with_final_audio": 20,
+    "total_episodes": 30
+  },
+  "hasProviderColumnPreMigration": false,
+  "providerDistribution": "COLUMN_NOT_PRESENT_PRE_MIGRATION",
+  "audioConstraints": [
+    {
+      "conname": "audio_files_duration_seconds_check",
+      "contype": "c",
+      "definition": "CHECK (((duration_seconds > 0) AND (duration_seconds <= 21600)))"
+    },
+    {
+      "conname": "audio_files_episode_id_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE CASCADE"
+    },
+    {
+      "conname": "audio_files_file_name_check",
+      "contype": "c",
+      "definition": "CHECK (((char_length(btrim(file_name)) >= 1) AND (char_length(btrim(file_name)) <= 255)))"
+    },
+    {
+      "conname": "audio_files_file_size_check",
+      "contype": "c",
+      "definition": "CHECK (((file_size > 0) AND (file_size <= 209715200)))"
+    },
+    {
+      "conname": "audio_files_mp3_only",
+      "contype": "c",
+      "definition": "CHECK ((mime_type = ANY (ARRAY['audio/mpeg'::text, 'audio/mp3'::text])))"
+    },
+    {
+      "conname": "audio_files_pkey",
+      "contype": "p",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "conname": "audio_files_storage_path_check",
+      "contype": "c",
+      "definition": "CHECK ((storage_path ~~ 'episodes/%'::text))"
+    },
+    {
+      "conname": "audio_files_storage_path_key",
+      "contype": "u",
+      "definition": "UNIQUE (storage_path)"
+    },
+    {
+      "conname": "audio_files_uploaded_by_fkey",
+      "contype": "f",
+      "definition": "FOREIGN KEY (uploaded_by) REFERENCES profiles(id) ON DELETE SET NULL"
+    }
+  ],
+  "audioIndexes": [
+    {
+      "indexdef": "CREATE INDEX audio_files_episode_idx ON public.audio_files USING btree (episode_id)",
+      "indexname": "audio_files_episode_idx"
+    },
+    {
+      "indexdef": "CREATE INDEX audio_files_live_idx ON public.audio_files USING btree (created_at) WHERE (deleted_at IS NULL)",
+      "indexname": "audio_files_live_idx"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX audio_files_pkey ON public.audio_files USING btree (id)",
+      "indexname": "audio_files_pkey"
+    },
+    {
+      "indexdef": "CREATE UNIQUE INDEX audio_files_storage_path_key ON public.audio_files USING btree (storage_path)",
+      "indexname": "audio_files_storage_path_key"
+    }
+  ],
+  "triggers": [],
+  "audioPolicies": [
+    {
+      "cmd": "DELETE",
+      "permissive": "PERMISSIVE",
+      "policyname": "audio_delete_episode_editors",
+      "qual": "(app.is_admin() OR app.can_edit_episode(episode_id))",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "audio_files",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "audio_insert_episode_editors",
+      "qual": null,
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "audio_files",
+      "with_check": "((app.is_admin() OR app.can_edit_episode(episode_id)) AND (uploaded_by = auth.uid()))"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "audio_select_station_members",
+      "qual": "(app.\"current_role\"() IS NOT NULL)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "audio_files",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "audio_update_episode_editors",
+      "qual": "(app.is_admin() OR app.can_edit_episode(episode_id))",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "audio_files",
+      "with_check": "(app.is_admin() OR app.can_edit_episode(episode_id))"
+    }
+  ],
+  "episodesPolicies": [
+    {
+      "cmd": "INSERT",
+      "permissive": "PERMISSIVE",
+      "policyname": "episodes_insert_content_roles",
+      "qual": null,
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "episodes",
+      "with_check": "(app.has_role(VARIADIC ARRAY['ADMIN'::user_role, 'PRODUCER'::user_role, 'RJ'::user_role]) AND (created_by = auth.uid()) AND (status = 'DRAFT'::episode_status))"
+    },
+    {
+      "cmd": "SELECT",
+      "permissive": "PERMISSIVE",
+      "policyname": "episodes_select_isolated",
+      "qual": "(app.has_role(VARIADIC ARRAY['ADMIN'::user_role, 'PRODUCER'::user_role, 'QC'::user_role]) OR (created_by = auth.uid()) OR (assigned_rj = auth.uid()))",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "episodes",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "permissive": "PERMISSIVE",
+      "policyname": "episodes_update_owner_or_producer",
+      "qual": "app.can_edit_episode(id)",
+      "roles": "{authenticated}",
+      "schemaname": "public",
+      "tablename": "episodes",
+      "with_check": "app.can_edit_episode(id)"
+    }
+  ],
+  "audioFilesSnapshot": [
+    {
+      "created_at": "2026-10-15 11:42:30.14348+00",
+      "deleted_at": null,
+      "duration_seconds": 867,
+      "episode_id": "6b7d0a8a-1f77-4af3-9861-5d4e9f69225e",
+      "file_name": "Gossip Girls 002 - RJ Akshaya RJ Priya RJ Abarna.mp3 (1).mp3",
+      "file_size": 17651738,
+      "id": "256ee5cc-256d-4e1a-a7a4-b39dda373c81",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/6b7d0a8a-1f77-4af3-9861-5d4e9f69225e/1792064531769-gossip-girls-002---rj-akshaya-rj-priya-rj-abarna.mp3-1-.mp3",
+      "uploaded_by": "8220338a-ea29-4f03-902f-73e9c60928b2"
+    },
+    {
+      "created_at": "2026-10-20 10:26:45.934427+00",
+      "deleted_at": null,
+      "duration_seconds": 278,
+      "episode_id": "0e4daddf-02ac-4595-8b81-7acb953b5318",
+      "file_name": "SPL International Snow Leopard Day- 23.10.26- RJ Sanjana - RAW.mp3",
+      "file_size": 11147835,
+      "id": "0b07b4aa-94d7-4945-acc2-b488e0beab34",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/0e4daddf-02ac-4595-8b81-7acb953b5318/1792491609580-spl-international-snow-leopard-day--23.10.26--rj-sanjana---raw.mp3",
+      "uploaded_by": "4a1c5991-8bcf-498c-9998-62b4de2d8cb3"
+    },
+    {
+      "created_at": "2026-10-21 06:32:37.164063+00",
+      "deleted_at": null,
+      "duration_seconds": 288,
+      "episode_id": "d4896157-c6cf-4f56-88c3-1be8cdc50cce",
+      "file_name": "Special link 27.10.2026 World audio visuale heritage RJ Mangal final.mp3",
+      "file_size": 11532364,
+      "id": "fba7eb85-4f37-4f95-8c9b-e8def0693b97",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/d4896157-c6cf-4f56-88c3-1be8cdc50cce/1792564339366-special-link-27.10.2026-world-audio-visuale-heritage-rj-mangal-final.mp3",
+      "uploaded_by": "2c7bb431-96d3-4b84-96d1-5e7e72fc6d4f"
+    },
+    {
+      "created_at": "2026-10-21 06:52:37.246492+00",
+      "deleted_at": null,
+      "duration_seconds": 360,
+      "episode_id": "d1ed1696-ceef-49a1-aacc-d8a745295537",
+      "file_name": "Special Link Top Ten Travell Destination 22 10 2026  RJ Charanya.mp3",
+      "file_size": 14416204,
+      "id": "88ab362f-9aba-477e-b2d6-d241d79fcff9",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/d1ed1696-ceef-49a1-aacc-d8a745295537/1792565534021-special-link-top-ten-travell-destination-22-10-2026-rj-charanya.mp3",
+      "uploaded_by": "9577189d-66f0-4224-bac0-8ba70e61e9fb"
+    },
+    {
+      "created_at": "2026-10-21 06:54:56.203182+00",
+      "deleted_at": null,
+      "duration_seconds": 239,
+      "episode_id": "0e4daddf-02ac-4595-8b81-7acb953b5318",
+      "file_name": "454 - Special Link - International Snow Leopard Day - RJ Sanjana - 23 10 2026 Only.mp3",
+      "file_size": 9569974,
+      "id": "649f0266-593c-4ce2-97bb-95ec77e0d4f6",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/0e4daddf-02ac-4595-8b81-7acb953b5318/1792565687390-special-link---international-snow-leopard-day---rj-sanjana---23-10-2026-only.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-21 09:16:10.463042+00",
+      "deleted_at": null,
+      "duration_seconds": 232,
+      "episode_id": "d1ed1696-ceef-49a1-aacc-d8a745295537",
+      "file_name": "455 - Special Link - Top 10 Travel Destination - RJ Charanya - 22 10 2026 Only.mp3",
+      "file_size": 9297742,
+      "id": "077cc9c0-1c63-453d-88f7-17a3b9541c45",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/d1ed1696-ceef-49a1-aacc-d8a745295537/1792574158180-5---special-link---top-10-travel-destination---rj-charanya---22-10-2026-only.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-21 09:21:28.067117+00",
+      "deleted_at": null,
+      "duration_seconds": 171,
+      "episode_id": "d4896157-c6cf-4f56-88c3-1be8cdc50cce",
+      "file_name": "457 - Special Link - World Audio Visual Heritage - RJ Mangal - 27 10 2026 Only.mp3",
+      "file_size": 6859995,
+      "id": "061c8c75-a3a3-45bc-a3a8-16b0c9b2efd6",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/d4896157-c6cf-4f56-88c3-1be8cdc50cce/1792574481598-7---special-link---world-audio-visual-heritage---rj-mangal---27-10-2026-only.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-22 11:12:32.520772+00",
+      "deleted_at": null,
+      "duration_seconds": 137,
+      "episode_id": "5a1cb94e-a0be-4961-946f-1dfd6c7af001",
+      "file_name": "SPL Indian constitution day- 26.11.26- RJ Pavi - RAW.mp3",
+      "file_size": 5496048,
+      "id": "867a9a2b-d1cc-4603-8d66-a076fd3cd9b8",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/5a1cb94e-a0be-4961-946f-1dfd6c7af001/1792667536455-spl-indian-constitution-day--26.11.26--rj-pavi---raw.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-22 11:19:54.29684+00",
+      "deleted_at": null,
+      "duration_seconds": 141,
+      "episode_id": "5a1cb94e-a0be-4961-946f-1dfd6c7af001",
+      "file_name": "458 - Special Link - Indias Constitution Day- RJ Pavi - 26 11 2026 Only.mp3",
+      "file_size": 5674522,
+      "id": "ed296422-5939-464c-8396-8e7b9b364149",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/5a1cb94e-a0be-4961-946f-1dfd6c7af001/1792667977945-458---special-link---indias-constitution-day--rj-pavi---26-11-2026-only.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-23 06:30:43.344761+00",
+      "deleted_at": null,
+      "duration_seconds": 876,
+      "episode_id": "6b7d0a8a-1f77-4af3-9861-5d4e9f69225e",
+      "file_name": "02 - GGS - Feminism Unfiltered - RJ Akshaya - RJ Priya & RJ Abarna - Till 25 11 2026.mp3",
+      "file_size": 35048440,
+      "id": "f7d73206-763f-420c-a357-264bf2f95ed4",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/6b7d0a8a-1f77-4af3-9861-5d4e9f69225e/1792737040943-gs---feminism-unfiltered---rj-akshaya---rj-priya-rj-abarna---till-25-11-2026.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-23 10:29:30.505455+00",
+      "deleted_at": null,
+      "duration_seconds": 134,
+      "episode_id": "c0edff0f-701a-430d-a832-7eb79a6bd180",
+      "file_name": "VV-DD-27 10 2026-RJ Anand- Voice.mp3",
+      "file_size": 5387515,
+      "id": "62152816-f6fc-4920-9281-9eee75e11ab9",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/c0edff0f-701a-430d-a832-7eb79a6bd180/1792751369083-vv-dd-27-10-2026-rj-anand--voice.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-23 10:29:41.132443+00",
+      "deleted_at": null,
+      "duration_seconds": 138,
+      "episode_id": "c0edff0f-701a-430d-a832-7eb79a6bd180",
+      "file_name": "VV-DD-27 10 2026-RJ Anand.mp3",
+      "file_size": 5565256,
+      "id": "75c52e87-c62f-4ca5-b048-fe8a97e2941d",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/c0edff0f-701a-430d-a832-7eb79a6bd180/1792751379938-vv-dd-27-10-2026-rj-anand.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-23 10:46:50.725014+00",
+      "deleted_at": null,
+      "duration_seconds": 258,
+      "episode_id": "9afd16ee-e1cd-4aab-9bb0-9e9277cb013b",
+      "file_name": "Mana generation 001_Raw.mp3",
+      "file_size": 10325746,
+      "id": "f57d8d4b-6a33-4ecb-94d5-2d8254c09d06",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/9afd16ee-e1cd-4aab-9bb0-9e9277cb013b/1792752409309-mana-generation-001_raw.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-23 11:01:34.975563+00",
+      "deleted_at": null,
+      "duration_seconds": 212,
+      "episode_id": "9afd16ee-e1cd-4aab-9bb0-9e9277cb013b",
+      "file_name": "001 - Mana Generation - RJ Hutesh - Till 02 11 2026.mp3",
+      "file_size": 8492927,
+      "id": "767222b9-844c-4fac-b461-72ec041a9055",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/9afd16ee-e1cd-4aab-9bb0-9e9277cb013b/1792753293458-001---mana-generation---rj-hutesh---till-02-11-2026.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-23 12:07:39.146301+00",
+      "deleted_at": null,
+      "duration_seconds": 129,
+      "episode_id": "9e4f2afc-7cd5-4fea-9037-86238d311af1",
+      "file_name": "SPL Diwali RJ Shiksha 08 11 26 RAW.mp3",
+      "file_size": 5181490,
+      "id": "7264e267-f29f-493a-a5c7-4f8303551bad",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/9e4f2afc-7cd5-4fea-9037-86238d311af1/1792757258354-spl-diwali-rj-shiksha-08-11-26-raw.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-25 01:01:55.72064+00",
+      "deleted_at": null,
+      "duration_seconds": 134,
+      "episode_id": "c0edff0f-701a-430d-a832-7eb79a6bd180",
+      "file_name": "VV-DD-27 10 2026-RJ Anand- Voice-mixota-final.mp3",
+      "file_size": 3228107,
+      "id": "fd301a90-5de5-47ec-8e3e-0a633fcd56cb",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/c0edff0f-701a-430d-a832-7eb79a6bd180/1792890110820-vv-dd-27-10-2026-rj-anand--voice-mixota-final.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-25 01:02:01.563716+00",
+      "deleted_at": null,
+      "duration_seconds": 134,
+      "episode_id": "c0edff0f-701a-430d-a832-7eb79a6bd180",
+      "file_name": "VV-DD-27 10 2026-RJ Anand- Voice-mixota-final.mp3",
+      "file_size": 3228107,
+      "id": "11753455-bffd-401c-addb-d49c22658114",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/c0edff0f-701a-430d-a832-7eb79a6bd180/1792890117896-vv-dd-27-10-2026-rj-anand--voice-mixota-final.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-26 12:07:29.579976+00",
+      "deleted_at": null,
+      "duration_seconds": 129,
+      "episode_id": "9e4f2afc-7cd5-4fea-9037-86238d311af1",
+      "file_name": "edited-audio-mixota-final.mp3",
+      "file_size": 3103973,
+      "id": "81bc2481-1e3e-4a9b-bc40-da34e881a6b2",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/9e4f2afc-7cd5-4fea-9037-86238d311af1/1793016438394-edited-audio-mixota-final.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-26 12:09:48.231093+00",
+      "deleted_at": null,
+      "duration_seconds": 129,
+      "episode_id": "9e4f2afc-7cd5-4fea-9037-86238d311af1",
+      "file_name": "SPL Diwali RJ Shiksha 08 11 26 RAW-mixota-final.mp3",
+      "file_size": 3103973,
+      "id": "d2f83ac7-c868-4a4e-b5d3-812600253f23",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/9e4f2afc-7cd5-4fea-9037-86238d311af1/1793016576408-spl-diwali-rj-shiksha-08-11-26-raw-mixota-final.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-26 12:27:06.455198+00",
+      "deleted_at": null,
+      "duration_seconds": 129,
+      "episode_id": "9e4f2afc-7cd5-4fea-9037-86238d311af1",
+      "file_name": "edited-audio-mixota-final.mp3",
+      "file_size": 3103973,
+      "id": "13f58a9b-de03-4779-8744-40a461571ce5",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/9e4f2afc-7cd5-4fea-9037-86238d311af1/1793017625199-edited-audio-mixota-final.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-30 10:45:23.305588+00",
+      "deleted_at": null,
+      "duration_seconds": 156,
+      "episode_id": "da35a5ad-1b13-4a5b-9525-12f025f43d19",
+      "file_name": "Spl National Family Literacy Day RJ Nava 01 11 2026 Edited.mp3",
+      "file_size": 6266325,
+      "id": "2b5b7f9f-bff5-4e08-bcd8-c7dcb56cc362",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/da35a5ad-1b13-4a5b-9525-12f025f43d19/1793357113850-k6rsxk-spl-national-family-literacy-day-rj-nava-01-11-2026-edited.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-10-30 11:31:05.79502+00",
+      "deleted_at": null,
+      "duration_seconds": 155,
+      "episode_id": "da35a5ad-1b13-4a5b-9525-12f025f43d19",
+      "file_name": "463 - Special Link - Family Literacy Day - RJ Nava - 01 11 2026 Only.mp3",
+      "file_size": 6216265,
+      "id": "046ec7c4-3c6d-454f-8578-cea6496f5f74",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/da35a5ad-1b13-4a5b-9525-12f025f43d19/1793359859829-mpquzh-463---special-link---family-literacy-day---rj-nava---01-11-2026-only.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-02 05:24:53.955493+00",
+      "deleted_at": null,
+      "duration_seconds": 200,
+      "episode_id": "0a04bf8d-4a33-4219-b47f-c0f0b21bea48",
+      "file_name": "SPL Diwali RJ Mangal (Tamil)final version  08 11 26 RAW.mp3",
+      "file_size": 8007244,
+      "id": "79f5751c-2781-4b44-a0c9-06fea4f97709",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/0a04bf8d-4a33-4219-b47f-c0f0b21bea48/1793597092305-710rux-spl-diwali-rj-mangal-tamil-final-version-08-11-26-raw.mp3",
+      "uploaded_by": "2c7bb431-96d3-4b84-96d1-5e7e72fc6d4f"
+    },
+    {
+      "created_at": "2026-11-02 08:54:15.943504+00",
+      "deleted_at": null,
+      "duration_seconds": 112,
+      "episode_id": "06ba2d3e-ff84-4dad-a8b7-e85405a48f11",
+      "file_name": "464 - Special Link - World Pneumonia Day - 12 11 2026 - Voice.mp3",
+      "file_size": 4497121,
+      "id": "63b172fc-7cf9-4edc-acb6-1370204ea872",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/06ba2d3e-ff84-4dad-a8b7-e85405a48f11/1793609651459-99722d-464---special-link---world-pneumonia-day---12-11-2026---voice.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-02 08:54:40.084916+00",
+      "deleted_at": null,
+      "duration_seconds": 118,
+      "episode_id": "06ba2d3e-ff84-4dad-a8b7-e85405a48f11",
+      "file_name": "464 - Special Link - World Pneumonia Day - 12 11 2026 Only.mp3",
+      "file_size": 4751796,
+      "id": "9f9f07cf-279a-456c-a278-47a39ab6d62f",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/06ba2d3e-ff84-4dad-a8b7-e85405a48f11/1793609675876-0eo3l2-464---special-link---world-pneumonia-day---12-11-2026-only.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-02 10:00:07.560872+00",
+      "deleted_at": null,
+      "duration_seconds": 226,
+      "episode_id": "d1ad1216-90c4-4125-8f02-e79e776da74b",
+      "file_name": "Mana generation-2.mp3",
+      "file_size": 9055296,
+      "id": "6b1556ec-8c64-483a-8407-26db51565c6e",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/d1ad1216-90c4-4125-8f02-e79e776da74b/1793613605968-qtg0jm-mana-generation-2.mp3",
+      "uploaded_by": "ebe45284-9b8e-4dcb-a5af-1e35c41a8726"
+    },
+    {
+      "created_at": "2026-11-02 12:13:16.751212+00",
+      "deleted_at": null,
+      "duration_seconds": 228,
+      "episode_id": "35cae708-20dc-4acb-8c5a-8f6e5373bd85",
+      "file_name": "SPL National Stress Awarenerss Day- RJ Mangal.04-11-2026 mp3.mp3",
+      "file_size": 9147724,
+      "id": "88e5017b-bdc1-4571-8e3b-7e6ebeef5f0a",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/35cae708-20dc-4acb-8c5a-8f6e5373bd85/1793621595532-672o9z-spl-national-stress-awarenerss-day--rj-mangal.04-11-2026-mp3.mp3",
+      "uploaded_by": "2c7bb431-96d3-4b84-96d1-5e7e72fc6d4f"
+    },
+    {
+      "created_at": "2026-11-02 12:13:51.188579+00",
+      "deleted_at": null,
+      "duration_seconds": 168,
+      "episode_id": "81277d89-74a5-4cde-bb4a-42af880033ad",
+      "file_name": "SPL National Educational dayRJ Mangal final version Raw.mp3",
+      "file_size": 6741964,
+      "id": "18c41259-1990-4738-99aa-caf807acb958",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/81277d89-74a5-4cde-bb4a-42af880033ad/1793621630247-1b0ay9-spl-national-educational-dayrj-mangal-final-version-raw.mp3",
+      "uploaded_by": "2c7bb431-96d3-4b84-96d1-5e7e72fc6d4f"
+    },
+    {
+      "created_at": "2026-11-02 12:42:52.883638+00",
+      "deleted_at": null,
+      "duration_seconds": 247,
+      "episode_id": "090694fd-5086-48f0-8e9a-6ba18bb7af26",
+      "file_name": "Spl National Espresso DAy- 23.11.2026- RJ Sanjana- RAW.mp3",
+      "file_size": 9893589,
+      "id": "5fe6308e-da6b-4152-b764-06064547fbdd",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/090694fd-5086-48f0-8e9a-6ba18bb7af26/1793623371799-09xbn0-spl-national-espresso-day--23.11.2026--rj-sanjana--raw.mp3",
+      "uploaded_by": "4a1c5991-8bcf-498c-9998-62b4de2d8cb3"
+    },
+    {
+      "created_at": "2026-11-02 12:51:01.992666+00",
+      "deleted_at": null,
+      "duration_seconds": 781,
+      "episode_id": "1c6b623a-7a0a-4789-a960-7d0609be363e",
+      "file_name": "27 dresses ep3- rj Sanjana rj himani- RAW.mp3",
+      "file_size": 31239721,
+      "id": "11e64ec0-fc95-4b4a-90b8-d44c9894821b",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/1c6b623a-7a0a-4789-a960-7d0609be363e/1793623859907-8g6yj1-27-dresses-ep3--rj-sanjana-rj-himani--raw.mp3",
+      "uploaded_by": "4a1c5991-8bcf-498c-9998-62b4de2d8cb3"
+    },
+    {
+      "created_at": "2026-11-02 13:01:35.678142+00",
+      "deleted_at": null,
+      "duration_seconds": 894,
+      "episode_id": "23014fd1-c61e-4e9d-a1b1-097f2dd0f105",
+      "file_name": "27 dresses- rj sanjana, rj amanda, rj himani- EP 2.mp3",
+      "file_size": 35785961,
+      "id": "f98453f0-a1aa-4ab9-9c60-48d2901ddb47",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/23014fd1-c61e-4e9d-a1b1-097f2dd0f105/1793624493067-mv3h9r-27-dresses--rj-sanjana-rj-amanda-rj-himani--ep-2.mp3",
+      "uploaded_by": "4a1c5991-8bcf-498c-9998-62b4de2d8cb3"
+    },
+    {
+      "created_at": "2026-11-03 08:01:21.264512+00",
+      "deleted_at": null,
+      "duration_seconds": 171,
+      "episode_id": "35cae708-20dc-4acb-8c5a-8f6e5373bd85",
+      "file_name": "465 - Special Link - Stress Awareness Day - 04 11 2026 Only.mp3",
+      "file_size": 6857342,
+      "id": "76ccd7b1-cf94-4a57-b1b7-af7df4f4f9c1",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/35cae708-20dc-4acb-8c5a-8f6e5373bd85/1793692879029-ty7ae2-465---special-link---stress-awareness-day---04-11-2026-only.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-03 12:37:10.729205+00",
+      "deleted_at": null,
+      "duration_seconds": 1716,
+      "episode_id": "3b38e435-2e5d-430c-a6cf-f2e1d6aee95f",
+      "file_name": "Chatty Chatty Maria Sebastian Sir Edited-esv2-speech-0p.mp3",
+      "file_size": 27413354,
+      "id": "bac3236d-3d6a-4ab8-afe7-a3850676526f",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/3b38e435-2e5d-430c-a6cf-f2e1d6aee95f/1793709428393-77qc9g-chatty-chatty-maria-sebastian-sir-edited-esv2-speech-0p.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-03 12:57:18.824754+00",
+      "deleted_at": null,
+      "duration_seconds": 1824,
+      "episode_id": "6603357f-f9c4-430a-8e46-c4abff948586",
+      "file_name": "Kattan Chaya Talks - EP 06 - RJ Arundhathi, RJ Nandana - Pioneer women in kerala.mp3",
+      "file_size": 29195879,
+      "id": "69182a9d-8e7e-4805-8d57-e1905dfb8048",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/6603357f-f9c4-430a-8e46-c4abff948586/1793710635907-e5rd11-tan-chaya-talks---ep-06---rj-arundhathi-rj-nandana---pioneer-women-in-kerala.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-03 12:58:56.766875+00",
+      "deleted_at": null,
+      "duration_seconds": 1487,
+      "episode_id": "f171b62b-d6e0-4aa8-a165-2ad2d86ebffb",
+      "file_name": "Kattan Chaya Episode 4 RJ Nandana RJ Arundhathi RAW.mp3",
+      "file_size": 23799210,
+      "id": "2c6c4ee6-2655-436b-b52b-4f061870e769",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/f171b62b-d6e0-4aa8-a165-2ad2d86ebffb/1793710734374-hq3xfh-kattan-chaya-episode-4-rj-nandana-rj-arundhathi-raw.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-04 07:39:00.922872+00",
+      "deleted_at": null,
+      "duration_seconds": 192,
+      "episode_id": "32f633d4-18df-452c-993b-8cb79decc1f2",
+      "file_name": "SPL National Epilepsy day 17 11 2026 RJ Ishu Verse.mp3",
+      "file_size": 7673164,
+      "id": "78514bbd-d794-4d9c-ba29-49bdb9a2d43d",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/32f633d4-18df-452c-993b-8cb79decc1f2/1793777939672-uumak3-spl-national-epilepsy-day-17-11-2026-rj-ishu-verse.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-04 07:39:27.867187+00",
+      "deleted_at": null,
+      "duration_seconds": 222,
+      "episode_id": "4680164c-9104-4f5f-aee7-eb3bc9124cd7",
+      "file_name": "Tsunami RJ Ishuverse 05 11 2026 Raw.mp3",
+      "file_size": 8885644,
+      "id": "7d147118-fdb2-44b0-8414-20dab6d73050",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/4680164c-9104-4f5f-aee7-eb3bc9124cd7/1793777967051-rl9p2t-tsunami-rj-ishuverse-05-11-2026-raw.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-04 09:53:53.08644+00",
+      "deleted_at": null,
+      "duration_seconds": 154,
+      "episode_id": "4680164c-9104-4f5f-aee7-eb3bc9124cd7",
+      "file_name": "466 - Special Link - World Tsunami Awareness Day - RJ Ishuverse - 05 11 2026 Only.mp3",
+      "file_size": 6183869,
+      "id": "16065d71-e643-4173-a01d-e80d22068f7e",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/4680164c-9104-4f5f-aee7-eb3bc9124cd7/1793786032044-povvon--special-link---world-tsunami-awareness-day---rj-ishuverse---05-11-2026-only.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-04 09:55:35.845537+00",
+      "deleted_at": null,
+      "duration_seconds": 223,
+      "episode_id": "d072e7a9-1606-4c32-add3-cb59799230b6",
+      "file_name": "467 - Special Link - World Tsunami Awareness Day - RJ Himani - 05 11 2026 Only - Voice.mp3",
+      "file_size": 8935386,
+      "id": "ab80d4e7-b3a4-4279-b69b-e3d0d9591b00",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/d072e7a9-1606-4c32-add3-cb59799230b6/1793786134977-m2vf4o-ial-link---world-tsunami-awareness-day---rj-himani---05-11-2026-only---voice.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-04 09:55:48.658822+00",
+      "deleted_at": null,
+      "duration_seconds": 228,
+      "episode_id": "d072e7a9-1606-4c32-add3-cb59799230b6",
+      "file_name": "467 - Special Link - World Tsunami Awareness Day - RJ Himani - 05 11 2026 Only.mp3",
+      "file_size": 9160185,
+      "id": "f688d269-17f6-4aa0-a158-8c6643cce952",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/d072e7a9-1606-4c32-add3-cb59799230b6/1793786147578-eolrt2-7---special-link---world-tsunami-awareness-day---rj-himani---05-11-2026-only.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-04 09:56:25.421091+00",
+      "deleted_at": null,
+      "duration_seconds": 114,
+      "episode_id": "9e4f2afc-7cd5-4fea-9037-86238d311af1",
+      "file_name": "469 - Special Link - Diwali - RJ Shiksha - 08 11 2026 Only.mp3",
+      "file_size": 4578307,
+      "id": "33e9eb41-2604-4522-a6b3-36d4dc8fca72",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/9e4f2afc-7cd5-4fea-9037-86238d311af1/1793786184444-bbryml-469---special-link---diwali---rj-shiksha---08-11-2026-only.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-04 09:56:55.553652+00",
+      "deleted_at": null,
+      "duration_seconds": 121,
+      "episode_id": "32f633d4-18df-452c-993b-8cb79decc1f2",
+      "file_name": "471 - Special Link - National Epilepsy Day - RJ Ishuverse - 17 11 2026 Only.mp3",
+      "file_size": 4887597,
+      "id": "d3d16192-9155-4e82-956c-232115606759",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/32f633d4-18df-452c-993b-8cb79decc1f2/1793786214827-eay6j5-471---special-link---national-epilepsy-day---rj-ishuverse---17-11-2026-only.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-04 12:49:42.61892+00",
+      "deleted_at": null,
+      "duration_seconds": 130,
+      "episode_id": "81277d89-74a5-4cde-bb4a-42af880033ad",
+      "file_name": "470 - Special Link - National Education Day - RJ Mangal - 11 11 2026 Only.mp3",
+      "file_size": 5216740,
+      "id": "0d523047-9787-44f2-8b34-6b57cc4b327e",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/81277d89-74a5-4cde-bb4a-42af880033ad/1793796581798-r0djo6-470---special-link---national-education-day---rj-mangal---11-11-2026-only.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-04 13:18:43.995561+00",
+      "deleted_at": null,
+      "duration_seconds": 159,
+      "episode_id": "0a04bf8d-4a33-4219-b47f-c0f0b21bea48",
+      "file_name": "468 - Special Link - Diwali - RJ Mangal - 08 11 2026 Only.mp3",
+      "file_size": 6392290,
+      "id": "e700eaec-6f1d-4422-8e31-bce717fa2d86",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/0a04bf8d-4a33-4219-b47f-c0f0b21bea48/1793798323028-arjohn-468---special-link---diwali---rj-mangal---08-11-2026-only.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-05 05:39:31.486821+00",
+      "deleted_at": null,
+      "duration_seconds": 151,
+      "episode_id": "13477782-e0e8-4413-b530-05f49457dd4f",
+      "file_name": "472 - Special Link - International Mens Day - RJ Sahana - 19 11 2026 Only - Voice.mp3",
+      "file_size": 6069004,
+      "id": "ade323dc-d263-44ab-8625-2618d5d2cd2c",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/13477782-e0e8-4413-b530-05f49457dd4f/1793857164074-cfi24y--special-link---international-mens-day---rj-sahana---19-11-2026-only---voice.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-05 05:39:53.079374+00",
+      "deleted_at": null,
+      "duration_seconds": 122,
+      "episode_id": "cc63d0a2-2a0a-42ba-9ca9-d7c7e435d13b",
+      "file_name": "473 - Special Link - World Television Day - RJ Tamilmani - 21 11 2026 Only - Voice.mp3",
+      "file_size": 4902604,
+      "id": "73c968e8-0d9a-4254-bd9b-95368f9db4f1",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/cc63d0a2-2a0a-42ba-9ca9-d7c7e435d13b/1793857188367-sh7ndv-special-link---world-television-day---rj-tamilmani---21-11-2026-only---voice.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-05 05:40:14.256524+00",
+      "deleted_at": null,
+      "duration_seconds": 142,
+      "episode_id": "138b731e-d3a8-4b93-ac02-9fd6512476a5",
+      "file_name": "474 - Special Link - World Television Day - RJ Abrar - 21 11 2026 Only - Voice.mp3",
+      "file_size": 5699404,
+      "id": "03cf0c52-a602-4e1d-8849-a75aa3109f19",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/138b731e-d3a8-4b93-ac02-9fd6512476a5/1793857207849-j3mitp-4---special-link---world-television-day---rj-abrar---21-11-2026-only---voice.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-05 08:29:59.523856+00",
+      "deleted_at": null,
+      "duration_seconds": 99,
+      "episode_id": "74dcb586-c45b-4193-aa6c-02ea1d12c396",
+      "file_name": "VV-DD-09 11 2026 - RJ Sriganth.mp3",
+      "file_size": 4010302,
+      "id": "d24f89ab-a702-4ee7-97cf-e01704db4c0c",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/74dcb586-c45b-4193-aa6c-02ea1d12c396/1793867397802-5z7dmm-vv-dd-09-11-2026---rj-sriganth.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-05 08:30:02.065726+00",
+      "deleted_at": null,
+      "duration_seconds": 99,
+      "episode_id": "74dcb586-c45b-4193-aa6c-02ea1d12c396",
+      "file_name": "VV-DD-09 11 2026 - RJ Sriganth.mp3",
+      "file_size": 4010302,
+      "id": "93200ac1-59d7-4792-b539-6f2bd2fe3d4b",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/74dcb586-c45b-4193-aa6c-02ea1d12c396/1793867400785-lon4tp-vv-dd-09-11-2026---rj-sriganth.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-05 08:32:18.256401+00",
+      "deleted_at": null,
+      "duration_seconds": 111,
+      "episode_id": "0986e7e5-135f-4c45-a902-f5ec170f275a",
+      "file_name": "VV-DD-10 11 2026 - RJ Sriganth.mp3",
+      "file_size": 4509763,
+      "id": "76f5ccf1-fb3e-4dc7-8b84-1fb5eebe98ae",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/0986e7e5-135f-4c45-a902-f5ec170f275a/1793867535919-rgz9ft-vv-dd-10-11-2026---rj-sriganth.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-05 08:32:23.651749+00",
+      "deleted_at": null,
+      "duration_seconds": 111,
+      "episode_id": "0986e7e5-135f-4c45-a902-f5ec170f275a",
+      "file_name": "VV-DD-10 11 2026 - RJ Sriganth.mp3",
+      "file_size": 4509763,
+      "id": "2dd467a8-783c-40a9-97fe-c8c39568f9f4",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/0986e7e5-135f-4c45-a902-f5ec170f275a/1793867542168-ta6y24-vv-dd-10-11-2026---rj-sriganth.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-05 09:11:10.247464+00",
+      "deleted_at": null,
+      "duration_seconds": 132,
+      "episode_id": "4fb5f47f-6dc3-4b85-b4ab-c5059f16af9b",
+      "file_name": "472 - Special Link - International Accounting Day - RJ Jyothishmathi - 10 11 2026 Only - Voice-edited.mp3",
+      "file_size": 1838361,
+      "id": "e281ceb5-cda9-4cba-801e-ef481d5d76d1",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/4fb5f47f-6dc3-4b85-b4ab-c5059f16af9b/1793869866668-ttf7ft-rnational-accounting-day---rj-jyothishmathi---10-11-2026-only---voice-edited.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-05 09:11:25.041943+00",
+      "deleted_at": null,
+      "duration_seconds": 139,
+      "episode_id": "4fb5f47f-6dc3-4b85-b4ab-c5059f16af9b",
+      "file_name": "472 - Special Link - International Accounting Day - RJ Jyothishmathi - 10 11 2026 Only.mp3",
+      "file_size": 5578801,
+      "id": "051b73fc-6464-47c9-b6a4-1c0b33cfeddb",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/4fb5f47f-6dc3-4b85-b4ab-c5059f16af9b/1793869882786-p6gf0p-ial-link---international-accounting-day---rj-jyothishmathi---10-11-2026-only.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-05 11:27:07.321058+00",
+      "deleted_at": null,
+      "duration_seconds": 198,
+      "episode_id": "5b019b5c-7baa-40ea-8e30-12435a7c9e6a",
+      "file_name": "481 - Special Link - Diwali Crackers Awareness - RJ Anand - 06 11 2026 - Voice.mp3",
+      "file_size": 7912315,
+      "id": "b59afaaa-2e5d-4486-8f4e-94f6353ea96e",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/5b019b5c-7baa-40ea-8e30-12435a7c9e6a/1793878025573-bymnkk-1---special-link---diwali-crackers-awareness---rj-anand---06-11-2026---voice.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    },
+    {
+      "created_at": "2026-11-05 11:27:17.570917+00",
+      "deleted_at": null,
+      "duration_seconds": 202,
+      "episode_id": "5b019b5c-7baa-40ea-8e30-12435a7c9e6a",
+      "file_name": "481 - Special Link - Diwali Crackers Awareness - RJ Anand - 06 11 2026 Only.mp3",
+      "file_size": 8118835,
+      "id": "666d3edc-526d-4483-b9d4-c89ffb700e30",
+      "mime_type": "audio/mpeg",
+      "storage_path": "episodes/5b019b5c-7baa-40ea-8e30-12435a7c9e6a/1793878035752-nftvpx-481---special-link---diwali-crackers-awareness---rj-anand---06-11-2026-only.mp3",
+      "uploaded_by": "6b166428-4ac4-49f5-bd7f-efc8f1b60545"
+    }
+  ]
+}

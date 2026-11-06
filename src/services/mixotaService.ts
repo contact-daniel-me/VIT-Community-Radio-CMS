@@ -53,14 +53,17 @@ export const mixotaService = {
           if (options.recordingId) {
             const { data: fileRow } = await supabase
               .from('audio_files')
-              .select('storage_path, file_name')
+              .select('storage_path, file_name, storage_provider')
               .eq('id', options.recordingId)
               .maybeSingle();
 
             if (fileRow?.storage_path) {
               storagePath = fileRow.storage_path;
               try {
-                signedUrl = await audioService.getPlaybackUrl(storagePath, 3600);
+                signedUrl = await audioService.getPlaybackUrl(
+                  { storage_path: storagePath, storage_provider: fileRow.storage_provider },
+                  3600
+                );
               } catch (e) {
                 console.warn('[mixotaService] Could not generate signed URL ahead of time', e);
               }
@@ -96,10 +99,45 @@ export const mixotaService = {
           console.error('[mixotaService] Error during session handoff', err);
         }
       } else if (data.type === 'MIXOTA_EXPORT_COMPLETE') {
+        const { audioFileId, episodeId, fileName } = data;
+
+        if (!audioFileId || !episodeId) {
+          console.warn('[mixotaService] Incomplete MIXOTA_EXPORT_COMPLETE payload received', data);
+          handlers.onError?.('Invalid export completion payload from Mixota.');
+          return;
+        }
+
+        // Independently validate that audioFileId exists and is genuinely associated with episodeId
+        try {
+          const { data: audioRow, error } = await supabase
+            .from('audio_files')
+            .select('id, episode_id, storage_provider, storage_path')
+            .eq('id', audioFileId)
+            .maybeSingle();
+
+          if (error || !audioRow) {
+            console.warn('[mixotaService] Returned audioFileId not found in database', audioFileId);
+            handlers.onError?.('The exported audio file could not be verified in the CMS database.');
+            return;
+          }
+
+          if (audioRow.episode_id !== episodeId) {
+            console.error('[mixotaService] Security alert: audioFileId does not belong to episodeId', {
+              audioFileId,
+              payloadEpisodeId: episodeId,
+              actualEpisodeId: audioRow.episode_id,
+            });
+            handlers.onError?.('Security violation: Audio file does not belong to the active episode.');
+            return;
+          }
+        } catch (verifyErr) {
+          console.warn('[mixotaService] Error during independent export validation', verifyErr);
+        }
+
         handlers.onExportComplete?.({
-          audioFileId: data.audioFileId,
-          episodeId: data.episodeId,
-          fileName: data.fileName,
+          audioFileId,
+          episodeId,
+          fileName: fileName || 'master.mp3',
         });
       }
     };

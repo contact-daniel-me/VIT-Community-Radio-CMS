@@ -13,3 +13,6 @@ supabase/.branches
 .vscode/*
 !.vscode/extensions.json
 .idea
+*backup*.sql
+*.sql.bak
+temp_*.sql

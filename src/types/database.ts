@@ -255,6 +255,9 @@ export type AudioFileRow = {
   episode_id: string;
   file_name: string;
   storage_path: string;
+  storage_provider?: 'supabase' | 'r2';
+  storage_checksum?: string | null;
+  storage_migrated_at?: string | null;
   mime_type: string;
   file_size: number;
   duration_seconds: number | null;

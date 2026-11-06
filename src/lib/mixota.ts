@@ -10,6 +10,23 @@
 export const DEFAULT_DEV_MIXOTA_URL = 'http://localhost:5055';
 export const DEFAULT_PROD_MIXOTA_URL = 'https://mixota.growiota.in';
 
+export const ALLOWED_MIXOTA_ORIGINS: readonly string[] = [
+  'https://mixota.growiota.in',
+  'http://localhost:5055',
+  'http://localhost:3000',
+  'http://127.0.0.1:5055',
+];
+
+export function isAllowedMixotaOrigin(origin: string): boolean {
+  if (ALLOWED_MIXOTA_ORIGINS.includes(origin)) return true;
+  try {
+    const configuredOrigin = new URL(getMixotaBaseUrl()).origin;
+    return origin === configuredOrigin;
+  } catch {
+    return false;
+  }
+}
+
 interface SafeImportMeta {
   env?: {
     VITE_MIXOTA_URL?: string;
@@ -70,10 +87,9 @@ export function buildMixotaLaunchUrl(options: MixotaLaunchOptions): string {
     params.set('target', options.targetField);
   }
 
-  const globalScope = typeof globalThis !== 'undefined' ? (globalThis as unknown as Record<string, any>) : null;
-  const origin = globalScope?.window?.location?.origin || globalScope?.location?.origin;
+  const origin = typeof window !== 'undefined' ? window.location?.origin : undefined;
   if (origin) {
-    params.set('cmsOrigin', String(origin));
+    params.set('cmsOrigin', origin);
   }
 
   return `${baseUrl}${cleanRoute}?${params.toString()}`;

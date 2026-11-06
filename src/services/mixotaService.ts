@@ -1,4 +1,8 @@
-import { buildMixotaLaunchUrl, getMixotaBaseUrl, type MixotaLaunchOptions } from '@/lib/mixota';
+import {
+  buildMixotaLaunchUrl,
+  isAllowedMixotaOrigin,
+  type MixotaLaunchOptions,
+} from '@/lib/mixota';
 import { authService } from '@/services/authService';
 import { audioService } from '@/services/audioService';
 import { supabase } from '@/lib/supabase';
@@ -23,7 +27,6 @@ export const mixotaService = {
     handlers: OpenMixotaHandlers = {},
   ): Promise<Window | null> {
     const launchUrl = buildMixotaLaunchUrl(options);
-    const mixotaOrigin = new URL(getMixotaBaseUrl()).origin;
 
     const mixotaWindow = window.open(launchUrl, '_blank');
     if (!mixotaWindow) {
@@ -33,8 +36,8 @@ export const mixotaService = {
 
     // Set up postMessage listener to communicate with Mixota tab securely
     const messageListener = async (event: MessageEvent) => {
-      // Validate origin strictly: only trusted Mixota origin is accepted
-      if (event.origin !== mixotaOrigin) {
+      // Validate origin strictly: only trusted Mixota origins are accepted
+      if (!isAllowedMixotaOrigin(event.origin)) {
         return;
       }
 
@@ -50,11 +53,14 @@ export const mixotaService = {
           let signedUrl: string | null = null;
           let storagePath: string | null = null;
 
-          if (options.recordingId) {
+          const recordingId = options.recordingId || data.recordingId;
+          const episodeId = options.episodeId || data.episodeId;
+
+          if (recordingId) {
             const { data: fileRow } = await supabase
               .from('audio_files')
               .select('storage_path, file_name, storage_provider')
-              .eq('id', options.recordingId)
+              .eq('id', recordingId)
               .maybeSingle();
 
             if (fileRow?.storage_path) {
@@ -68,14 +74,39 @@ export const mixotaService = {
                 console.warn('[mixotaService] Could not generate signed URL ahead of time', e);
               }
             }
+          } else if (episodeId) {
+            const { data: epRow } = await supabase
+              .from('episodes')
+              .select('audio_file_id, final_audio_file_id')
+              .eq('id', episodeId)
+              .maybeSingle();
+            const targetRecId = epRow?.final_audio_file_id || epRow?.audio_file_id;
+            if (targetRecId) {
+              const { data: fileRow } = await supabase
+                .from('audio_files')
+                .select('storage_path, file_name, storage_provider')
+                .eq('id', targetRecId)
+                .maybeSingle();
+              if (fileRow?.storage_path) {
+                storagePath = fileRow.storage_path;
+                try {
+                  signedUrl = await audioService.getPlaybackUrl(
+                    { storage_path: storagePath, storage_provider: fileRow.storage_provider },
+                    3600
+                  );
+                } catch (e) {
+                  console.warn('[mixotaService] Could not generate signed URL ahead of time', e);
+                }
+              }
+            }
           }
 
           // Reply with authenticated session and signed URL
           event.source?.postMessage(
             {
               type: 'MIXOTA_SESSION_RESPONSE',
-              recordingId: options.recordingId,
-              episodeId: options.episodeId,
+              recordingId: recordingId || options.recordingId,
+              episodeId: episodeId || options.episodeId,
               session: session
                 ? {
                     access_token: session.access_token,

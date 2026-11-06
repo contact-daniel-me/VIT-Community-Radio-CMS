@@ -111,7 +111,7 @@ export const r2Service = {
       };
 
       xhr.onerror = () => {
-        reject(new AppError('NETWORK', 'Network error while uploading audio to Cloudflare R2. Please check your connection.'));
+        reject(new AppError('NETWORK', 'Network or CORS error while uploading audio to Cloudflare R2. Please check your connection and verify R2 bucket CORS settings.'));
       };
 
       xhr.ontimeout = () => {

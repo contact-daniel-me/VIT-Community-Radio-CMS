@@ -70,6 +70,8 @@ export const can = {
   manageHolidays: (role: UserRole): boolean => role === 'ADMIN',
 
   manageFeedback: (role: UserRole): boolean => role === 'ADMIN',
+
+  viewStorage: (role: UserRole): boolean => role === 'ADMIN',
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {

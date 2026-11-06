@@ -32,6 +32,7 @@ import { LeaderboardPage } from '@/pages/LeaderboardPage';
 import { HolidaysPage } from '@/pages/HolidaysPage';
 import { FeedbackPage } from '@/pages/FeedbackPage';
 import { AdminFeedbackPage } from '@/pages/AdminFeedbackPage';
+import { StoragePage } from '@/pages/StoragePage';
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const { session, profile, loading } = useAuth();
@@ -189,6 +190,14 @@ export default function App() {
                 element={
                   <RequireRole allow={can.manageFeedback}>
                     <AdminFeedbackPage />
+                  </RequireRole>
+                }
+              />
+              <Route
+                path="admin/storage"
+                element={
+                  <RequireRole allow={can.viewStorage}>
+                    <StoragePage />
                   </RequireRole>
                 }
               />

@@ -30,6 +30,7 @@ const NAV: NavItem[] = [
   { to: '/programs', label: 'Programs', visible: (role) => can.manageProgram(role) },
   { to: '/admin/holidays', label: 'Holidays', visible: (role) => can.manageHolidays(role) },
   { to: '/admin/feedback', label: 'Feedback', visible: (role) => can.manageFeedback(role) },
+  { to: '/admin/storage', label: 'Storage', visible: (role) => can.viewStorage(role) },
 ];
 
 export function AppLayout() {

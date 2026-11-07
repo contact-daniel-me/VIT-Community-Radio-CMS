@@ -171,21 +171,27 @@
   display: inline-flex;
   align-items: center;
   gap: 0.68rem;
+  min-width: 0;
 }
 .logo-mark {
   display: block;
+  flex-shrink: 0;
   transition: height var(--t-base) var(--ease);
 }
 .logo-text {
   display: flex;
   flex-direction: column;
   line-height: 1.15;
+  min-width: 0;
+  overflow: hidden;
 }
 .logo-name {
   font-size: 0.95rem; /* Increased size to match 90.8 FM prominence */
   font-weight: 700;
   letter-spacing: 0.045em;
   color: var(--ink);
+  display: block;
+  min-width: 0;
 }
 .logo-freq {
   font-family: var(--font-mono);
@@ -235,6 +241,10 @@
   padding-bottom: 0.6rem;
 }
 .site-brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
   text-decoration: none;
 }
 .site-nav {
@@ -1781,13 +1791,13 @@
     display: none !important;
   }
   .site-header .logo-name {
-    font-size: 0.78rem;
+    font-size: clamp(0.68rem, 2.6vw, 0.78rem);
+    letter-spacing: 0.02em;
     white-space: nowrap;
-    /* Nowrap text in a flex item cannot shrink below its own width, so if the
-       row ever runs short the name must be allowed to clip rather than push
-       the header wider than the screen. */
     overflow: hidden;
     text-overflow: ellipsis;
+    display: block;
+    min-width: 0;
   }
 
   /* The header could not fit on a phone. Its contents needed 486px -- brand
@@ -1819,6 +1829,11 @@
   .site-actions .site-install-btn .install-app-label {
     display: none;
   }
+  .site-actions {
+    margin-left: auto;
+    flex-shrink: 0;
+    gap: 0.35rem;
+  }
   .site-header-inner {
     padding-left: 1rem;
     padding-right: 1rem;
@@ -1831,6 +1846,23 @@
   .site-header .logo-text {
     min-width: 0;
   }
+  .site-brand {
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+  .site-header .logo {
+    gap: 0.45rem;
+    max-width: 100%;
+  }
+  .site-header .logo-mark {
+    flex-shrink: 0;
+  }
+  .site-header .logo-text {
+    overflow: hidden;
+  }
+
   /* Was clipping off the right edge. */
   .hero-onair-sign {
     display: none;
@@ -1838,18 +1870,226 @@
   .hero-visual {
     display: none;
   }
-  .section {
-    padding-top: 3.2rem;
-  }
+
+  /* Content gutters & section margins */
+  .section,
   .hero {
-    padding-top: 2rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .section {
+    padding-top: 2.8rem;
+  }
+  .section-head {
+    gap: 0.8rem;
+    margin-bottom: 1.4rem;
+    padding-bottom: 1rem;
+  }
+  .section-title {
+    font-size: clamp(1.45rem, 5.8vw, 1.95rem);
+  }
+  .section-note {
+    font-size: 0.76rem;
+  }
+
+  /* Hero section */
+  .hero {
+    padding-top: 1.8rem;
   }
   .hero-lede {
-    padding-bottom: 1.4rem;
+    padding-bottom: 1.2rem;
+  }
+  .hero .eyebrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.55rem;
+    font-size: clamp(0.58rem, 2.2vw, 0.65rem);
+    letter-spacing: 0.1em;
+    margin-bottom: 0.85rem;
+  }
+  .hero .eyebrow span {
+    white-space: nowrap;
+  }
+  .hero .eyebrow-rule {
+    width: 12px;
+    flex-shrink: 0;
+  }
+  .hero-title {
+    font-size: clamp(2.35rem, 9.2vw, 3.4rem);
+    line-height: 0.98;
+    letter-spacing: -0.035em;
+  }
+  .hero-copy {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-top: 1.1rem;
+    max-width: 100%;
+  }
+  .hero-actions {
+    margin-top: 1.5rem;
   }
   .hero-actions .btn {
     flex: 1 1 auto;
+    width: 100%;
+    text-align: center;
+    justify-content: center;
   }
+  .hero-quote {
+    margin-top: 1.3rem;
+    font-size: 0.84rem;
+    padding-left: 2.2rem;
+  }
+  .hero-quote::before {
+    width: 1.6rem;
+  }
+
+  /* What's New card */
+  .whats-new-panel {
+    padding: 1.25rem 0 0.9rem 0;
+  }
+  .whats-new-header-container {
+    padding: 0 1rem;
+    margin-bottom: 0.85rem;
+  }
+  .whats-new-head {
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+  }
+  .whats-new-subtitle {
+    font-size: 1.05rem;
+  }
+  .whats-new-slide {
+    padding: 0.5rem 0;
+  }
+  .whats-new-card {
+    width: 90%;
+    max-width: 100%;
+    padding: 1.15rem 1rem;
+    min-height: 148px;
+  }
+  .whats-new-title {
+    font-size: 0.98rem;
+  }
+  .whats-new-desc {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    margin-bottom: 0.6rem;
+  }
+  .whats-new-play-btn {
+    width: 36px;
+    height: 36px;
+  }
+  .whats-new-controls {
+    margin-top: 1rem;
+    gap: 0.6rem;
+  }
+
+  /* Community CTA */
+  .cta {
+    margin-top: 3.5rem;
+    padding: 0 1rem;
+  }
+  .cta-inner {
+    padding: 1.8rem 1.15rem;
+    gap: 1.4rem;
+  }
+  .cta-title {
+    font-size: clamp(1.5rem, 5.5vw, 2.1rem);
+  }
+  .cta-text {
+    font-size: 0.92rem;
+    line-height: 1.55;
+    margin-top: 0.85rem;
+  }
+  .cta-actions .btn {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* Footer */
+  .site-footer {
+    margin-top: 3.5rem;
+  }
+  .site-footer-inner {
+    padding: 2.2rem 1rem 1.8rem;
+    gap: 1.8rem;
+  }
+  .footer-links {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 1.4rem 1rem;
+  }
+  .site-footer-base {
+    padding: 1rem 1rem 1.8rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+
+  /* Sticky Bottom Audio Player */
+  .player-inner {
+    padding: 0.5rem 0.85rem;
+    min-height: 58px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  .player-id {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+  }
+  .player-art {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border-radius: var(--r-sm);
+  }
+  .player-id-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .player-station {
+    font-size: 0.8rem;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .player-sub {
+    font-size: 0.7rem;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .player-transport {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    flex-shrink: 0;
+  }
+  .player-controls {
+    gap: 0.35rem;
+  }
+  .player-play {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+  }
+  .player-state {
+    font-size: 0.55rem;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
   .timeline-row {
     grid-template-columns: 16px minmax(0, 1fr);
     grid-template-areas:
@@ -1882,13 +2122,53 @@
     grid-column: 2;
     gap: 0.8rem;
   }
-  .site-footer-base {
-    flex-direction: column;
+}
+
+@media (max-width: 380px) {
+  .site-header-inner {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
     gap: 0.5rem;
   }
-  .footer-links {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1.6rem;
+  .site-header .logo {
+    gap: 0.35rem;
+  }
+  .site-header .logo-mark {
+    height: 28px !important;
+  }
+  .site-header .logo-name {
+    font-size: 0.68rem;
+    letter-spacing: 0;
+  }
+  .site-actions {
+    gap: 0.25rem;
+  }
+  .site-actions .icon-button,
+  .site-actions .site-install-btn {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+  }
+  .hero-title {
+    font-size: clamp(2rem, 8.8vw, 2.35rem);
+  }
+  .player-inner {
+    padding: 0.45rem 0.65rem;
+    gap: 0.5rem;
+  }
+  .player-art {
+    width: 34px;
+    height: 34px;
+  }
+  .player-play {
+    width: 36px;
+    height: 36px;
+  }
+  .player-station {
+    font-size: 0.76rem;
+  }
+  .player-sub {
+    font-size: 0.66rem;
   }
 }
 
@@ -2900,13 +3180,13 @@
     display: none !important;
   }
   .site-header .logo-name {
-    font-size: 0.78rem;
+    font-size: clamp(0.68rem, 2.6vw, 0.78rem);
+    letter-spacing: 0.02em;
     white-space: nowrap;
-    /* Nowrap text in a flex item cannot shrink below its own width, so if the
-       row ever runs short the name must be allowed to clip rather than push
-       the header wider than the screen. */
     overflow: hidden;
     text-overflow: ellipsis;
+    display: block;
+    min-width: 0;
   }
 
   /* The header could not fit on a phone. Its contents needed 486px -- brand
@@ -2938,6 +3218,11 @@
   .site-actions .site-install-btn .install-app-label {
     display: none;
   }
+  .site-actions {
+    margin-left: auto;
+    flex-shrink: 0;
+    gap: 0.35rem;
+  }
   .site-header-inner {
     padding-left: 1rem;
     padding-right: 1rem;
@@ -2950,6 +3235,23 @@
   .site-header .logo-text {
     min-width: 0;
   }
+  .site-brand {
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+  .site-header .logo {
+    gap: 0.45rem;
+    max-width: 100%;
+  }
+  .site-header .logo-mark {
+    flex-shrink: 0;
+  }
+  .site-header .logo-text {
+    overflow: hidden;
+  }
+
   /* Was clipping off the right edge. */
   .hero-onair-sign {
     display: none;
@@ -2957,18 +3259,226 @@
   .hero-visual {
     display: none;
   }
-  .section {
-    padding-top: 3.2rem;
-  }
+
+  /* Content gutters & section margins */
+  .section,
   .hero {
-    padding-top: 2rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .section {
+    padding-top: 2.8rem;
+  }
+  .section-head {
+    gap: 0.8rem;
+    margin-bottom: 1.4rem;
+    padding-bottom: 1rem;
+  }
+  .section-title {
+    font-size: clamp(1.45rem, 5.8vw, 1.95rem);
+  }
+  .section-note {
+    font-size: 0.76rem;
+  }
+
+  /* Hero section */
+  .hero {
+    padding-top: 1.8rem;
   }
   .hero-lede {
-    padding-bottom: 1.4rem;
+    padding-bottom: 1.2rem;
+  }
+  .hero .eyebrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.55rem;
+    font-size: clamp(0.58rem, 2.2vw, 0.65rem);
+    letter-spacing: 0.1em;
+    margin-bottom: 0.85rem;
+  }
+  .hero .eyebrow span {
+    white-space: nowrap;
+  }
+  .hero .eyebrow-rule {
+    width: 12px;
+    flex-shrink: 0;
+  }
+  .hero-title {
+    font-size: clamp(2.35rem, 9.2vw, 3.4rem);
+    line-height: 0.98;
+    letter-spacing: -0.035em;
+  }
+  .hero-copy {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-top: 1.1rem;
+    max-width: 100%;
+  }
+  .hero-actions {
+    margin-top: 1.5rem;
   }
   .hero-actions .btn {
     flex: 1 1 auto;
+    width: 100%;
+    text-align: center;
+    justify-content: center;
   }
+  .hero-quote {
+    margin-top: 1.3rem;
+    font-size: 0.84rem;
+    padding-left: 2.2rem;
+  }
+  .hero-quote::before {
+    width: 1.6rem;
+  }
+
+  /* What's New card */
+  .whats-new-panel {
+    padding: 1.25rem 0 0.9rem 0;
+  }
+  .whats-new-header-container {
+    padding: 0 1rem;
+    margin-bottom: 0.85rem;
+  }
+  .whats-new-head {
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+  }
+  .whats-new-subtitle {
+    font-size: 1.05rem;
+  }
+  .whats-new-slide {
+    padding: 0.5rem 0;
+  }
+  .whats-new-card {
+    width: 90%;
+    max-width: 100%;
+    padding: 1.15rem 1rem;
+    min-height: 148px;
+  }
+  .whats-new-title {
+    font-size: 0.98rem;
+  }
+  .whats-new-desc {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    margin-bottom: 0.6rem;
+  }
+  .whats-new-play-btn {
+    width: 36px;
+    height: 36px;
+  }
+  .whats-new-controls {
+    margin-top: 1rem;
+    gap: 0.6rem;
+  }
+
+  /* Community CTA */
+  .cta {
+    margin-top: 3.5rem;
+    padding: 0 1rem;
+  }
+  .cta-inner {
+    padding: 1.8rem 1.15rem;
+    gap: 1.4rem;
+  }
+  .cta-title {
+    font-size: clamp(1.5rem, 5.5vw, 2.1rem);
+  }
+  .cta-text {
+    font-size: 0.92rem;
+    line-height: 1.55;
+    margin-top: 0.85rem;
+  }
+  .cta-actions .btn {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* Footer */
+  .site-footer {
+    margin-top: 3.5rem;
+  }
+  .site-footer-inner {
+    padding: 2.2rem 1rem 1.8rem;
+    gap: 1.8rem;
+  }
+  .footer-links {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 1.4rem 1rem;
+  }
+  .site-footer-base {
+    padding: 1rem 1rem 1.8rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+
+  /* Sticky Bottom Audio Player */
+  .player-inner {
+    padding: 0.5rem 0.85rem;
+    min-height: 58px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  .player-id {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+  }
+  .player-art {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border-radius: var(--r-sm);
+  }
+  .player-id-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .player-station {
+    font-size: 0.8rem;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .player-sub {
+    font-size: 0.7rem;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .player-transport {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    flex-shrink: 0;
+  }
+  .player-controls {
+    gap: 0.35rem;
+  }
+  .player-play {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+  }
+  .player-state {
+    font-size: 0.55rem;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
   .timeline-row {
     grid-template-columns: 16px minmax(0, 1fr);
     grid-template-areas:
@@ -3001,13 +3511,53 @@
     grid-column: 2;
     gap: 0.8rem;
   }
-  .site-footer-base {
-    flex-direction: column;
+}
+
+@media (max-width: 380px) {
+  .site-header-inner {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
     gap: 0.5rem;
   }
-  .footer-links {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1.6rem;
+  .site-header .logo {
+    gap: 0.35rem;
+  }
+  .site-header .logo-mark {
+    height: 28px !important;
+  }
+  .site-header .logo-name {
+    font-size: 0.68rem;
+    letter-spacing: 0;
+  }
+  .site-actions {
+    gap: 0.25rem;
+  }
+  .site-actions .icon-button,
+  .site-actions .site-install-btn {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+  }
+  .hero-title {
+    font-size: clamp(2rem, 8.8vw, 2.35rem);
+  }
+  .player-inner {
+    padding: 0.45rem 0.65rem;
+    gap: 0.5rem;
+  }
+  .player-art {
+    width: 34px;
+    height: 34px;
+  }
+  .player-play {
+    width: 36px;
+    height: 36px;
+  }
+  .player-station {
+    font-size: 0.76rem;
+  }
+  .player-sub {
+    font-size: 0.66rem;
   }
 }
 
@@ -3760,13 +4310,13 @@
     display: none !important;
   }
   .site-header .logo-name {
-    font-size: 0.78rem;
+    font-size: clamp(0.68rem, 2.6vw, 0.78rem);
+    letter-spacing: 0.02em;
     white-space: nowrap;
-    /* Nowrap text in a flex item cannot shrink below its own width, so if the
-       row ever runs short the name must be allowed to clip rather than push
-       the header wider than the screen. */
     overflow: hidden;
     text-overflow: ellipsis;
+    display: block;
+    min-width: 0;
   }
 
   /* The header could not fit on a phone. Its contents needed 486px -- brand
@@ -3798,6 +4348,11 @@
   .site-actions .site-install-btn .install-app-label {
     display: none;
   }
+  .site-actions {
+    margin-left: auto;
+    flex-shrink: 0;
+    gap: 0.35rem;
+  }
   .site-header-inner {
     padding-left: 1rem;
     padding-right: 1rem;
@@ -3810,6 +4365,23 @@
   .site-header .logo-text {
     min-width: 0;
   }
+  .site-brand {
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+  .site-header .logo {
+    gap: 0.45rem;
+    max-width: 100%;
+  }
+  .site-header .logo-mark {
+    flex-shrink: 0;
+  }
+  .site-header .logo-text {
+    overflow: hidden;
+  }
+
   /* Was clipping off the right edge. */
   .hero-onair-sign {
     display: none;
@@ -3817,18 +4389,226 @@
   .hero-visual {
     display: none;
   }
-  .section {
-    padding-top: 3.2rem;
-  }
+
+  /* Content gutters & section margins */
+  .section,
   .hero {
-    padding-top: 2rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .section {
+    padding-top: 2.8rem;
+  }
+  .section-head {
+    gap: 0.8rem;
+    margin-bottom: 1.4rem;
+    padding-bottom: 1rem;
+  }
+  .section-title {
+    font-size: clamp(1.45rem, 5.8vw, 1.95rem);
+  }
+  .section-note {
+    font-size: 0.76rem;
+  }
+
+  /* Hero section */
+  .hero {
+    padding-top: 1.8rem;
   }
   .hero-lede {
-    padding-bottom: 1.4rem;
+    padding-bottom: 1.2rem;
+  }
+  .hero .eyebrow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.55rem;
+    font-size: clamp(0.58rem, 2.2vw, 0.65rem);
+    letter-spacing: 0.1em;
+    margin-bottom: 0.85rem;
+  }
+  .hero .eyebrow span {
+    white-space: nowrap;
+  }
+  .hero .eyebrow-rule {
+    width: 12px;
+    flex-shrink: 0;
+  }
+  .hero-title {
+    font-size: clamp(2.35rem, 9.2vw, 3.4rem);
+    line-height: 0.98;
+    letter-spacing: -0.035em;
+  }
+  .hero-copy {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-top: 1.1rem;
+    max-width: 100%;
+  }
+  .hero-actions {
+    margin-top: 1.5rem;
   }
   .hero-actions .btn {
     flex: 1 1 auto;
+    width: 100%;
+    text-align: center;
+    justify-content: center;
   }
+  .hero-quote {
+    margin-top: 1.3rem;
+    font-size: 0.84rem;
+    padding-left: 2.2rem;
+  }
+  .hero-quote::before {
+    width: 1.6rem;
+  }
+
+  /* What's New card */
+  .whats-new-panel {
+    padding: 1.25rem 0 0.9rem 0;
+  }
+  .whats-new-header-container {
+    padding: 0 1rem;
+    margin-bottom: 0.85rem;
+  }
+  .whats-new-head {
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+  }
+  .whats-new-subtitle {
+    font-size: 1.05rem;
+  }
+  .whats-new-slide {
+    padding: 0.5rem 0;
+  }
+  .whats-new-card {
+    width: 90%;
+    max-width: 100%;
+    padding: 1.15rem 1rem;
+    min-height: 148px;
+  }
+  .whats-new-title {
+    font-size: 0.98rem;
+  }
+  .whats-new-desc {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    margin-bottom: 0.6rem;
+  }
+  .whats-new-play-btn {
+    width: 36px;
+    height: 36px;
+  }
+  .whats-new-controls {
+    margin-top: 1rem;
+    gap: 0.6rem;
+  }
+
+  /* Community CTA */
+  .cta {
+    margin-top: 3.5rem;
+    padding: 0 1rem;
+  }
+  .cta-inner {
+    padding: 1.8rem 1.15rem;
+    gap: 1.4rem;
+  }
+  .cta-title {
+    font-size: clamp(1.5rem, 5.5vw, 2.1rem);
+  }
+  .cta-text {
+    font-size: 0.92rem;
+    line-height: 1.55;
+    margin-top: 0.85rem;
+  }
+  .cta-actions .btn {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* Footer */
+  .site-footer {
+    margin-top: 3.5rem;
+  }
+  .site-footer-inner {
+    padding: 2.2rem 1rem 1.8rem;
+    gap: 1.8rem;
+  }
+  .footer-links {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 1.4rem 1rem;
+  }
+  .site-footer-base {
+    padding: 1rem 1rem 1.8rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+
+  /* Sticky Bottom Audio Player */
+  .player-inner {
+    padding: 0.5rem 0.85rem;
+    min-height: 58px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  .player-id {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+  }
+  .player-art {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border-radius: var(--r-sm);
+  }
+  .player-id-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .player-station {
+    font-size: 0.8rem;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .player-sub {
+    font-size: 0.7rem;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .player-transport {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    flex-shrink: 0;
+  }
+  .player-controls {
+    gap: 0.35rem;
+  }
+  .player-play {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+  }
+  .player-state {
+    font-size: 0.55rem;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+
   .timeline-row {
     grid-template-columns: 16px minmax(0, 1fr);
     grid-template-areas:
@@ -3861,13 +4641,53 @@
     grid-column: 2;
     gap: 0.8rem;
   }
-  .site-footer-base {
-    flex-direction: column;
+}
+
+@media (max-width: 380px) {
+  .site-header-inner {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
     gap: 0.5rem;
   }
-  .footer-links {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1.6rem;
+  .site-header .logo {
+    gap: 0.35rem;
+  }
+  .site-header .logo-mark {
+    height: 28px !important;
+  }
+  .site-header .logo-name {
+    font-size: 0.68rem;
+    letter-spacing: 0;
+  }
+  .site-actions {
+    gap: 0.25rem;
+  }
+  .site-actions .icon-button,
+  .site-actions .site-install-btn {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+  }
+  .hero-title {
+    font-size: clamp(2rem, 8.8vw, 2.35rem);
+  }
+  .player-inner {
+    padding: 0.45rem 0.65rem;
+    gap: 0.5rem;
+  }
+  .player-art {
+    width: 34px;
+    height: 34px;
+  }
+  .player-play {
+    width: 36px;
+    height: 36px;
+  }
+  .player-station {
+    font-size: 0.76rem;
+  }
+  .player-sub {
+    font-size: 0.66rem;
   }
 }
 

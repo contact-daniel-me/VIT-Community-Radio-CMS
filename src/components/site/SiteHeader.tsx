@@ -4,6 +4,7 @@ import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { Logo } from './Logo';
+import { InstallAppButton } from '@/components/pwa';
 
 const SECTIONS = [
   { label: 'Home', to: '/' },
@@ -98,6 +99,8 @@ export function SiteHeader() {
             )}
           </button>
 
+          <InstallAppButton className="btn btn-ghost small" />
+
           {session && profile ? (
             <Link to="/dashboard" className="btn btn-solid">
               Open the CMS
@@ -168,6 +171,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="site-sheet-actions">
+          <InstallAppButton className="btn btn-ghost" />
           {session && profile ? (
             <Link to="/dashboard" className="btn btn-solid" onClick={() => setMenuOpen(false)}>
               Open the CMS

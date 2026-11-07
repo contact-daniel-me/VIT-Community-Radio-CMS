@@ -308,6 +308,8 @@ for (const size of [32, 192, 512]) {
 // iOS shows this on the home screen and applies its own mask, so it is roomier
 // and does no corner rounding of its own.
 write('apple-touch-icon.png', encodePng(render(img, mark, 180, { fill: 0.68, radius: 0 })));
+write('maskable-icon-192.png', encodePng(render(img, mark, 192, { fill: 0.65, radius: 0 })));
+write('maskable-icon-512.png', encodePng(render(img, mark, 512, { fill: 0.65, radius: 0 })));
 write(
   'favicon.ico',
   buildIco([16, 32, 48].map((size) => ({ size, data: encodePng(render(img, mark, size)) }))),

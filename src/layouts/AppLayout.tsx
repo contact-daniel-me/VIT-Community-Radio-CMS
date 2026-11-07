@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
 import { Logo } from '@/components/site/Logo';
+import { InstallAppButton } from '@/components/pwa';
 import { can, ROLE_LABELS } from '@/lib/permissions';
 import type { UserRole } from '@/types/database';
 
@@ -50,6 +51,7 @@ export function AppLayout() {
             <span>
               {profile.full_name} &middot; {ROLE_LABELS[profile.role]}
             </span>
+            <InstallAppButton />
             <button
               type="button"
               className="small"

@@ -33,6 +33,8 @@ import { HolidaysPage } from '@/pages/HolidaysPage';
 import { FeedbackPage } from '@/pages/FeedbackPage';
 import { AdminFeedbackPage } from '@/pages/AdminFeedbackPage';
 import { StoragePage } from '@/pages/StoragePage';
+import { PwaProvider } from '@/context/PwaProvider';
+import { PwaUpdateToast, OfflineIndicator } from '@/components/pwa';
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const { session, profile, loading } = useAuth();
@@ -105,9 +107,10 @@ export default function App() {
   return (
     <GlobalAudioProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Public: anyone can reach these, signed in or not. */}
+        <PwaProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Public: anyone can reach these, signed in or not. */}
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
@@ -204,8 +207,11 @@ export default function App() {
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Routes>
+          <PwaUpdateToast />
+          <OfflineIndicator />
         </BrowserRouter>
-      </AuthProvider>
-    </GlobalAudioProvider>
+      </PwaProvider>
+    </AuthProvider>
+  </GlobalAudioProvider>
   );
 }

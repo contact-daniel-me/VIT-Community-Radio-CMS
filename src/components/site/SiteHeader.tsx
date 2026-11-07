@@ -99,7 +99,7 @@ export function SiteHeader() {
             )}
           </button>
 
-          <InstallAppButton className="btn btn-ghost small" />
+          <InstallAppButton className="btn btn-ghost site-install-btn small" />
 
           {session && profile ? (
             <Link to="/dashboard" className="btn btn-solid">
@@ -171,7 +171,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="site-sheet-actions">
-          <InstallAppButton className="btn btn-ghost" />
+          <InstallAppButton className="btn btn-ghost site-sheet-install-btn" />
           {session && profile ? (
             <Link to="/dashboard" className="btn btn-solid" onClick={() => setMenuOpen(false)}>
               Open the CMS

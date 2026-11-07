@@ -208,3 +208,4 @@ self.addEventListener('fetch', (event) => {
 
   // Default: pass through to network
 });
+

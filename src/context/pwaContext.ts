@@ -29,3 +29,4 @@ export interface PwaContextType {
 }
 
 export const PwaContext = createContext<PwaContextType | null>(null);
+

@@ -143,3 +143,4 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
 
   return <PwaContext.Provider value={value}>{children}</PwaContext.Provider>;
 }
+

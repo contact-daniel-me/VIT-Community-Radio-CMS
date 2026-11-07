@@ -201,6 +201,22 @@ a {
 .app-user button:hover {
   background: color-mix(in srgb, var(--admin-header-text) 8%, transparent);
 }
+.app-user .install-app-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.82rem;
+  border-radius: var(--radius);
+}
+@media (max-width: 640px) {
+  .app-user .install-app-btn .install-app-label {
+    display: none;
+  }
+  .app-user .install-app-btn {
+    padding: 0.25rem 0.45rem;
+  }
+}
 
 .app-nav {
   background: var(--admin-nav-bg);

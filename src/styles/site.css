@@ -192,6 +192,17 @@
   font-size: 0.65rem;
   letter-spacing: 0.09em;
   color: var(--ink-faint);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.logo-badge {
+  background: var(--ink-faint);
+  color: var(--surface);
+  padding: 0.1rem 0.3rem;
+  border-radius: var(--r-sm);
+  font-size: 0.65em;
+  font-weight: 700;
 }
 
 /* ---------- Header ------------------------------------------------------- */
@@ -271,6 +282,32 @@
   display: none;
 }
 
+/* PWA Install Button */
+.install-app-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.install-app-btn .install-app-icon {
+  flex-shrink: 0;
+}
+.site-install-btn {
+  height: 36px;
+  padding: 0 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 550;
+  border-radius: var(--r-md);
+  color: var(--ink-muted);
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.site-install-btn:hover {
+  background: var(--bg-sunk);
+  color: var(--ink);
+}
+
 /* Mobile sheet */
 .site-sheet {
   position: fixed;
@@ -319,6 +356,16 @@
 .site-sheet-actions .btn {
   width: 100%;
   padding: 0.85rem;
+}
+.site-sheet-actions .site-sheet-install-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.site-sheet-actions .site-sheet-install-btn .install-app-label {
+  display: inline !important;
 }
 .site-sheet-foot {
   margin: 1.6rem 0 0;
@@ -1709,29 +1756,20 @@
   }
   .site-actions {
     margin-left: auto;
+    flex-shrink: 0;
   }
-  .cta-inner {
-    grid-template-columns: minmax(0, 1fr);
-    padding: 2.2rem 1.6rem;
+}
+
+@media (max-width: 768px) {
+  .site-actions .site-install-btn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    min-width: 36px;
+    justify-content: center;
+    border-radius: var(--r-md);
   }
-  .cta-side {
-    justify-content: flex-start;
-  }
-  .auth-wrap {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .auth-aside {
-    display: none;
-  }
-  .player-inner {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.8rem;
-  }
-  .player-right {
-    display: none;
-  }
-  .player-wave,
-  .player-state {
+  .site-actions .site-install-btn .install-app-label {
     display: none;
   }
 }
@@ -1740,7 +1778,7 @@
   /* The wordmark wrapped to three lines beside the burger; the mark plus the
      station name is enough at this width. */
   .site-header .logo-freq {
-    display: none;
+    display: none !important;
   }
   .site-header .logo-name {
     font-size: 0.78rem;
@@ -1764,6 +1802,23 @@
   .site-actions .btn {
     display: none;
   }
+  .site-actions .site-install-btn {
+    display: inline-flex !important;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    min-width: 36px;
+    justify-content: center;
+    border-radius: var(--r-md);
+    color: var(--ink-muted);
+  }
+  .site-actions .site-install-btn:hover {
+    background: var(--bg-sunk);
+    color: var(--ink);
+  }
+  .site-actions .site-install-btn .install-app-label {
+    display: none;
+  }
   .site-header-inner {
     padding-left: 1rem;
     padding-right: 1rem;
@@ -1772,7 +1827,8 @@
   /* A flex item defaults to min-width:auto and so refuses to shrink below its
      content. Both of these hold nowrap text. */
   .site-brand,
-  .site-header .logo {
+  .site-header .logo,
+  .site-header .logo-text {
     min-width: 0;
   }
   /* Was clipping off the right edge. */
@@ -2819,29 +2875,20 @@
   }
   .site-actions {
     margin-left: auto;
+    flex-shrink: 0;
   }
-  .cta-inner {
-    grid-template-columns: minmax(0, 1fr);
-    padding: 2.2rem 1.6rem;
+}
+
+@media (max-width: 768px) {
+  .site-actions .site-install-btn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    min-width: 36px;
+    justify-content: center;
+    border-radius: var(--r-md);
   }
-  .cta-side {
-    justify-content: flex-start;
-  }
-  .auth-wrap {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .auth-aside {
-    display: none;
-  }
-  .player-inner {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.8rem;
-  }
-  .player-right {
-    display: none;
-  }
-  .player-wave,
-  .player-state {
+  .site-actions .site-install-btn .install-app-label {
     display: none;
   }
 }
@@ -2850,7 +2897,7 @@
   /* The wordmark wrapped to three lines beside the burger; the mark plus the
      station name is enough at this width. */
   .site-header .logo-freq {
-    display: none;
+    display: none !important;
   }
   .site-header .logo-name {
     font-size: 0.78rem;
@@ -2874,6 +2921,23 @@
   .site-actions .btn {
     display: none;
   }
+  .site-actions .site-install-btn {
+    display: inline-flex !important;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    min-width: 36px;
+    justify-content: center;
+    border-radius: var(--r-md);
+    color: var(--ink-muted);
+  }
+  .site-actions .site-install-btn:hover {
+    background: var(--bg-sunk);
+    color: var(--ink);
+  }
+  .site-actions .site-install-btn .install-app-label {
+    display: none;
+  }
   .site-header-inner {
     padding-left: 1rem;
     padding-right: 1rem;
@@ -2882,7 +2946,8 @@
   /* A flex item defaults to min-width:auto and so refuses to shrink below its
      content. Both of these hold nowrap text. */
   .site-brand,
-  .site-header .logo {
+  .site-header .logo,
+  .site-header .logo-text {
     min-width: 0;
   }
   /* Was clipping off the right edge. */
@@ -3670,29 +3735,20 @@
   }
   .site-actions {
     margin-left: auto;
+    flex-shrink: 0;
   }
-  .cta-inner {
-    grid-template-columns: minmax(0, 1fr);
-    padding: 2.2rem 1.6rem;
+}
+
+@media (max-width: 768px) {
+  .site-actions .site-install-btn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    min-width: 36px;
+    justify-content: center;
+    border-radius: var(--r-md);
   }
-  .cta-side {
-    justify-content: flex-start;
-  }
-  .auth-wrap {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .auth-aside {
-    display: none;
-  }
-  .player-inner {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 0.8rem;
-  }
-  .player-right {
-    display: none;
-  }
-  .player-wave,
-  .player-state {
+  .site-actions .site-install-btn .install-app-label {
     display: none;
   }
 }
@@ -3701,7 +3757,7 @@
   /* The wordmark wrapped to three lines beside the burger; the mark plus the
      station name is enough at this width. */
   .site-header .logo-freq {
-    display: none;
+    display: none !important;
   }
   .site-header .logo-name {
     font-size: 0.78rem;
@@ -3725,6 +3781,23 @@
   .site-actions .btn {
     display: none;
   }
+  .site-actions .site-install-btn {
+    display: inline-flex !important;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    min-width: 36px;
+    justify-content: center;
+    border-radius: var(--r-md);
+    color: var(--ink-muted);
+  }
+  .site-actions .site-install-btn:hover {
+    background: var(--bg-sunk);
+    color: var(--ink);
+  }
+  .site-actions .site-install-btn .install-app-label {
+    display: none;
+  }
   .site-header-inner {
     padding-left: 1rem;
     padding-right: 1rem;
@@ -3733,7 +3806,8 @@
   /* A flex item defaults to min-width:auto and so refuses to shrink below its
      content. Both of these hold nowrap text. */
   .site-brand,
-  .site-header .logo {
+  .site-header .logo,
+  .site-header .logo-text {
     min-width: 0;
   }
   /* Was clipping off the right edge. */

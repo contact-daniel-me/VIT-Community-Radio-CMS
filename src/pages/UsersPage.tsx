@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
+import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import { Banner, ConfirmButton, Empty, Loading, PageHeader } from '@/components/ui';
 import { userService } from '@/services/userService';
 import { activityService, describeAction, describeSubject } from '@/services/activityService';
@@ -38,6 +39,7 @@ export function UsersPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [passwordUser, setPasswordUser] = useState<ProfileRow | null>(null);
+  const { notifyApproval, notifySave } = useSuccessFeedback();
 
   const changeRole = async (userId: string, role: UserRole) => {
     setError(null);
@@ -45,6 +47,7 @@ export function UsersPage() {
     try {
       await userService.updateUserRole(userId, role);
       setNotice('Role updated.');
+      notifySave({ title: 'Role updated', detail: ROLE_LABELS[role], dedupeKey: `user-role:${userId}:${role}` });
       await Promise.all([users.reload(), activity.reload()]);
     } catch (cause) {
       setError(errorMessage(cause));
@@ -54,6 +57,8 @@ export function UsersPage() {
   const toggleActive = async (userId: string, active: boolean) => {
     setError(null);
     setNotice(null);
+    const target = (users.data ?? []).find((u) => u.id === userId);
+    const isPendingApproval = active && target && !target.active && !target.approved_at;
     try {
       await userService.setUserActive(userId, active);
       setNotice(
@@ -61,6 +66,19 @@ export function UsersPage() {
           ? 'Account activated. They can sign in now.'
           : 'Account deactivated. Their access stops immediately.',
       );
+      if (isPendingApproval) {
+        notifyApproval({
+          title: 'Account approved & activated',
+          detail: target.full_name,
+          dedupeKey: `approve-user:${userId}`,
+        });
+      } else {
+        notifySave({
+          title: active ? 'Account activated' : 'Account deactivated',
+          detail: target?.full_name,
+          dedupeKey: `user-active:${userId}:${active}`,
+        });
+      }
       await Promise.all([users.reload(), activity.reload()]);
     } catch (cause) {
       setError(errorMessage(cause));
@@ -81,6 +99,11 @@ export function UsersPage() {
     try {
       const removed = await userService.deleteUser(userId);
       setNotice(`${removed.full_name} (${removed.email}) has been permanently deleted.`);
+      notifySave({
+        title: 'User deleted',
+        detail: removed.full_name,
+        dedupeKey: `user-delete:${userId}`,
+      });
       await Promise.all([users.reload(), activity.reload()]);
     } catch (cause) {
       setError(errorMessage(cause));
@@ -347,6 +370,7 @@ export function UsersPage() {
           onClose={() => setPasswordUser(null)}
           onSuccess={(msg) => {
             setNotice(msg);
+            notifySave({ title: 'Password updated', detail: passwordUser.full_name, dedupeKey: `user-pw:${passwordUser.id}` });
             void activity.reload();
           }}
         />

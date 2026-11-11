@@ -34,6 +34,7 @@ import { FeedbackPage } from '@/pages/FeedbackPage';
 import { AdminFeedbackPage } from '@/pages/AdminFeedbackPage';
 import { StoragePage } from '@/pages/StoragePage';
 import { PwaProvider } from '@/context/PwaProvider';
+import { SuccessFeedbackProvider } from '@/context/SuccessFeedbackProvider';
 import { PwaUpdateToast, OfflineIndicator } from '@/components/pwa';
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
@@ -109,7 +110,8 @@ export default function App() {
       <AuthProvider>
         <PwaProvider>
           <BrowserRouter>
-            <Routes>
+            <SuccessFeedbackProvider>
+              <Routes>
               {/* Public: anyone can reach these, signed in or not. */}
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
@@ -209,6 +211,7 @@ export default function App() {
           </Routes>
           <PwaUpdateToast />
           <OfflineIndicator />
+            </SuccessFeedbackProvider>
         </BrowserRouter>
       </PwaProvider>
     </AuthProvider>

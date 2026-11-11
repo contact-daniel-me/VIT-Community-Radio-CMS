@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { episodeService, type EpisodeWithRelations } from '@/services/episodeService';
+import { resolveEpisodePublishStatus } from '@/services/qcService';
+import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import { AppError, errorMessage } from '@/lib/errors';
 import { Banner } from '@/components/ui';
 import { stationDateAndTime, stationLocalToIso } from '@/utils/datetime';
@@ -16,6 +18,7 @@ export function HomepageScheduleDialog({
   onSaved,
 }: HomepageScheduleDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const { celebratePublish, notifySave } = useSuccessFeedback();
 
   const [title, setTitle] = useState(episode.title || '');
   const [description, setDescription] = useState(episode.description || '');
@@ -176,7 +179,7 @@ export function HomepageScheduleDialog({
 
       const trimmedDescription = description.trim() ? description.trim() : null;
 
-      await episodeService.scheduleHomepageEpisode(
+      const saved = await episodeService.scheduleHomepageEpisode(
         episode.id,
         true,
         publishAtIso,
@@ -185,11 +188,36 @@ export function HomepageScheduleDialog({
         trimmedDescription,
       );
 
-      const notice = mode === 'schedule'
-        ? `Scheduled "${trimmedTitle}" to publish at ${startDate} ${startTime} IST.`
-        : isAlreadyPublished
-          ? `Updated published settings for "${trimmedTitle}".`
-          : `Published "${trimmedTitle}" to the homepage!`;
+      const savedLifecycle = resolveEpisodePublishStatus(saved);
+      const becameLive = savedLifecycle === 'PUBLISHED' && !isAlreadyPublished;
+
+      if (becameLive) {
+        celebratePublish({
+          showName: trimmedTitle || saved.title || episode.title,
+          programName: episode.program?.name,
+          dedupeKey: `publish-episode:${episode.id}`,
+        });
+      } else if (savedLifecycle === 'PUBLISHED') {
+        notifySave({
+          title: 'Published settings saved',
+          detail: trimmedTitle,
+          dedupeKey: `homepage-save:${episode.id}`,
+        });
+      } else {
+        notifySave({
+          title: 'Release scheduled',
+          detail: `"${trimmedTitle}" · ${startDate} ${startTime} IST`,
+          dedupeKey: `homepage-schedule:${episode.id}:${publishAtIso ?? ''}`,
+        });
+      }
+
+      const notice = becameLive
+        ? `Your show is live! "${trimmedTitle}" is now published.`
+        : savedLifecycle === 'SCHEDULED'
+          ? `Scheduled "${trimmedTitle}" to publish at ${startDate} ${startTime} IST.`
+          : isAlreadyPublished
+            ? `Updated published settings for "${trimmedTitle}".`
+            : `Updated release status for "${trimmedTitle}".`;
       onSaved(notice);
     } catch (err) {
       setError(errorMessage(err));
@@ -207,6 +235,11 @@ export function HomepageScheduleDialog({
 
     try {
       await episodeService.unscheduleHomepageEpisode(episode.id);
+      notifySave({
+        title: 'Moved back to Draft',
+        detail: episode.title,
+        dedupeKey: `unschedule-episode:${episode.id}`,
+      });
       onSaved(`"${episode.title}" has been moved back to Draft.`);
     } catch (err) {
       setError(errorMessage(err));

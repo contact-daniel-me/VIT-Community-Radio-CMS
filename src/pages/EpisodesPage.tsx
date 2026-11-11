@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { useScheduledTransitionRefresh } from '@/hooks/useScheduledTransitionRefresh';
+import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import {
   Banner,
   Loading,
@@ -161,6 +162,7 @@ export function EpisodesPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const { notifySave } = useSuccessFeedback();
   const [schedulingEpisode, setSchedulingEpisode] = useState<EpisodeWithRelations | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -194,8 +196,13 @@ export function EpisodesPage() {
     setSaving(true);
     setError(null);
     try {
-      await episodeService.createEpisode(form, profile.id);
+      const created = await episodeService.createEpisode(form, profile.id);
       setForm(null);
+      notifySave({
+        title: 'Episode draft saved',
+        detail: created.title,
+        dedupeKey: `ep-create:${created.id}`,
+      });
       await Promise.all([episodes.reload(), counts.reload()]);
     } catch (cause) {
       setError(errorMessage(cause));

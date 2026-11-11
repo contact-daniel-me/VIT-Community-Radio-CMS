@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
+import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import { PageHeader, Banner, Loading, Empty } from '@/components/ui';
 import { feedbackService, type FeedbackStats } from '@/services/feedbackService';
 import {
@@ -68,6 +69,7 @@ export function AdminFeedbackPage() {
   const [savingAction, setSavingAction] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { notifySave } = useSuccessFeedback();
 
   // Load All Feedback
   const feedbackData = useAsync(async () => {
@@ -194,6 +196,7 @@ export function AdminFeedbackPage() {
     try {
       const updated = await feedbackService.updateStatus(selectedItem.id, status, adminResponseDraft);
       setNotice(`Feedback status changed to ${STATUS_LABELS[status]}.`);
+      notifySave({ title: 'Feedback status updated', detail: STATUS_LABELS[status], dedupeKey: `fb-status:${selectedItem.id}:${status}` });
       setSelectedItem((prev) => (prev ? { ...prev, ...updated } : null));
       await feedbackData.reload();
     } catch (err: unknown) {
@@ -215,6 +218,7 @@ export function AdminFeedbackPage() {
         adminResponseDraft,
       );
       setNotice('Public station response saved.');
+      notifySave({ title: 'Station response saved', dedupeKey: `fb-resp:${selectedItem.id}` });
       setSelectedItem((prev) => (prev ? { ...prev, ...updated } : null));
       await feedbackData.reload();
     } catch (err: unknown) {
@@ -232,6 +236,7 @@ export function AdminFeedbackPage() {
     try {
       await feedbackService.updateAdminNotes(selectedItem.id, adminNotesDraft);
       setNotice('Internal admin notes updated.');
+      notifySave({ title: 'Admin notes saved', dedupeKey: `fb-notes:${selectedItem.id}` });
       setSelectedItem((prev) => (prev ? { ...prev, admin_notes: adminNotesDraft.trim() || null } : null));
       await feedbackData.reload();
     } catch (err: unknown) {
@@ -248,6 +253,7 @@ export function AdminFeedbackPage() {
     try {
       await feedbackService.deleteFeedback(id);
       setNotice('Feedback entry permanently removed.');
+      notifySave({ title: 'Feedback removed', dedupeKey: `fb-del:${id}` });
       setConfirmDeleteId(null);
       handleCloseDetails();
       await feedbackData.reload();

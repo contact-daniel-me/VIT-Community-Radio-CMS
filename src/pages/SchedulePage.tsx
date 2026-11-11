@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
+import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import {
   Banner,
   ConfirmButton,
@@ -43,6 +44,7 @@ export function SchedulePage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<ScheduleDetailsRow[]>([]);
+  const { notifySave } = useSuccessFeedback();
 
   const approved = useAsync(
     () => (programId ? episodeService.getSchedulableEpisodes(programId) : Promise.resolve([])),
@@ -107,7 +109,7 @@ export function SchedulePage() {
 
     setBusy(true);
     try {
-      await scheduleService.createSchedule({
+      const created = await scheduleService.createSchedule({
         program_id: programId,
         episode_id: episodeId || null,
         start_time: stationLocalToIso(startLocal),
@@ -115,6 +117,11 @@ export function SchedulePage() {
         notes: notes || null,
       });
       setNotice('Slot added to the schedule.');
+      notifySave({
+        title: 'Slot added to schedule',
+        detail: programs.data?.find((p) => p.id === programId)?.name,
+        dedupeKey: `schedule-create:${created.id}`,
+      });
       setShowForm(false);
       setEpisodeId('');
       setNotes('');
@@ -131,6 +138,7 @@ export function SchedulePage() {
     try {
       await scheduleService.cancelSchedule(id, 'Cancelled from the schedule page');
       setNotice('Slot cancelled.');
+      notifySave({ title: 'Slot cancelled', dedupeKey: `schedule-cancel:${id}` });
       await Promise.all([daySchedule.reload(), upcoming.reload()]);
     } catch (cause) {
       setError(errorMessage(cause));
@@ -142,6 +150,7 @@ export function SchedulePage() {
     try {
       await scheduleService.deleteSchedule(id);
       setNotice('Slot deleted from database.');
+      notifySave({ title: 'Slot deleted', dedupeKey: `schedule-delete:${id}` });
       await Promise.all([daySchedule.reload(), upcoming.reload()]);
     } catch (cause) {
       setError(errorMessage(cause));

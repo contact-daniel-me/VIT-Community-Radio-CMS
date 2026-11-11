@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
+import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import { Banner, ConfirmButton, Empty, Loading, PageHeader } from '@/components/ui';
 import { programService, type ProgramInput } from '@/services/programService';
 import { can } from '@/lib/permissions';
@@ -29,6 +30,7 @@ export function ProgramsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const { notifySave } = useSuccessFeedback();
 
   const openCreate = () => {
     setEditing(null);
@@ -64,9 +66,11 @@ export function ProgramsPage() {
       if (editing) {
         await programService.updateProgram(editing.id, form);
         setNotice(`Saved "${form.name}".`);
+        notifySave({ title: 'Program saved', detail: form.name, dedupeKey: `prog-save:${editing.id}` });
       } else {
-        await programService.createProgram(form, profile.id);
+        const created = await programService.createProgram(form, profile.id);
         setNotice(`Created "${form.name}".`);
+        notifySave({ title: 'Program created', detail: form.name, dedupeKey: `prog-create:${created.id}` });
       }
       setForm(null);
       setEditing(null);
@@ -87,6 +91,11 @@ export function ProgramsPage() {
           ? `"${program.name}" deactivated. It keeps its episodes and history.`
           : `"${program.name}" is active again.`,
       );
+      notifySave({
+        title: program.active ? 'Program deactivated' : 'Program activated',
+        detail: program.name,
+        dedupeKey: `prog-toggle:${program.id}`,
+      });
       await programs.reload();
     } catch (cause) {
       setError(errorMessage(cause));

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { useScheduledTransitionRefresh } from '@/hooks/useScheduledTransitionRefresh';
+import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import { Banner, ConfirmButton, Empty, Loading, PageHeader, PublishStatusBadge, UnifiedStatusBadge } from '@/components/ui';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { HomepageScheduleDialog } from '@/components/studio/HomepageScheduleDialog';
@@ -29,6 +30,7 @@ export function QcPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const { notifyApproval, notifySave } = useSuccessFeedback();
 
   // Reviewer queries: QC Pending and QC Done
   const pendingQueue = useAsync(() => (reviewer ? qcService.getPendingQC() : Promise.resolve([])), [reviewer]);
@@ -121,13 +123,24 @@ export function QcPage() {
     setBusy(true);
     setError(null);
     setNotice(null);
+    const target = (pendingQueue.data ?? []).find((ep) => ep.id === episodeId);
     try {
       if (decision === 'APPROVE') {
         await qcService.approveEpisode(episodeId, comment);
         setNotice('Approved. The episode is in Draft ready to be scheduled or published.');
+        notifyApproval({
+          title: 'Episode approved',
+          detail: target?.title,
+          dedupeKey: `approve-episode:${episodeId}`,
+        });
       } else {
         await qcService.rejectEpisode(episodeId, comment);
         setNotice('Sent back to the producer with your review notes.');
+        notifySave({
+          title: 'Episode sent back for changes',
+          detail: target?.title,
+          dedupeKey: `reject-episode:${episodeId}`,
+        });
       }
       setComment('');
       setOpenId(null);
@@ -151,12 +164,15 @@ export function QcPage() {
       if (action === 'unschedule') {
         await episodeService.unscheduleHomepageEpisode(episodeId);
         setNotice(`"${title}" moved back to Draft.`);
+        notifySave({ title: 'Moved to Draft', detail: title, dedupeKey: `qc-unschedule:${episodeId}` });
       } else if (action === 'retry') {
         await episodeService.retryPublish(episodeId);
         setNotice(`"${title}" queued for publication retry.`);
+        notifySave({ title: 'Publication retry queued', detail: title, dedupeKey: `qc-retry:${episodeId}` });
       } else {
         await episodeService.archiveEpisode(episodeId);
         setNotice(`"${title}" archived.`);
+        notifySave({ title: 'Episode archived', detail: title, dedupeKey: `qc-archive:${episodeId}` });
       }
       await completedQueue.reload();
     } catch (cause) {

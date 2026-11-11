@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
+import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import { Banner, ConfirmButton, Empty, Loading, PageHeader, UnifiedStatusBadge, getUnifiedStatusClass } from '@/components/ui';
 import { bookingService, type BookingWithPeople } from '@/services/bookingService';
 import { RecordingDialog } from '@/components/studio/RecordingDialog';
@@ -34,6 +35,7 @@ export function MyBookingsPage() {
   const [uploadFor, setUploadFor] = useState<BookingWithPeople | null>(null);
   const [cancelReason, setCancelReason] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  const { notifyApproval, notifySave } = useSuccessFeedback();
 
   // Admins and producers oversee the whole studio; everyone else sees their own.
   const oversees = can.manageProgram(profile.role);
@@ -71,6 +73,11 @@ export function MyBookingsPage() {
     try {
       await bookingService.cancelBooking(booking.id, cancelReason);
       setNotice(`${booking.reference} cancelled. The slot is free for someone else.`);
+      notifySave({
+        title: 'Booking cancelled',
+        detail: booking.reference,
+        dedupeKey: `cancel-booking:${booking.id}`,
+      });
       setCancelReason('');
       await bookings.reload();
     } catch (cause) {
@@ -87,6 +94,7 @@ export function MyBookingsPage() {
     try {
       await bookingService.cancelRequest(request.id, profile.id);
       setNotice(`Request cancelled.`);
+      notifySave({ title: 'Request cancelled', dedupeKey: `cancel-req:${request.id}` });
       await requests.reload();
     } catch (cause) {
       setError(errorMessage(cause));
@@ -102,6 +110,11 @@ export function MyBookingsPage() {
     try {
       await bookingService.approveRequest(request.id, profile.id);
       setNotice(`Request approved and booking confirmed.`);
+      notifyApproval({
+        title: 'Booking request approved',
+        detail: `${formatBookingDate(request.booking_date, { short: true })} · ${formatSlotTime(request.start_time.slice(0, 5))}`,
+        dedupeKey: `approve-booking-req:${request.id}`,
+      });
       await requests.reload();
       await bookings.reload();
     } catch (cause) {
@@ -122,6 +135,7 @@ export function MyBookingsPage() {
     try {
       await bookingService.rejectRequest(request.id, profile.id, cancelReason);
       setNotice(`Request rejected.`);
+      notifySave({ title: 'Request rejected', dedupeKey: `reject-req:${request.id}` });
       setCancelReason('');
       await requests.reload();
     } catch (cause) {
@@ -138,6 +152,11 @@ export function MyBookingsPage() {
     try {
       await bookingService.reapproveBooking(booking.id);
       setNotice(`${booking.reference} reapproved successfully.`);
+      notifyApproval({
+        title: 'Booking reapproved',
+        detail: booking.reference,
+        dedupeKey: `reapprove-booking:${booking.id}`,
+      });
       await bookings.reload();
     } catch (cause) {
       setError(errorMessage(cause));
@@ -153,6 +172,11 @@ export function MyBookingsPage() {
     try {
       await bookingService.permanentlyDeleteBooking(booking.id);
       setNotice(`${booking.reference} has been permanently deleted.`);
+      notifySave({
+        title: 'Booking permanently deleted',
+        detail: booking.reference,
+        dedupeKey: `delete-booking:${booking.id}`,
+      });
       await bookings.reload();
     } catch (cause) {
       setError(errorMessage(cause));
@@ -168,6 +192,7 @@ export function MyBookingsPage() {
     try {
       await bookingService.permanentlyDeleteRequest(request.id);
       setNotice(`Request has been permanently deleted.`);
+      notifySave({ title: 'Request deleted', dedupeKey: `delete-req:${request.id}` });
       await requests.reload();
     } catch (cause) {
       setError(errorMessage(cause));

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { announcementService } from '@/services/announcementService';
+import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import { errorMessage } from '@/lib/errors';
 import { Banner } from '@/components/ui';
 import type { AnnouncementRow, AnnouncementStatus } from '@/types/database';
@@ -15,6 +16,7 @@ export function AnnouncementDialog({
   onSaved: () => void;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const { notifySave } = useSuccessFeedback();
   
   const [title, setTitle] = useState(existing?.title ?? '');
   const [message, setMessage] = useState(existing?.message ?? '');
@@ -120,6 +122,18 @@ export function AnnouncementDialog({
       } else {
         await announcementService.createAnnouncement(payload);
       }
+
+      notifySave({
+        title: isDraft
+          ? 'Announcement draft saved'
+          : status === 'SCHEDULED'
+            ? 'Announcement scheduled'
+            : existing
+              ? 'Announcement updated'
+              : 'Announcement published',
+        detail: title.trim(),
+        dedupeKey: `announcement-save:${existing?.id ?? 'new'}:${status}`,
+      });
 
       onSaved();
     } catch (err) {

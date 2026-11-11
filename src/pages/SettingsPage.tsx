@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth, useCurrentUser } from '@/hooks/useAuth';
+import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import { Banner, PageHeader } from '@/components/ui';
 import { authService } from '@/services/authService';
 import { ROLE_LABELS, ROLE_SUMMARY } from '@/lib/permissions';
@@ -21,6 +22,7 @@ const STATION = [
 export function SettingsPage() {
   const profile = useCurrentUser();
   const { refreshProfile } = useAuth();
+  const { notifySave } = useSuccessFeedback();
 
   const [fullName, setFullName] = useState(profile.full_name);
   const [busy, setBusy] = useState(false);
@@ -42,6 +44,7 @@ export function SettingsPage() {
       await authService.updateOwnProfile(profile.id, { full_name: fullName.trim() });
       await refreshProfile();
       setNotice('Profile updated.');
+      notifySave({ title: 'Profile updated', dedupeKey: `profile-save:${profile.id}` });
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {

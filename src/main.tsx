@@ -12,6 +12,7 @@ import './styles/episodes.css';
 import './styles/badges.css';
 import './styles/leaderboard.css';
 import './styles/feedback.css';
+import './styles/success-feedback.css';
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Root element not found');

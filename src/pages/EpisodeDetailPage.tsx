@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { useScheduledTransitionRefresh } from '@/hooks/useScheduledTransitionRefresh';
+import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import {
   Banner,
   ConfirmButton,
@@ -63,6 +64,7 @@ export function EpisodeDetailPage() {
   const [rawFile, setRawFile] = useState<File | null>(null);
   const [finalFile, setFinalFile] = useState<File | null>(null);
   const finalFileInput = useRef<HTMLInputElement>(null);
+  const { celebratePublish, notifyUpload, notifyApproval, notifySave } = useSuccessFeedback();
 
   const [draft, setDraft] = useState<{
     title: string;
@@ -88,13 +90,62 @@ export function EpisodeDetailPage() {
     await Promise.all([episode.reload(), reviews.reload()]);
   };
 
-  const run = async (action: () => Promise<unknown>, successMessage: string) => {
+  const run = async (
+    action: () => Promise<unknown>,
+    successMessage: string,
+    feedbackKind: 'save' | 'approval' = 'save',
+  ) => {
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
       await action();
       setNotice(successMessage);
+      if (feedbackKind === 'approval') {
+        notifyApproval({
+          title: 'Episode approved',
+          detail: ep.title,
+          dedupeKey: `approve-episode:${ep.id}`,
+        });
+      } else {
+        notifySave({
+          title: successMessage,
+          dedupeKey: `episode-save:${ep.id}:${successMessage}`,
+        });
+      }
+      await refresh();
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const publishEpisodeNow = async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const saved = await episodeService.scheduleHomepageEpisode(
+        ep.id,
+        true,
+        new Date().toISOString(),
+        null,
+      );
+      if (resolveEpisodePublishStatus(saved) === 'PUBLISHED') {
+        celebratePublish({
+          showName: saved.title || ep.title,
+          programName: ep.program?.name,
+          dedupeKey: `publish-episode:${ep.id}`,
+        });
+        setNotice(`Your show is live! "${saved.title || ep.title}" is now published.`);
+      } else {
+        notifySave({
+          title: `"${ep.title}" release updated.`,
+          dedupeKey: `publish-episode-save:${ep.id}`,
+        });
+        setNotice(`"${ep.title}" release updated.`);
+      }
       await refresh();
     } catch (cause) {
       setError(errorMessage(cause));
@@ -138,11 +189,16 @@ export function EpisodeDetailPage() {
     setError(null);
     setNotice(null);
     try {
-      await audioService.replaceAudio(ep.id, rawFile, profile.id, ep.audio_file_id);
+      const uploaded = await audioService.replaceAudio(ep.id, rawFile, profile.id, ep.audio_file_id);
       if (draft && newShowName) {
         setDraft({ ...draft, title: newShowName });
       }
       setNotice(`Uploaded raw audio "${rawFile.name}". Show name updated to "${newShowName}".`);
+      notifyUpload({
+        title: 'Raw audio uploaded',
+        detail: newShowName || rawFile.name,
+        dedupeKey: `upload-raw:${uploaded.id}`,
+      });
       setRawFile(null);
       await refresh();
     } catch (cause) {
@@ -160,11 +216,16 @@ export function EpisodeDetailPage() {
     setError(null);
     setNotice(null);
     try {
-      await audioService.replaceAudio(ep.id, finalFile, profile.id, ep.final_audio_file_id, 'final_audio_file_id');
+      const uploaded = await audioService.replaceAudio(ep.id, finalFile, profile.id, ep.final_audio_file_id, 'final_audio_file_id');
       if (draft && newShowName) {
         setDraft({ ...draft, title: newShowName });
       }
       setNotice(`Uploaded final audio "${finalFile.name}". Show name updated to "${newShowName}".`);
+      notifyUpload({
+        title: 'Final audio uploaded',
+        detail: newShowName || finalFile.name,
+        dedupeKey: `upload-final:${uploaded.id}`,
+      });
       setFinalFile(null);
       await refresh();
     } catch (cause) {
@@ -400,6 +461,11 @@ export function EpisodeDetailPage() {
                               {
                                 onExportComplete: (res) => {
                                   setNotice(`Received finished audio "${res.fileName}" from Mixota!`);
+                                  notifyUpload({
+                                    title: 'Finished audio updated via Mixota',
+                                    detail: res.fileName,
+                                    dedupeKey: `upload-mixota:${res.audioFileId}`,
+                                  });
                                   void refresh();
                                 },
                               },
@@ -503,6 +569,11 @@ export function EpisodeDetailPage() {
                               {
                                 onExportComplete: (res) => {
                                   setNotice(`Received updated final audio "${res.fileName}" from Mixota!`);
+                                  notifyUpload({
+                                    title: 'Final audio updated via Mixota',
+                                    detail: res.fileName,
+                                    dedupeKey: `upload-mixota:${res.audioFileId}`,
+                                  });
                                   void refresh();
                                 },
                               },
@@ -550,7 +621,7 @@ export function EpisodeDetailPage() {
                   className="primary"
                   disabled={busy}
                   onClick={() =>
-                    void run(() => qcService.approveEpisode(ep.id), 'Episode approved.')
+                    void run(() => qcService.approveEpisode(ep.id), 'Episode approved.', 'approval')
                   }
                 >
                   Approve
@@ -781,12 +852,7 @@ export function EpisodeDetailPage() {
                         type="button"
                         className="small"
                         disabled={busy}
-                        onClick={() =>
-                          void run(
-                            () => episodeService.scheduleHomepageEpisode(ep.id, true, new Date().toISOString(), null),
-                            `"${ep.title}" is now published.`,
-                          )
-                        }
+                        onClick={() => void publishEpisodeNow()}
                       >
                         Publish Now
                       </button>

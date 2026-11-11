@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useAsync } from '@/hooks/useAsync';
 import { useScheduledTransitionRefresh } from '@/hooks/useScheduledTransitionRefresh';
+import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import {
   announcementService,
   computeAnnouncementLifecycleStatus,
@@ -30,6 +31,7 @@ export function AnnouncementsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const { notifySave } = useSuccessFeedback();
 
   const announcements = useAsync(() => announcementService.getAllAnnouncements(), []);
 
@@ -76,6 +78,7 @@ export function AnnouncementsPage() {
     try {
       await announcementService.deleteAnnouncement(id);
       setNotice('Announcement deleted.');
+      notifySave({ title: 'Announcement deleted', dedupeKey: `ann-del:${id}` });
       await announcements.reload();
     } catch (err) {
       setError(errorMessage(err));
@@ -91,6 +94,7 @@ export function AnnouncementsPage() {
     try {
       await announcementService.unscheduleToDraft(ann.id);
       setNotice(`"${ann.title}" moved to Draft.`);
+      notifySave({ title: 'Moved to Draft', detail: ann.title, dedupeKey: `ann-unsched:${ann.id}` });
       await announcements.reload();
     } catch (err) {
       setError(errorMessage(err));
@@ -106,6 +110,7 @@ export function AnnouncementsPage() {
     try {
       await announcementService.retryAnnouncement(ann.id);
       setNotice(`"${ann.title}" queued for publication retry.`);
+      notifySave({ title: 'Publication retry queued', detail: ann.title, dedupeKey: `ann-retry:${ann.id}` });
       await announcements.reload();
     } catch (err) {
       setError(errorMessage(err));
@@ -125,6 +130,7 @@ export function AnnouncementsPage() {
         publish_error: null,
       });
       setNotice(`"${ann.title}" published.`);
+      notifySave({ title: 'Announcement published', detail: ann.title, dedupeKey: `ann-pub:${ann.id}` });
       await announcements.reload();
     } catch (err) {
       setError(errorMessage(err));
@@ -142,6 +148,7 @@ export function AnnouncementsPage() {
         status: 'ARCHIVED',
       });
       setNotice(`"${ann.title}" archived.`);
+      notifySave({ title: 'Announcement archived', detail: ann.title, dedupeKey: `ann-arch:${ann.id}` });
       await announcements.reload();
     } catch (err) {
       setError(errorMessage(err));

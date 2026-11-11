@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, type FormEvent } from 'react';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
+import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import { Banner, PageHeader, Loading } from '@/components/ui';
 import {
   holidayService,
@@ -29,6 +30,7 @@ export function HolidaysPage() {
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const { notifySave } = useSuccessFeedback();
 
   // Dialog states
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -171,6 +173,7 @@ export function HolidaysPage() {
           slots: slotsPayload,
         });
         setNotice('Holiday dates updated successfully.');
+        notifySave({ title: 'Holiday dates updated', dedupeKey: `holiday-edit:${editingHoliday.id}` });
       } else {
         await holidayService.createHoliday(
           {
@@ -181,11 +184,16 @@ export function HolidaysPage() {
           },
           profile.id,
         );
-        setNotice(
+        const msg =
           slotMode === 'slots'
             ? `Successfully blocked ${selectedSlots.length} time slot(s).`
-            : 'Studio dates blocked successfully. Bookings on these dates are now disabled.',
-        );
+            : 'Studio dates blocked successfully. Bookings on these dates are now disabled.';
+        setNotice(msg);
+        notifySave({
+          title: slotMode === 'slots' ? 'Studio slots blocked' : 'Studio dates blocked',
+          detail: formData.reason || undefined,
+          dedupeKey: `holiday-create:${start}:${end}`,
+        });
       }
       setIsFormOpen(false);
       setEditingHoliday(null);
@@ -207,6 +215,11 @@ export function HolidaysPage() {
       setNotice(
         `Holiday removed. Studio bookings for ${formatDateDisplay(deleteTarget.start_date, deleteTarget.end_date)} have been reopened.`,
       );
+      notifySave({
+        title: 'Holiday removed',
+        detail: formatDateDisplay(deleteTarget.start_date, deleteTarget.end_date),
+        dedupeKey: `holiday-delete:${deleteTarget.id}`,
+      });
       setDeleteTarget(null);
       await holidays.reload();
     } catch (cause) {

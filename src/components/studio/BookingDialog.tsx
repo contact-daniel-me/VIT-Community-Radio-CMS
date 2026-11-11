@@ -6,6 +6,7 @@ import { programService } from '@/services/programService';
 import { userService } from '@/services/userService';
 import { RecordingDialog } from './RecordingDialog';
 import { useAsync } from '@/hooks/useAsync';
+import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import { errorMessage } from '@/lib/errors';
 import { can } from '@/lib/permissions';
 import type { ProfileRow, ScriptApproval, ShowLanguage, StudioBookingRow } from '@/types/database';
@@ -72,6 +73,7 @@ export function BookingDialog({
   onBooked: () => void;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const { celebrateBooking, notifySave } = useSuccessFeedback();
   const [step, setStep] = useState<Step>('form');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -346,6 +348,14 @@ export function BookingDialog({
         );
         setCreated(booking);
         setStep('done');
+        celebrateBooking({
+          showName: title,
+          reference: booking.reference,
+          dateLabel: formatBookingDate(booking.booking_date, { short: true }),
+          timeLabel: formatSlotTime(booking.start_time.slice(0, 5)),
+          isTour: true,
+          dedupeKey: `booking:${booking.id}`,
+        });
         onBooked();
         return;
       }
@@ -433,6 +443,11 @@ export function BookingDialog({
           profile.id,
         );
         setStep('requested');
+        notifySave({
+          title: 'Booking request sent',
+          detail: 'Waiting for administrator approval.',
+          dedupeKey: `booking-request:${slotDate}:${slotStart}:${profile.id}`,
+        });
         onBooked();
       } else {
         const booking = await bookingService.createBooking(
@@ -450,8 +465,20 @@ export function BookingDialog({
           effectiveRjId,
           profile.id,
         );
+        const bookedShowName =
+          customShowTitle.trim() ||
+          programmes.data?.find((p) => p.id === finalProgramId)?.name ||
+          null;
         setCreated(booking);
         setStep('done');
+        celebrateBooking({
+          showName: bookedShowName,
+          reference: booking.reference,
+          dateLabel: formatBookingDate(booking.booking_date, { short: true }),
+          timeLabel: formatSlotTime(booking.start_time.slice(0, 5)),
+          isTour: false,
+          dedupeKey: `booking:${booking.id}`,
+        });
         onBooked();
       }
     } catch (cause) {

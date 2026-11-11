@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Banner } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
+import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import { bookingService, type BookingWithPeople } from '@/services/bookingService';
 import { episodeService } from '@/services/episodeService';
 import { audioService } from '@/services/audioService';
@@ -45,6 +46,7 @@ export function RecordingDialog({
   onUploaded: () => void;
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
+  const { notifyUpload } = useSuccessFeedback();
   const [stage, setStage] = useState<Stage>('form');
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string>('');
@@ -104,6 +106,11 @@ export function RecordingDialog({
 
       setEpisode(created);
       setStage('done');
+      notifyUpload({
+        title: 'Recording uploaded',
+        detail: created.title || file.name,
+        dedupeKey: `upload-recording:${audioRow.id}`,
+      });
       onUploaded();
     } catch (cause) {
       setError(errorMessage(cause));

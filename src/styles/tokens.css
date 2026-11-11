@@ -104,6 +104,10 @@
   --status-archived-badge-border: var(--border);
   --status-archived-badge-text: var(--muted);
 
+  --status-scheduled-badge-bg: #f3effe;
+  --status-scheduled-badge-border: #d4c5fb;
+  --status-scheduled-badge-text: #5b21b6;
+
   /* Admin Header & Nav */
   --admin-header-bg: var(--bg);
   --admin-header-text: var(--ink-strong);
@@ -209,6 +213,10 @@
   --status-archived-badge-bg: rgba(148, 163, 184, 0.15);
   --status-archived-badge-border: rgba(148, 163, 184, 0.3);
   --status-archived-badge-text: #cbd5e1;
+
+  --status-scheduled-badge-bg: rgba(139, 92, 246, 0.15);
+  --status-scheduled-badge-border: rgba(139, 92, 246, 0.35);
+  --status-scheduled-badge-text: #c4b5fd;
 
   /* Admin Header & Nav */
   --admin-header-bg: var(--surface);

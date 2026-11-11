@@ -1,5 +1,9 @@
 import { useState, type ReactNode } from 'react';
-import type { EpisodeStatus, ScheduleStatus } from '@/types/database';
+import type {
+  EpisodeStatus,
+  PublishLifecycleStatus,
+  ScheduleStatus,
+} from '@/types/database';
 
 export function Banner({
   kind = 'error',
@@ -63,6 +67,15 @@ const SCHEDULE_BADGE: Record<ScheduleStatus, { tone: string; label: string }> = 
   CANCELLED: { tone: 'badge-grey', label: 'Cancelled' },
 };
 
+const PUBLISH_BADGE: Record<PublishLifecycleStatus, { tone: string; label: string }> = {
+  DRAFT: { tone: 'badge-grey', label: 'Draft' },
+  SCHEDULED: { tone: 'badge-purple', label: 'Scheduled' },
+  PUBLISHED: { tone: 'badge-green', label: 'Published' },
+  EXPIRED: { tone: 'badge-amber', label: 'Expired' },
+  FAILED: { tone: 'badge-red', label: 'Failed' },
+  ARCHIVED: { tone: 'badge-grey', label: 'Archived' },
+};
+
 export function EpisodeStatusBadge({ status }: { status: EpisodeStatus }) {
   const badge = EPISODE_BADGE[status];
   return <span className={`badge ${badge.tone}`}>{badge.label}</span>;
@@ -70,6 +83,11 @@ export function EpisodeStatusBadge({ status }: { status: EpisodeStatus }) {
 
 export function ScheduleStatusBadge({ status }: { status: ScheduleStatus }) {
   const badge = SCHEDULE_BADGE[status];
+  return <span className={`badge ${badge.tone}`}>{badge.label}</span>;
+}
+
+export function PublishStatusBadge({ status }: { status: PublishLifecycleStatus }) {
+  const badge = PUBLISH_BADGE[status] ?? PUBLISH_BADGE.DRAFT;
   return <span className={`badge ${badge.tone}`}>{badge.label}</span>;
 }
 

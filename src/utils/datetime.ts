@@ -120,6 +120,19 @@ export function isoToStationLocal(iso: string): string {
   return `${get('year')}-${get('month')}-${get('day')}T${hour}:${get('minute')}`;
 }
 
+/**
+ * Split a UTC ISO string or Date into station-timezone date (YYYY-MM-DD)
+ * and time (HH:mm) strings for controlled <input type="date"> / <input type="time"> fields.
+ */
+export function stationDateAndTime(
+  value: Date | string = new Date(),
+): { date: string; time: string } {
+  const iso = value instanceof Date ? value.toISOString() : value;
+  const local = isoToStationLocal(iso);
+  const [date = '', time = '00:00'] = local.split('T');
+  return { date, time };
+}
+
 export function formatDuration(seconds: number | null | undefined): string {
   if (!seconds || seconds <= 0) return '--';
   const hours = Math.floor(seconds / 3600);

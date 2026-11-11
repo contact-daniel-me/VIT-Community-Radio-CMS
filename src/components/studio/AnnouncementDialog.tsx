@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { announcementService } from '@/services/announcementService';
 import { errorMessage } from '@/lib/errors';
 import { Banner } from '@/components/ui';
-import type { AnnouncementRow } from '@/types/database';
-import { stationLocalToIso } from '@/utils/datetime';
+import type { AnnouncementRow, AnnouncementStatus } from '@/types/database';
+import { stationDateAndTime, stationLocalToIso } from '@/utils/datetime';
 
 export function AnnouncementDialog({
   existing,
@@ -34,14 +34,14 @@ export function AnnouncementDialog({
 
   useEffect(() => {
     if (existing?.scheduled_at) {
-      const d = new Date(existing.scheduled_at);
-      setScheduledDate(d.toISOString().split('T')[0]);
-      setScheduledTime(d.toTimeString().slice(0, 5));
+      const { date, time } = stationDateAndTime(existing.scheduled_at);
+      setScheduledDate(date);
+      setScheduledTime(time);
     }
     if (existing?.expires_at) {
-      const d = new Date(existing.expires_at);
-      setExpiryDate(d.toISOString().split('T')[0]);
-      setExpiryTime(d.toTimeString().slice(0, 5));
+      const { date, time } = stationDateAndTime(existing.expires_at);
+      setExpiryDate(date);
+      setExpiryTime(time);
     }
   }, [existing]);
 
@@ -59,33 +59,60 @@ export function AnnouncementDialog({
     setBusy(true);
 
     try {
-      let published_at = null;
-      let scheduled_at = null;
-      let expires_at = null;
-      let status: 'DRAFT' | 'PUBLISHED' | 'SCHEDULED' | 'ARCHIVED' = isDraft ? 'DRAFT' : 'PUBLISHED';
-
-      if (!isDraft) {
-        if (mode === 'publish') {
-          published_at = existing?.published_at || new Date().toISOString();
-        } else {
-          if (!scheduledDate || !scheduledTime) throw new Error('Please select a schedule date and time.');
-          scheduled_at = stationLocalToIso(`${scheduledDate}T${scheduledTime}`);
-          status = 'SCHEDULED';
-        }
+      if (!title.trim() || !message.trim()) {
+        throw new Error('Title and message are required.');
       }
+
+      let published_at: string | null = null;
+      let scheduled_at: string | null = null;
+      let expires_at: string | null = null;
+      let status: AnnouncementStatus = isDraft ? 'DRAFT' : 'PUBLISHED';
 
       if (hasExpiry) {
         if (!expiryDate || !expiryTime) throw new Error('Please select an expiry date and time.');
         expires_at = stationLocalToIso(`${expiryDate}T${expiryTime}`);
+        if (!expires_at) throw new Error('Invalid expiry date and time.');
+      }
+
+      if (!isDraft) {
+        if (mode === 'publish') {
+          published_at =
+            existing?.status === 'PUBLISHED' && existing.published_at
+              ? existing.published_at
+              : new Date().toISOString();
+          scheduled_at = existing?.scheduled_at ?? null;
+          status = expires_at && new Date(expires_at) <= new Date() ? 'EXPIRED' : 'PUBLISHED';
+        } else {
+          if (!scheduledDate || !scheduledTime) throw new Error('Please select a schedule date and time.');
+          scheduled_at = stationLocalToIso(`${scheduledDate}T${scheduledTime}`);
+          if (!scheduled_at) throw new Error('Invalid schedule date and time.');
+
+          if (expires_at && new Date(expires_at) <= new Date(scheduled_at)) {
+            throw new Error('Expiry date and time must be after the scheduled publish time.');
+          }
+
+          if (new Date(scheduled_at) <= new Date()) {
+            published_at = new Date().toISOString();
+            status = expires_at && new Date(expires_at) <= new Date() ? 'EXPIRED' : 'PUBLISHED';
+          } else {
+            status = 'SCHEDULED';
+            published_at = null;
+          }
+        }
+      } else {
+        scheduled_at = null;
+        published_at = null;
+        expires_at = null;
       }
 
       const payload = {
-        title,
-        message,
+        title: title.trim(),
+        message: message.trim(),
         status,
         published_at,
         scheduled_at,
         expires_at,
+        publish_error: null,
       };
 
       if (existing) {
@@ -93,7 +120,7 @@ export function AnnouncementDialog({
       } else {
         await announcementService.createAnnouncement(payload);
       }
-      
+
       onSaved();
     } catch (err) {
       setError(errorMessage(err));

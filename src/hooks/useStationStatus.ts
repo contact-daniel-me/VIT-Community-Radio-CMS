@@ -51,9 +51,12 @@ export interface StationStatus {
  */
 export function useStationStatus(): StationStatus {
   const lineup = useAsync(async () => {
-    // Close any slot whose end time has passed before reading the state, so a
-    // manually started broadcast cannot claim to still be on air hours later.
-    await broadcastService.syncBroadcastState().catch(() => undefined);
+    // Close any slot whose end time has passed and advance scheduled/expired content
+    // transitions cleanly in a single backend pass before reading state.
+    await Promise.all([
+      broadcastService.syncBroadcastState().catch(() => undefined),
+      broadcastService.syncContentLifecycle().catch(() => undefined),
+    ]);
 
     const day = stationDay();
     const [schedules, bookings, current] = await Promise.all([

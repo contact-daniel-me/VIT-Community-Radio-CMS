@@ -2,8 +2,10 @@ import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
-import { Banner, Empty, UnifiedStatusBadge, Loading, PageHeader } from '@/components/ui';
+import { useScheduledTransitionRefresh } from '@/hooks/useScheduledTransitionRefresh';
+import { Banner, ConfirmButton, Empty, Loading, PageHeader, PublishStatusBadge, UnifiedStatusBadge } from '@/components/ui';
 import { AudioPlayer } from '@/components/AudioPlayer';
+import { HomepageScheduleDialog } from '@/components/studio/HomepageScheduleDialog';
 import { qcService, type EpisodeWithLifecycle, type BroadcastLifecycleStatus } from '@/services/qcService';
 import { episodeService, type EpisodeWithRelations } from '@/services/episodeService';
 import { mixotaService } from '@/services/mixotaService';
@@ -21,6 +23,7 @@ export function QcPage() {
   const [tab, setTab] = useState<QcTab>('pending');
   const [lifecycleFilter, setLifecycleFilter] = useState<LifecycleFilter>('ALL');
   const [openId, setOpenId] = useState<string | null>(null);
+  const [scheduleEpisode, setScheduleEpisode] = useState<EpisodeWithLifecycle | null>(null);
   const [comment, setComment] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +77,18 @@ export function QcPage() {
   const completedEpisodes: EpisodeWithLifecycle[] = completedQueue.data ?? [];
   const lifecycleCounts = qcService.getLifecycleCounts(completedEpisodes);
 
+  useScheduledTransitionRefresh(
+    completedEpisodes.flatMap((ep) => [
+      ep.homepageScheduledAt ?? ep.scheduled_at ?? ep.homepage_publish_at,
+      ep.homepageExpiresAt ?? ep.expires_at ?? ep.homepage_expires_at,
+      ep.activeSchedule?.start_time,
+      ep.activeSchedule?.end_time,
+    ]),
+    () => {
+      void completedQueue.reload();
+    },
+  );
+
   const filterCompletedList = (list: EpisodeWithLifecycle[]) => {
     let result = list;
     if (lifecycleFilter !== 'ALL') {
@@ -109,7 +124,7 @@ export function QcPage() {
     try {
       if (decision === 'APPROVE') {
         await qcService.approveEpisode(episodeId, comment);
-        setNotice('Approved. The episode can now be scheduled for broadcast.');
+        setNotice('Approved. The episode is in Draft ready to be scheduled or published.');
       } else {
         await qcService.rejectEpisode(episodeId, comment);
         setNotice('Sent back to the producer with your review notes.');
@@ -117,6 +132,33 @@ export function QcPage() {
       setComment('');
       setOpenId(null);
       await Promise.all([pendingQueue.reload(), completedQueue.reload()]);
+    } catch (cause) {
+      setError(errorMessage(cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleLifecycleAction = async (
+    episodeId: string,
+    action: 'unschedule' | 'retry' | 'archive',
+    title: string,
+  ) => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      if (action === 'unschedule') {
+        await episodeService.unscheduleHomepageEpisode(episodeId);
+        setNotice(`"${title}" moved back to Draft.`);
+      } else if (action === 'retry') {
+        await episodeService.retryPublish(episodeId);
+        setNotice(`"${title}" queued for publication retry.`);
+      } else {
+        await episodeService.archiveEpisode(episodeId);
+        setNotice(`"${title}" archived.`);
+      }
+      await completedQueue.reload();
     } catch (cause) {
       setError(errorMessage(cause));
     } finally {
@@ -309,12 +351,12 @@ export function QcPage() {
             <button
               type="button"
               role="tab"
-              aria-selected={lifecycleFilter === 'NOT_SCHEDULED'}
-              className={`tab ${lifecycleFilter === 'NOT_SCHEDULED' ? 'is-active' : ''}`}
-              onClick={() => setLifecycleFilter('NOT_SCHEDULED')}
+              aria-selected={lifecycleFilter === 'DRAFT'}
+              className={`tab ${lifecycleFilter === 'DRAFT' ? 'is-active' : ''}`}
+              onClick={() => setLifecycleFilter('DRAFT')}
             >
-              Not Scheduled
-              <span className="tab-count">{lifecycleCounts.notScheduled}</span>
+              Draft
+              <span className="tab-count">{lifecycleCounts.draft}</span>
             </button>
             <button
               type="button"
@@ -335,6 +377,26 @@ export function QcPage() {
             >
               Published
               <span className="tab-count">{lifecycleCounts.published}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={lifecycleFilter === 'EXPIRED'}
+              className={`tab ${lifecycleFilter === 'EXPIRED' ? 'is-active' : ''}`}
+              onClick={() => setLifecycleFilter('EXPIRED')}
+            >
+              Expired
+              <span className="tab-count">{lifecycleCounts.expired}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={lifecycleFilter === 'FAILED'}
+              className={`tab ${lifecycleFilter === 'FAILED' ? 'is-active' : ''}`}
+              onClick={() => setLifecycleFilter('FAILED')}
+            >
+              Failed
+              <span className="tab-count">{lifecycleCounts.failed}</span>
             </button>
           </div>
         </div>
@@ -459,12 +521,16 @@ export function QcPage() {
           <Empty>
             {searchQuery.trim()
               ? `No completed QC files match "${searchQuery.trim()}".`
-              : lifecycleFilter === 'NOT_SCHEDULED'
-              ? 'No QC-approved episodes are currently unscheduled.'
+              : lifecycleFilter === 'DRAFT'
+              ? 'No QC-approved episodes are in Draft.'
               : lifecycleFilter === 'SCHEDULED'
-              ? 'No QC-approved episodes are currently scheduled for broadcast.'
+              ? 'No QC-approved episodes are currently scheduled.'
               : lifecycleFilter === 'PUBLISHED'
-              ? 'No episodes have completed broadcast publishing yet.'
+              ? 'No episodes have been published yet.'
+              : lifecycleFilter === 'EXPIRED'
+              ? 'No published episodes have expired.'
+              : lifecycleFilter === 'FAILED'
+              ? 'No publication failures recorded.'
               : 'No episodes have completed QC review yet.'}
           </Empty>
         </section>
@@ -473,6 +539,7 @@ export function QcPage() {
           const isFirstOfGroup =
             lifecycleFilter === 'ALL' &&
             (index === 0 || filteredCompleted[index - 1].lifecycleStatus !== episode.lifecycleStatus);
+          const canManageRelease = profile.role === 'ADMIN' || profile.role === 'PRODUCER';
 
           return (
             <Fragment key={episode.id}>
@@ -496,26 +563,23 @@ export function QcPage() {
                         letterSpacing: '0.04em',
                       }}
                     >
-                      {episode.lifecycleStatus === 'NOT_SCHEDULED' && 'Not Scheduled'}
+                      {episode.lifecycleStatus === 'DRAFT' && 'Draft (Ready to Schedule)'}
                       {episode.lifecycleStatus === 'SCHEDULED' && 'Scheduled for Release'}
                       {episode.lifecycleStatus === 'PUBLISHED' && 'Published'}
+                      {episode.lifecycleStatus === 'EXPIRED' && 'Expired'}
+                      {episode.lifecycleStatus === 'FAILED' && 'Failed Publications'}
                     </h3>
-                    <span
-                      className={`badge ${
-                        episode.lifecycleStatus === 'NOT_SCHEDULED'
-                          ? 'badge-orange'
-                          : episode.lifecycleStatus === 'SCHEDULED'
-                          ? 'badge-blue'
-                          : 'badge-green'
-                      }`}
-                    >
-                      {filteredCompleted.filter((e) => e.lifecycleStatus === episode.lifecycleStatus).length}
+                    <PublishStatusBadge status={episode.lifecycleStatus} />
+                    <span className="small muted">
+                      ({filteredCompleted.filter((e) => e.lifecycleStatus === episode.lifecycleStatus).length})
                     </span>
                   </div>
                   <span className="small muted">
-                    {episode.lifecycleStatus === 'NOT_SCHEDULED' && 'Newest reviewed first'}
+                    {episode.lifecycleStatus === 'DRAFT' && 'Newest reviewed first'}
                     {episode.lifecycleStatus === 'SCHEDULED' && 'Nearest upcoming release first'}
                     {episode.lifecycleStatus === 'PUBLISHED' && 'Most recently published first'}
+                    {episode.lifecycleStatus === 'EXPIRED' && 'Historical expired releases'}
+                    {episode.lifecycleStatus === 'FAILED' && 'Requires attention & retry'}
                   </span>
                 </div>
               )}
@@ -528,15 +592,7 @@ export function QcPage() {
                     <Link to={`/admin/episodes/${episode.id}`}>{episode.title}</Link>
                   </h2>
                   <UnifiedStatusBadge episode={episode} />
-                  {episode.lifecycleStatus === 'NOT_SCHEDULED' && (
-                    <span className="badge badge-orange">Not Scheduled</span>
-                  )}
-                  {episode.lifecycleStatus === 'SCHEDULED' && (
-                    <span className="badge badge-blue">Scheduled</span>
-                  )}
-                  {episode.lifecycleStatus === 'PUBLISHED' && (
-                    <span className="badge badge-green">Published</span>
-                  )}
+                  <PublishStatusBadge status={episode.lifecycleStatus} />
                 </div>
                 <p className="small muted" style={{ margin: 0 }}>
                   {episode.program?.name} &middot; Host{' '}
@@ -545,14 +601,74 @@ export function QcPage() {
                   {formatDuration(episode.final_audio_file?.duration_seconds)}
                 </p>
               </div>
-              <Link to={`/admin/episodes/${episode.id}`} className="button small secondary">
-                View episode
-              </Link>
+              <div className="row align-center wrap" style={{ gap: '0.4rem' }}>
+                {canManageRelease &&
+                  (episode.lifecycleStatus === 'DRAFT' ||
+                    episode.lifecycleStatus === 'SCHEDULED' ||
+                    episode.lifecycleStatus === 'PUBLISHED' ||
+                    episode.lifecycleStatus === 'EXPIRED') && (
+                    <button
+                      type="button"
+                      className="small primary"
+                      disabled={busy}
+                      onClick={() => setScheduleEpisode(episode)}
+                    >
+                      {episode.lifecycleStatus === 'DRAFT'
+                        ? 'Schedule / Publish'
+                        : episode.lifecycleStatus === 'EXPIRED'
+                          ? 'Re-publish'
+                          : 'Manage Schedule'}
+                    </button>
+                  )}
+                {canManageRelease && episode.lifecycleStatus === 'SCHEDULED' && episode.homepageScheduledAt && (
+                  <ConfirmButton
+                    className="small"
+                    confirmLabel="Move to Draft?"
+                    disabled={busy}
+                    onConfirm={() => void handleLifecycleAction(episode.id, 'unschedule', episode.title)}
+                  >
+                    Unschedule
+                  </ConfirmButton>
+                )}
+                {canManageRelease && episode.lifecycleStatus === 'FAILED' && (
+                  <>
+                    <button
+                      type="button"
+                      className="small primary"
+                      disabled={busy}
+                      onClick={() => void handleLifecycleAction(episode.id, 'retry', episode.title)}
+                    >
+                      Retry Publish
+                    </button>
+                    <ConfirmButton
+                      className="small"
+                      confirmLabel="Move to Draft?"
+                      disabled={busy}
+                      onConfirm={() => void handleLifecycleAction(episode.id, 'unschedule', episode.title)}
+                    >
+                      Move to Draft
+                    </ConfirmButton>
+                  </>
+                )}
+                {canManageRelease && episode.lifecycleStatus === 'PUBLISHED' && (
+                  <ConfirmButton
+                    className="small"
+                    confirmLabel="Archive episode?"
+                    disabled={busy}
+                    onConfirm={() => void handleLifecycleAction(episode.id, 'archive', episode.title)}
+                  >
+                    Archive
+                  </ConfirmButton>
+                )}
+                <Link to={`/admin/episodes/${episode.id}`} className="button small secondary">
+                  View episode
+                </Link>
+              </div>
             </div>
 
             {episode.description && <p className="small">{episode.description}</p>}
 
-            {/* Broadcast Lifecycle Details */}
+            {/* Broadcast & Publishing Lifecycle Details */}
             {episode.lifecycleStatus === 'SCHEDULED' && (
               <div
                 className="row align-center wrap small"
@@ -568,23 +684,23 @@ export function QcPage() {
               >
                 {episode.activeSchedule && (
                   <div>
-                    <strong style={{ color: 'var(--status-approved-badge-text)' }}>📅 Broadcast Schedule:</strong>{' '}
+                    <strong style={{ color: 'var(--status-approved-badge-text)' }}>Broadcast Schedule:</strong>{' '}
                     {formatDate(episode.activeSchedule.start_time)} &middot;{' '}
                     {formatTime(episode.activeSchedule.start_time)} – {formatTime(episode.activeSchedule.end_time)}
                   </div>
                 )}
                 {episode.homepageScheduledAt && (
                   <div>
-                    <strong style={{ color: 'var(--status-approved-badge-text)' }}>🌐 Homepage Release:</strong>{' '}
-                    {formatDate(episode.homepageScheduledAt)} &middot; {formatTime(episode.homepageScheduledAt)}
+                    <strong style={{ color: 'var(--status-approved-badge-text)' }}>Scheduled Release:</strong>{' '}
+                    {formatDateTime(episode.homepageScheduledAt)}
                     {episode.homepageExpiresAt && (
-                      <span className="muted"> (until {formatDate(episode.homepageExpiresAt)} {formatTime(episode.homepageExpiresAt)})</span>
+                      <span className="muted"> (expires {formatDateTime(episode.homepageExpiresAt)})</span>
                     )}
                   </div>
                 )}
                 {!episode.activeSchedule && !episode.homepageScheduledAt && (
                   <div>
-                    <strong style={{ color: 'var(--status-approved-badge-text)' }}>📅 Scheduled:</strong> Assigned for upcoming broadcast release.
+                    <strong style={{ color: 'var(--status-approved-badge-text)' }}>Scheduled:</strong> Assigned for upcoming broadcast release.
                   </div>
                 )}
                 {(episode.program?.name || (episode.activeSchedule as any)?.program_name) && (
@@ -614,10 +730,12 @@ export function QcPage() {
                 }}
               >
                 <div>
-                  <strong style={{ color: 'var(--status-qc-done-badge-text)' }}>🌐 Published:</strong>{' '}
-                  {episode.publishedAt ? formatDateTime(episode.publishedAt) : 'Live in broadcast catalog'}
-                  {episode.homepageExpiresAt && (
-                    <span className="muted"> (on homepage until {formatDateTime(episode.homepageExpiresAt)})</span>
+                  <strong style={{ color: 'var(--status-qc-done-badge-text)' }}>Published:</strong>{' '}
+                  {episode.publishedAt ? formatDateTime(episode.publishedAt) : 'Published'}
+                  {episode.homepageExpiresAt ? (
+                    <span className="muted"> (expires {formatDateTime(episode.homepageExpiresAt)})</span>
+                  ) : (
+                    <span className="muted"> (permanent — no expiry set)</span>
                   )}
                 </div>
                 {episode.program?.name && (
@@ -628,7 +746,49 @@ export function QcPage() {
               </div>
             )}
 
-            {episode.lifecycleStatus === 'NOT_SCHEDULED' && (
+            {episode.lifecycleStatus === 'EXPIRED' && (
+              <div
+                className="row align-center wrap small"
+                style={{
+                  marginTop: '0.65rem',
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '6px',
+                  background: 'var(--status-booked-badge-bg)',
+                  border: '1px solid var(--status-booked-badge-border)',
+                  color: 'var(--status-booked-badge-text)',
+                  gap: '0.8rem',
+                }}
+              >
+                <div>
+                  <strong>Expired:</strong>{' '}
+                  {episode.homepageExpiresAt ? formatDateTime(episode.homepageExpiresAt) : 'Configured expiry reached'}
+                  {episode.publishedAt && (
+                    <span className="muted"> &middot; Originally published {formatDateTime(episode.publishedAt)}</span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {episode.lifecycleStatus === 'FAILED' && (
+              <div
+                className="row align-center wrap small"
+                style={{
+                  marginTop: '0.65rem',
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '6px',
+                  background: 'var(--accent-wash)',
+                  border: '1px solid var(--accent-line)',
+                  color: 'var(--accent)',
+                  gap: '0.8rem',
+                }}
+              >
+                <div>
+                  <strong>Publication Failed:</strong> {episode.publishError ?? 'Unknown error occurred during publishing.'}
+                </div>
+              </div>
+            )}
+
+            {episode.lifecycleStatus === 'DRAFT' && (
               <div
                 className="row spread align-center wrap small"
                 style={{
@@ -641,7 +801,7 @@ export function QcPage() {
                   gap: '0.5rem',
                 }}
               >
-                <span>Pending broadcast schedule &middot; Approved final audio ready</span>
+                <span>Draft &middot; QC approved and ready to schedule or publish</span>
                 <div className="row align-center" style={{ gap: '0.75rem' }}>
                   {can.schedule(profile.role) && (
                     <Link
@@ -652,13 +812,13 @@ export function QcPage() {
                       Broadcast schedule &rarr;
                     </Link>
                   )}
-                  {(profile.role === 'ADMIN' || profile.role === 'PRODUCER') && (
+                  {canManageRelease && (
                     <Link
                       to={`/admin/episodes/${episode.id}`}
                       className="small"
                       style={{ fontWeight: 600, color: 'inherit', textDecoration: 'underline' }}
                     >
-                      Homepage release &rarr;
+                      Manage release &rarr;
                     </Link>
                   )}
                 </div>
@@ -680,6 +840,17 @@ export function QcPage() {
           </Fragment>
         );
       })
+    )}
+    {scheduleEpisode && (
+      <HomepageScheduleDialog
+        episode={scheduleEpisode}
+        onClose={() => setScheduleEpisode(null)}
+        onSaved={(msg) => {
+          setScheduleEpisode(null);
+          setNotice(msg);
+          void completedQueue.reload();
+        }}
+      />
     )}
     </>
   );

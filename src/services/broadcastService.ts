@@ -4,6 +4,7 @@ import type {
   BroadcastStateRow,
   CurrentBroadcastRow,
   ScheduleDetailsRow,
+  SyncContentLifecycleResult,
 } from '@/types/database';
 
 export interface BroadcastSnapshot {
@@ -44,5 +45,19 @@ export const broadcastService = {
    */
   async syncBroadcastState(): Promise<BroadcastStateRow> {
     return unwrap(supabase.rpc('sync_broadcast_state', {}));
+  },
+
+  /**
+   * Synchronizes content publishing states (due SCHEDULED -> PUBLISHED / FAILED,
+   * expired PUBLISHED -> EXPIRED, and completed broadcast schedules -> PUBLISHED).
+   */
+  async syncContentLifecycle(): Promise<SyncContentLifecycleResult | null> {
+    try {
+      const { data, error } = await supabase.rpc('sync_content_lifecycle', {});
+      if (error) return null;
+      return data as SyncContentLifecycleResult;
+    } catch {
+      return null;
+    }
   },
 };

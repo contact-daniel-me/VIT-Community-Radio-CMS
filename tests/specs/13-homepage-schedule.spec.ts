@@ -53,9 +53,16 @@ describe('homepage release scheduling with custom title and description', () => 
     const epId = await makeApprovedEpisode('Draft Title 1', 'Initial draft description');
 
     // Admin customizes title and description and publishes immediately
-    const res = await db.asUser<{ id: string; title: string; description: string; show_on_homepage: boolean }>(
+    const res = await db.asUser<{
+      id: string;
+      title: string;
+      description: string;
+      show_on_homepage: boolean;
+      publish_status: string;
+      published_at: string | null;
+    }>(
       admin,
-      `select id, title, description, show_on_homepage
+      `select id, title, description, show_on_homepage, publish_status, published_at
        from public.schedule_episode_homepage($1, true, now(), null, $2, $3)`,
       [epId, 'Custom Homepage Title 1', 'Punchy homepage teaser description'],
     );
@@ -63,6 +70,8 @@ describe('homepage release scheduling with custom title and description', () => 
     expect(res[0].title).toBe('Custom Homepage Title 1');
     expect(res[0].description).toBe('Punchy homepage teaser description');
     expect(res[0].show_on_homepage).toBe(true);
+    expect(res[0].publish_status).toBe('PUBLISHED');
+    expect(res[0].published_at).not.toBeNull();
 
     // Verify it appears in v_public_approved_episodes
     const publicView = await db.sql<{ title: string; description: string; program_name: string }>(
@@ -126,13 +135,23 @@ describe('homepage release scheduling with custom title and description', () => 
     expect(publicView.length).toBe(0);
 
     // In episodes table, the title and description are safely stored
-    const epRow = await db.sql<{ title: string; description: string; show_on_homepage: boolean }>(
-      `select title, description, show_on_homepage from public.episodes where id = $1`,
+    const epRow = await db.sql<{
+      title: string;
+      description: string;
+      show_on_homepage: boolean;
+      publish_status: string;
+      scheduled_at: string | null;
+      published_at: string | null;
+    }>(
+      `select title, description, show_on_homepage, publish_status, scheduled_at, published_at from public.episodes where id = $1`,
       [epId],
     );
     expect(epRow[0].title).toBe('Scheduled Release Title');
     expect(epRow[0].description).toBe('Scheduled Release Description');
     expect(epRow[0].show_on_homepage).toBe(true);
+    expect(epRow[0].publish_status).toBe('SCHEDULED');
+    expect(epRow[0].scheduled_at).not.toBeNull();
+    expect(epRow[0].published_at).toBeNull();
   });
 
   it('preserves existing title/desc if null is passed (backward compatible)', async () => {

@@ -7,7 +7,7 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
-  server: { port: 5173 },
+  server: { host: true, port: 5173 },
   test: {
     include: ['tests/specs/**/*.spec.ts'],
     testTimeout: 120_000,

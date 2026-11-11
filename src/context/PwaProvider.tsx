@@ -59,41 +59,58 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // 5. Service Worker Registration & Update Detection
+    // 5. Service Worker Registration (production builds only; dev clears stale SW caches)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/sw.js', { scope: '/' })
-        .then((reg) => {
-          // If there is already a waiting worker
-          if (reg.waiting) {
-            waitingWorkerRef.current = reg.waiting;
-            setUpdateAvailable(true);
-          }
-
-          // Listen for new workers entering installed state
-          reg.addEventListener('updatefound', () => {
-            const installing = reg.installing;
-            if (!installing) return;
-            installing.addEventListener('statechange', () => {
-              if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-                waitingWorkerRef.current = installing;
-                setUpdateAvailable(true);
-              }
-            });
-          });
-        })
-        .catch((err) => {
-          console.warn('[PWA] ServiceWorker registration warning:', err);
-        });
-
-      // Reload page when new service worker takes control (via SKIP_WAITING)
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!refreshing) {
-          refreshing = true;
-          window.location.reload();
+      if (!import.meta.env.PROD) {
+        navigator.serviceWorker
+          .getRegistrations()
+          .then((regs) => Promise.all(regs.map((r) => r.unregister())))
+          .catch(() => undefined);
+        if ('caches' in window) {
+          caches
+            .keys()
+            .then((keys) =>
+              Promise.all(
+                keys.filter((k) => k.startsWith('vit-radio-static-')).map((k) => caches.delete(k)),
+              ),
+            )
+            .catch(() => undefined);
         }
-      });
+      } else {
+        navigator.serviceWorker
+          .register('/sw.js', { scope: '/' })
+          .then((reg) => {
+            // If there is already a waiting worker
+            if (reg.waiting) {
+              waitingWorkerRef.current = reg.waiting;
+              setUpdateAvailable(true);
+            }
+
+            // Listen for new workers entering installed state
+            reg.addEventListener('updatefound', () => {
+              const installing = reg.installing;
+              if (!installing) return;
+              installing.addEventListener('statechange', () => {
+                if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                  waitingWorkerRef.current = installing;
+                  setUpdateAvailable(true);
+                }
+              });
+            });
+          })
+          .catch((err) => {
+            console.warn('[PWA] ServiceWorker registration warning:', err);
+          });
+
+        // Reload page when new service worker takes control (via SKIP_WAITING)
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
+        });
+      }
     }
 
     return () => {

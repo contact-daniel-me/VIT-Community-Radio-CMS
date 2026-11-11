@@ -1,18 +1,26 @@
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
-import { Banner, UnifiedStatusBadge, Loading, PageHeader } from '@/components/ui';
+import { useScheduledTransitionRefresh } from '@/hooks/useScheduledTransitionRefresh';
+import {
+  Banner,
+  Loading,
+  PageHeader,
+  PublishStatusBadge,
+  UnifiedStatusBadge,
+} from '@/components/ui';
 import { HomepageScheduleDialog } from '@/components/studio/HomepageScheduleDialog';
 import { episodeService, type EpisodeInput, type EpisodeWithRelations } from '@/services/episodeService';
+import { resolveEpisodePublishStatus } from '@/services/qcService';
 import { programService } from '@/services/programService';
 import { userService } from '@/services/userService';
 import { mixotaService } from '@/services/mixotaService';
 import { can } from '@/lib/permissions';
 import { errorMessage } from '@/lib/errors';
-import { formatDate, formatDuration } from '@/utils/datetime';
+import { formatDate, formatDateTime, formatDuration } from '@/utils/datetime';
 import { downloadBulkZip } from '@/utils/download';
-import type { EpisodeStatus } from '@/types/database';
+import type { EpisodeStatus, PublishLifecycleStatus } from '@/types/database';
 
 type TabKey = 'ALL' | 'DRAFT' | 'RAW_AUDIO' | 'PENDING_QC' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
 
@@ -60,8 +68,11 @@ export function EpisodesPage() {
     setParams(next, { replace: true });
   };
 
+  const [publishFilter, setPublishFilter] = useState<'ALL' | 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'EXPIRED' | 'FAILED'>('ALL');
+
   const handleTabClick = (tabKey: TabKey) => {
     setSelected(new Set());
+    setPublishFilter('ALL');
     if (tabKey === 'ALL') {
       setParam('status', '');
     } else {
@@ -83,16 +94,67 @@ export function EpisodesPage() {
   );
 
   const episodes = useAsync(
-    () =>
-      episodeService.getEpisodes({
+    async () => {
+      await episodeService.syncContentLifecycle();
+      return episodeService.getEpisodes({
         programId: programFilter || undefined,
         status: activeTab === 'ALL' ? undefined : (activeTab === 'RAW_AUDIO' ? 'DRAFT' : activeTab),
         hasRawAudio: activeTab === 'RAW_AUDIO' ? true : (activeTab === 'DRAFT' ? false : undefined),
         mineOnly: mineOnly ? profile.id : undefined,
         search: search || undefined,
-      }),
+      });
+    },
     [programFilter, activeTab, mineOnly, search, profile.id],
   );
+
+  const scheduleMap = useAsync(
+    () =>
+      episodes.data && episodes.data.length > 0
+        ? episodeService.getEpisodeScheduleSummaries(episodes.data.map((ep) => ep.id))
+        : Promise.resolve(new Map()),
+    [episodes.data],
+  );
+
+  const publishSummary = useMemo(() => {
+    const list = episodes.data ?? [];
+    const schedulesByEp = scheduleMap.data ?? new Map();
+    const now = new Date();
+    const countsByBucket = {
+      ALL: list.length,
+      DRAFT: 0,
+      SCHEDULED: 0,
+      PUBLISHED: 0,
+      EXPIRED: 0,
+      FAILED: 0,
+    };
+    const statusMap = new Map<string, PublishLifecycleStatus>();
+    for (const ep of list) {
+      const bucket = resolveEpisodePublishStatus(ep, now, schedulesByEp.get(ep.id) ?? []);
+      statusMap.set(ep.id, bucket);
+      if (bucket === 'DRAFT') countsByBucket.DRAFT++;
+      else if (bucket === 'SCHEDULED') countsByBucket.SCHEDULED++;
+      else if (bucket === 'PUBLISHED') countsByBucket.PUBLISHED++;
+      else if (bucket === 'EXPIRED') countsByBucket.EXPIRED++;
+      else if (bucket === 'FAILED') countsByBucket.FAILED++;
+    }
+    const visible =
+      publishFilter === 'ALL'
+        ? list
+        : list.filter((ep) => statusMap.get(ep.id) === publishFilter);
+    return { countsByBucket, statusMap, visible };
+  }, [episodes.data, scheduleMap.data, publishFilter]);
+
+  const boundaryTimestamps = useMemo(
+    () =>
+      (episodes.data ?? []).flatMap((ep) => [
+        ep.scheduled_at ?? ep.homepage_publish_at,
+        ep.expires_at ?? ep.homepage_expires_at,
+      ]),
+    [episodes.data],
+  );
+  useScheduledTransitionRefresh(boundaryTimestamps, () => {
+    void Promise.all([episodes.reload(), counts.reload()]);
+  });
 
   const [form, setForm] = useState<EpisodeInput | null>(null);
   const [saving, setSaving] = useState(false);
@@ -329,19 +391,48 @@ export function EpisodesPage() {
           )}
         </div>
 
+        <div className="tabs" role="tablist" aria-label="Publishing lifecycle filter" style={{ marginBottom: '0.85rem' }}>
+          {(
+            [
+              { key: 'ALL', label: 'All Releases' },
+              { key: 'DRAFT', label: 'Draft' },
+              { key: 'SCHEDULED', label: 'Scheduled' },
+              { key: 'PUBLISHED', label: 'Published' },
+              { key: 'EXPIRED', label: 'Expired' },
+              { key: 'FAILED', label: 'Failed' },
+            ] as const
+          ).map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              role="tab"
+              aria-selected={publishFilter === item.key}
+              className={`tab ${publishFilter === item.key ? 'is-active' : ''}`}
+              onClick={() => {
+                setSelected(new Set());
+                setPublishFilter(item.key);
+              }}
+            >
+              {item.label}
+              <span className="tab-count">{publishSummary.countsByBucket[item.key]}</span>
+            </button>
+          ))}
+        </div>
+
         {episodes.loading ? (
           <Loading />
         ) : episodes.error ? (
           <Banner>{episodes.error}</Banner>
-        ) : (episodes.data ?? []).length === 0 ? (
+        ) : publishSummary.visible.length === 0 ? (
           <EpisodeEmptyState
             activeTab={activeTab}
-            hasFilters={Boolean(search.trim() || programFilter || (mineOnly && !isRj))}
+            hasFilters={Boolean(search.trim() || programFilter || (mineOnly && !isRj) || publishFilter !== 'ALL')}
             onResetFilters={() => {
               const next = new URLSearchParams(params);
               next.delete('q');
               next.delete('program');
               if (!isRj) next.delete('mine');
+              setPublishFilter('ALL');
               setParams(next, { replace: true });
             }}
             canCreate={can.createEpisode(profile.role) && activePrograms.length > 0}
@@ -354,16 +445,16 @@ export function EpisodesPage() {
                 <tr>
                   {profile.role === 'ADMIN' && (
                     <th style={{ width: '40px' }}>
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setSelected(new Set((episodes.data ?? []).map((ep) => ep.id)));
+                            setSelected(new Set(publishSummary.visible.map((ep) => ep.id)));
                           } else {
                             setSelected(new Set());
                           }
                         }}
-                        checked={selected.size > 0 && selected.size === (episodes.data ?? []).length}
+                        checked={selected.size > 0 && selected.size === publishSummary.visible.length}
                         aria-label="Select all episodes"
                       />
                     </th>
@@ -379,7 +470,7 @@ export function EpisodesPage() {
                 </tr>
               </thead>
               <tbody>
-                {(episodes.data ?? []).map((episode) => (
+                {publishSummary.visible.map((episode) => (
                   <tr key={episode.id}>
                     {profile.role === 'ADMIN' && (
                       <td>
@@ -420,78 +511,52 @@ export function EpisodesPage() {
                         {episode.status === 'APPROVED' && (
                           (() => {
                             const isAdminOrProducer = profile.role === 'ADMIN' || profile.role === 'PRODUCER';
-                            if (!episode.show_on_homepage) {
-                              return (
-                                <button
-                                  type="button"
-                                  className="badge badge-grey"
-                                  style={{
-                                    fontSize: '0.68rem',
-                                    padding: '0.1rem 0.4rem',
-                                    opacity: 0.85,
-                                    cursor: isAdminOrProducer ? 'pointer' : 'default',
-                                    border: 'none',
-                                    background: 'var(--surface-sunken)',
-                                  }}
-                                  title={isAdminOrProducer ? 'Click to schedule on homepage' : 'Not scheduled on homepage'}
-                                  onClick={() => isAdminOrProducer && setSchedulingEpisode(episode)}
-                                >
-                                  Homepage: Off {isAdminOrProducer ? '✎' : ''}
-                                </button>
-                              );
-                            }
-                            const now = new Date();
-                            if (episode.homepage_publish_at && new Date(episode.homepage_publish_at) > now) {
-                              return (
-                                <button
-                                  type="button"
-                                  className="badge badge-purple"
-                                  style={{
-                                    fontSize: '0.68rem',
-                                    padding: '0.1rem 0.4rem',
-                                    cursor: isAdminOrProducer ? 'pointer' : 'default',
-                                    border: 'none',
-                                  }}
-                                  title={isAdminOrProducer ? 'Click to manage homepage schedule' : `Scheduled for homepage: ${episode.homepage_publish_at}`}
-                                  onClick={() => isAdminOrProducer && setSchedulingEpisode(episode)}
-                                >
-                                  Homepage: Scheduled {isAdminOrProducer ? '✎' : ''}
-                                </button>
-                              );
-                            }
-                            if (episode.homepage_expires_at && new Date(episode.homepage_expires_at) <= now) {
-                              return (
-                                <button
-                                  type="button"
-                                  className="badge badge-grey"
-                                  style={{
-                                    fontSize: '0.68rem',
-                                    padding: '0.1rem 0.4rem',
-                                    cursor: isAdminOrProducer ? 'pointer' : 'default',
-                                    border: 'none',
-                                  }}
-                                  title={isAdminOrProducer ? 'Click to manage homepage schedule' : `Expired from homepage: ${episode.homepage_expires_at}`}
-                                  onClick={() => isAdminOrProducer && setSchedulingEpisode(episode)}
-                                >
-                                  Homepage: Expired {isAdminOrProducer ? '✎' : ''}
-                                </button>
-                              );
-                            }
+                            const pubStatus = publishSummary.statusMap.get(episode.id) ?? resolveEpisodePublishStatus(episode);
+                            const schedAt = episode.scheduled_at ?? episode.homepage_publish_at ?? null;
+                            const pubAt = episode.published_at ?? (pubStatus === 'PUBLISHED' ? episode.homepage_publish_at : null) ?? null;
+                            const expAt = episode.expires_at ?? episode.homepage_expires_at ?? null;
+
                             return (
-                              <button
-                                type="button"
-                                className="badge badge-green"
-                                style={{
-                                  fontSize: '0.68rem',
-                                  padding: '0.1rem 0.4rem',
-                                  cursor: isAdminOrProducer ? 'pointer' : 'default',
-                                  border: 'none',
-                                }}
-                                title={isAdminOrProducer ? 'Click to manage homepage schedule' : 'Currently live on public homepage'}
-                                onClick={() => isAdminOrProducer && setSchedulingEpisode(episode)}
-                              >
-                                Homepage: Live {isAdminOrProducer ? '✎' : ''}
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  className="link-reset"
+                                  style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    padding: 0,
+                                    cursor: isAdminOrProducer ? 'pointer' : 'default',
+                                  }}
+                                  title={
+                                    isAdminOrProducer
+                                      ? 'Click to manage publishing schedule'
+                                      : `Publishing status: ${pubStatus}`
+                                  }
+                                  onClick={() => isAdminOrProducer && setSchedulingEpisode(episode)}
+                                >
+                                  <PublishStatusBadge status={pubStatus} />
+                                </button>
+                                {pubStatus === 'SCHEDULED' && schedAt && (
+                                  <span className="small muted" style={{ fontSize: '0.72rem' }}>
+                                    Publishes {formatDateTime(schedAt)}
+                                  </span>
+                                )}
+                                {pubStatus === 'PUBLISHED' && pubAt && (
+                                  <span className="small muted" style={{ fontSize: '0.72rem' }}>
+                                    Published {formatDateTime(pubAt)}
+                                  </span>
+                                )}
+                                {pubStatus === 'EXPIRED' && expAt && (
+                                  <span className="small muted" style={{ fontSize: '0.72rem' }}>
+                                    Expired {formatDateTime(expAt)}
+                                  </span>
+                                )}
+                                {pubStatus === 'FAILED' && (
+                                  <span className="small" style={{ fontSize: '0.72rem', color: 'var(--accent)' }}>
+                                    {episode.publish_error ?? 'Publishing failed'}
+                                  </span>
+                                )}
+                              </>
                             );
                           })()
                         )}

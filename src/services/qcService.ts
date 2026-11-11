@@ -1,10 +1,21 @@
 import { supabase } from '@/lib/supabase';
 import { AppError } from '@/lib/errors';
 import { unwrap } from '@/lib/query';
-import type { EpisodeRow, QcReviewRow, ScheduleRow, ScheduleDetailsRow } from '@/types/database';
+import type {
+  EpisodeRow,
+  PublishLifecycleStatus,
+  QcReviewRow,
+  ScheduleRow,
+  ScheduleDetailsRow,
+} from '@/types/database';
 import { episodeService, type EpisodeWithRelations } from './episodeService';
 
-export type BroadcastLifecycleStatus = 'NOT_SCHEDULED' | 'SCHEDULED' | 'PUBLISHED';
+export type BroadcastLifecycleStatus =
+  | 'DRAFT'
+  | 'SCHEDULED'
+  | 'PUBLISHED'
+  | 'EXPIRED'
+  | 'FAILED';
 
 export interface EpisodeWithLifecycle extends EpisodeWithRelations {
   lifecycleStatus: BroadcastLifecycleStatus;
@@ -12,24 +23,98 @@ export interface EpisodeWithLifecycle extends EpisodeWithRelations {
   publishedAt?: string | null;
   homepageScheduledAt?: string | null;
   homepageExpiresAt?: string | null;
+  publishError?: string | null;
+  publishAttempts?: number;
   lifecycleTarget?: 'BROADCAST' | 'HOMEPAGE' | 'BOTH' | null;
 }
 
 export interface LifecycleCounts {
   all: number;
-  notScheduled: number;
+  draft: number;
   scheduled: number;
   published: number;
+  expired: number;
+  failed: number;
 }
 
 export interface QcReviewWithReviewer extends QcReviewRow {
   reviewer: { id: string; full_name: string } | null;
 }
 
+function parseValidDate(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 /**
- * Pure helper to compute an episode's broadcast lifecycle status.
- * Handles both Broadcast Transmission schedules (schedules / v_schedule_details)
- * and Homepage Release schedules (show_on_homepage & homepage_publish_at).
+ * Pure helper to resolve any episode's canonical publishing lifecycle bucket
+ * (for Episodes table, Dashboard summary, and Release cards without broadcast schedule queries).
+ */
+export function resolveEpisodePublishStatus(
+  ep: Pick<
+    EpisodeRow,
+    | 'status'
+    | 'publish_status'
+    | 'scheduled_at'
+    | 'published_at'
+    | 'expires_at'
+    | 'publish_error'
+    | 'show_on_homepage'
+    | 'homepage_publish_at'
+    | 'homepage_expires_at'
+  >,
+  now: Date = new Date(),
+  epSchedules: Pick<ScheduleRow, 'status' | 'start_time' | 'end_time'>[] = [],
+): PublishLifecycleStatus {
+  if (ep.status === 'ARCHIVED' || ep.publish_status === 'ARCHIVED') {
+    return 'ARCHIVED';
+  }
+  if (ep.publish_status === 'FAILED') return 'FAILED';
+  if (ep.publish_status === 'EXPIRED') return 'EXPIRED';
+
+  const expTime = parseValidDate(ep.expires_at ?? ep.homepage_expires_at);
+  const schedTime = parseValidDate(ep.scheduled_at ?? ep.homepage_publish_at);
+
+  if (ep.publish_status === 'PUBLISHED') {
+    if (expTime && expTime <= now) return 'EXPIRED';
+    return 'PUBLISHED';
+  }
+
+  if (ep.publish_status === 'SCHEDULED') {
+    if (schedTime && schedTime <= now) {
+      if (expTime && expTime <= now) return 'EXPIRED';
+      return 'PUBLISHED';
+    }
+    return 'SCHEDULED';
+  }
+
+  // Fallback for pre-migration rows (or test mocks) using homepage flags and schedules
+  if (ep.show_on_homepage) {
+    if (expTime && expTime <= now) return 'EXPIRED';
+    if (schedTime && schedTime > now) return 'SCHEDULED';
+    return 'PUBLISHED';
+  }
+
+  if (expTime && expTime <= now && (ep.published_at || ep.homepage_publish_at)) {
+    return 'EXPIRED';
+  }
+
+  if (epSchedules.some((s) => s.status === 'COMPLETED')) {
+    return 'PUBLISHED';
+  }
+
+  if (epSchedules.some((s) => s.status === 'SCHEDULED' || s.status === 'ON_AIR')) {
+    return 'SCHEDULED';
+  }
+
+  return 'DRAFT';
+}
+
+/**
+ * Pure helper to compute an episode's publishing + broadcast lifecycle status.
+ * Persists published/expired/failed transitions permanently and never demotes
+ * previously published content back to Draft automatically.
  */
 export function computeEpisodeLifecycle(
   episode: EpisodeWithRelations,
@@ -41,69 +126,124 @@ export function computeEpisodeLifecycle(
   publishedAt: string | null;
   homepageScheduledAt: string | null;
   homepageExpiresAt: string | null;
+  publishError: string | null;
+  publishAttempts: number;
   lifecycleTarget: 'BROADCAST' | 'HOMEPAGE' | 'BOTH' | null;
 } {
-  const hasHomepage = Boolean(episode.show_on_homepage);
-  const pubTime = episode.homepage_publish_at ? new Date(episode.homepage_publish_at) : null;
-  const expTime = episode.homepage_expires_at ? new Date(episode.homepage_expires_at) : null;
+  const persistedStatus = episode.publish_status;
+  const schedIso = episode.scheduled_at ?? episode.homepage_publish_at ?? null;
+  const pubIso = episode.published_at ?? null;
+  const expIso = episode.expires_at ?? episode.homepage_expires_at ?? null;
 
-  // 1. Check Homepage Release states:
-  // A) Homepage Live/Published: enabled, publish time arrived (or null/immediate), and not expired
-  const isHomepagePublished =
-    hasHomepage &&
-    (!pubTime || pubTime <= now) &&
-    (!expTime || expTime > now);
+  const schedTime = parseValidDate(schedIso);
+  const expTime = parseValidDate(expIso);
 
-  // B) Homepage Scheduled: enabled, publish time in the future, and not expired
-  const isHomepageScheduled =
-    hasHomepage &&
-    Boolean(pubTime && pubTime > now) &&
-    Boolean(!expTime || (pubTime && expTime > pubTime));
+  const completedSchedule = epSchedules.find((s) => s.status === 'COMPLETED') ?? null;
+  const activeBroadcastSchedule =
+    epSchedules.find((s) => s.status === 'SCHEDULED' || s.status === 'ON_AIR') ?? null;
 
-  // 2. Check Broadcast Schedule states:
-  const completedSchedule = epSchedules.find((s) => s.status === 'COMPLETED');
-  const activeBroadcastSchedule = epSchedules.find(
-    (s) => s.status === 'SCHEDULED' || s.status === 'ON_AIR',
-  );
+  // 1. Explicit FAILED state
+  if (persistedStatus === 'FAILED') {
+    return {
+      lifecycleStatus: 'FAILED',
+      activeSchedule: activeBroadcastSchedule,
+      publishedAt: null,
+      homepageScheduledAt: schedIso,
+      homepageExpiresAt: expIso,
+      publishError: episode.publish_error ?? 'Scheduled publication failed',
+      publishAttempts: episode.publish_attempts ?? 1,
+      lifecycleTarget: activeBroadcastSchedule ? 'BOTH' : 'HOMEPAGE',
+    };
+  }
 
-  // 3. Status Resolution:
-  // Step A: Published (either active homepage release or broadcast completed)
-  if (isHomepagePublished || completedSchedule) {
-    const publishedAt = isHomepagePublished
-      ? (episode.homepage_publish_at ?? episode.reviewed_at ?? episode.updated_at)
-      : (completedSchedule?.end_time ?? completedSchedule?.start_time ?? episode.reviewed_at);
+  // 2. Explicit EXPIRED state (or published/homepage release past configured expires_at)
+  if (
+    persistedStatus === 'EXPIRED' ||
+    (persistedStatus === 'PUBLISHED' && expTime && expTime <= now) ||
+    (expTime && expTime <= now && (Boolean(episode.show_on_homepage) || Boolean(pubIso)))
+  ) {
+    return {
+      lifecycleStatus: 'EXPIRED',
+      activeSchedule: completedSchedule ?? activeBroadcastSchedule,
+      publishedAt:
+        pubIso ??
+        episode.homepage_publish_at ??
+        completedSchedule?.end_time ??
+        episode.reviewed_at ??
+        null,
+      homepageScheduledAt: schedIso,
+      homepageExpiresAt: expIso,
+      publishError: null,
+      publishAttempts: episode.publish_attempts ?? 0,
+      lifecycleTarget: completedSchedule ? 'BOTH' : 'HOMEPAGE',
+    };
+  }
+
+  // 3. Explicit or due PUBLISHED state (homepage release, persisted publish, or completed broadcast)
+  const isPersistedOrDueHomepagePublished =
+    persistedStatus === 'PUBLISHED' ||
+    (persistedStatus === 'SCHEDULED' && Boolean(schedTime && schedTime <= now) && (!expTime || expTime > now)) ||
+    (Boolean(episode.show_on_homepage) &&
+      (!schedTime || schedTime <= now) &&
+      (!expTime || expTime > now));
+
+  if (isPersistedOrDueHomepagePublished || completedSchedule) {
+    const resolvedPublishedAt =
+      pubIso ??
+      (isPersistedOrDueHomepagePublished
+        ? (episode.homepage_publish_at ?? episode.scheduled_at ?? episode.reviewed_at ?? episode.updated_at)
+        : (completedSchedule?.end_time ?? completedSchedule?.start_time ?? episode.reviewed_at ?? episode.updated_at));
 
     return {
       lifecycleStatus: 'PUBLISHED',
-      activeSchedule: completedSchedule ?? activeBroadcastSchedule ?? null,
-      publishedAt,
-      homepageScheduledAt: null,
-      homepageExpiresAt: isHomepagePublished ? (episode.homepage_expires_at ?? null) : null,
+      activeSchedule: completedSchedule ?? activeBroadcastSchedule,
+      publishedAt: resolvedPublishedAt ?? null,
+      homepageScheduledAt: schedIso,
+      homepageExpiresAt: isPersistedOrDueHomepagePublished ? expIso : null,
+      publishError: null,
+      publishAttempts: episode.publish_attempts ?? 0,
       lifecycleTarget:
-        isHomepagePublished && completedSchedule ? 'BOTH' : isHomepagePublished ? 'HOMEPAGE' : 'BROADCAST',
+        isPersistedOrDueHomepagePublished && completedSchedule
+          ? 'BOTH'
+          : isPersistedOrDueHomepagePublished
+            ? 'HOMEPAGE'
+            : 'BROADCAST',
     };
   }
 
-  // Step B: Scheduled (either upcoming broadcast slot or scheduled future homepage release)
+  // 4. Scheduled state (upcoming homepage release or upcoming/on-air broadcast slot)
+  const isHomepageScheduled =
+    (persistedStatus === 'SCHEDULED' || Boolean(episode.show_on_homepage)) &&
+    Boolean(schedTime && schedTime > now) &&
+    (!expTime || (schedTime && expTime > schedTime));
+
   if (activeBroadcastSchedule || isHomepageScheduled) {
     return {
       lifecycleStatus: 'SCHEDULED',
-      activeSchedule: activeBroadcastSchedule ?? null,
+      activeSchedule: activeBroadcastSchedule,
       publishedAt: null,
-      homepageScheduledAt: isHomepageScheduled ? (episode.homepage_publish_at ?? null) : null,
-      homepageExpiresAt: isHomepageScheduled ? (episode.homepage_expires_at ?? null) : null,
+      homepageScheduledAt: isHomepageScheduled ? schedIso : null,
+      homepageExpiresAt: isHomepageScheduled ? expIso : null,
+      publishError: null,
+      publishAttempts: episode.publish_attempts ?? 0,
       lifecycleTarget:
-        activeBroadcastSchedule && isHomepageScheduled ? 'BOTH' : activeBroadcastSchedule ? 'BROADCAST' : 'HOMEPAGE',
+        activeBroadcastSchedule && isHomepageScheduled
+          ? 'BOTH'
+          : activeBroadcastSchedule
+            ? 'BROADCAST'
+            : 'HOMEPAGE',
     };
   }
 
-  // Step C: Not Scheduled
+  // 5. Draft (not yet scheduled or manually unscheduled)
   return {
-    lifecycleStatus: 'NOT_SCHEDULED',
+    lifecycleStatus: 'DRAFT',
     activeSchedule: null,
     publishedAt: null,
     homepageScheduledAt: null,
     homepageExpiresAt: null,
+    publishError: null,
+    publishAttempts: episode.publish_attempts ?? 0,
     lifecycleTarget: null,
   };
 }
@@ -124,11 +264,9 @@ export function getEpisodeScheduledDate(ep: EpisodeWithLifecycle): string {
     const t = toEpoch(ep.activeSchedule.start_time);
     if (t > 0) dates.push(t);
   }
-  if (ep.homepageScheduledAt) {
-    const t = toEpoch(ep.homepageScheduledAt);
-    if (t > 0) dates.push(t);
-  } else if (ep.homepage_publish_at) {
-    const t = toEpoch(ep.homepage_publish_at);
+  const schedIso = ep.homepageScheduledAt ?? ep.scheduled_at ?? ep.homepage_publish_at;
+  if (schedIso) {
+    const t = toEpoch(schedIso);
     if (t > 0) dates.push(t);
   }
   if (dates.length > 0) {
@@ -139,52 +277,56 @@ export function getEpisodeScheduledDate(ep: EpisodeWithLifecycle): string {
 }
 
 export function getEpisodePublicationDate(ep: EpisodeWithLifecycle): string {
-  return ep.publishedAt ?? ep.homepage_publish_at ?? ep.reviewed_at ?? ep.updated_at ?? '';
+  return ep.publishedAt ?? ep.published_at ?? ep.homepage_publish_at ?? ep.reviewed_at ?? ep.updated_at ?? '';
 }
 
 /**
- * Reorganizes QC Done episodes in the requested business order:
- * 1. Not Scheduled (top) – sorted by QC review/completion date (newest first).
- * 2. Scheduled (middle) – sorted by scheduled broadcast/release date (nearest upcoming first).
- * 3. Published (bottom) – sorted by actual publication date (most recently published first).
+ * Reorganizes QC Done episodes by lifecycle priority:
+ * 1. Draft (top) – newest QC reviewed first
+ * 2. Scheduled (middle) – nearest upcoming date first
+ * 3. Published – most recently published first
+ * 4. Failed – most recent attempt first
+ * 5. Expired (bottom) – most recently expired first
  */
 export function sortCompletedQCEpisodes(episodes: EpisodeWithLifecycle[]): EpisodeWithLifecycle[] {
   const STATUS_PRIORITY: Record<BroadcastLifecycleStatus, number> = {
-    NOT_SCHEDULED: 1,
+    DRAFT: 1,
     SCHEDULED: 2,
     PUBLISHED: 3,
+    FAILED: 4,
+    EXPIRED: 5,
   };
 
   return [...episodes].sort((a, b) => {
-    // 1. Status Ordering: NOT_SCHEDULED (1) -> SCHEDULED (2) -> PUBLISHED (3)
     const priorityDiff = STATUS_PRIORITY[a.lifecycleStatus] - STATUS_PRIORITY[b.lifecycleStatus];
     if (priorityDiff !== 0) return priorityDiff;
 
-    // 2. Intra-category date ordering:
-    if (a.lifecycleStatus === 'NOT_SCHEDULED') {
-      // Newest QC review / completion date first (descending)
+    if (a.lifecycleStatus === 'DRAFT' || a.lifecycleStatus === 'FAILED') {
       const diff = toEpoch(getEpisodeReviewedDate(b)) - toEpoch(getEpisodeReviewedDate(a));
       if (diff !== 0) return diff;
       return (a.title || '').localeCompare(b.title || '');
     }
 
     if (a.lifecycleStatus === 'SCHEDULED') {
-      // Nearest upcoming release date first (ascending: earlier date comes first)
       const diff = toEpoch(getEpisodeScheduledDate(a)) - toEpoch(getEpisodeScheduledDate(b));
       if (diff !== 0) return diff;
-      // Tie-breaker: newest reviewed first
       const revDiff = toEpoch(getEpisodeReviewedDate(b)) - toEpoch(getEpisodeReviewedDate(a));
       if (revDiff !== 0) return revDiff;
       return (a.title || '').localeCompare(b.title || '');
     }
 
     if (a.lifecycleStatus === 'PUBLISHED') {
-      // Most recently published first (descending: newer publication date comes first)
       const diff = toEpoch(getEpisodePublicationDate(b)) - toEpoch(getEpisodePublicationDate(a));
       if (diff !== 0) return diff;
-      // Tie-breaker: newest reviewed first
       const revDiff = toEpoch(getEpisodeReviewedDate(b)) - toEpoch(getEpisodeReviewedDate(a));
       if (revDiff !== 0) return revDiff;
+      return (a.title || '').localeCompare(b.title || '');
+    }
+
+    if (a.lifecycleStatus === 'EXPIRED') {
+      const expB = toEpoch(b.homepageExpiresAt ?? b.expires_at ?? getEpisodePublicationDate(b));
+      const expA = toEpoch(a.homepageExpiresAt ?? a.expires_at ?? getEpisodePublicationDate(a));
+      if (expB !== expA) return expB - expA;
       return (a.title || '').localeCompare(b.title || '');
     }
 
@@ -201,8 +343,10 @@ export const qcService = {
     );
   },
 
-  /** Most recently approved first: episodes that have completed quality checks, with their broadcast lifecycle status. */
+  /** Most recently approved first: episodes that have completed quality checks, with their lifecycle status. */
   async getCompletedQC(): Promise<EpisodeWithLifecycle[]> {
+    await episodeService.syncContentLifecycle();
+
     const episodes = await episodeService.getEpisodes({ status: 'APPROVED' });
     if (episodes.length === 0) return [];
 
@@ -230,12 +374,12 @@ export const qcService = {
       if (rawErr) console.error('Failed to fetch schedules for completed QC episodes:', rawErr);
     }
 
-    // Also fetch unlinked active schedules (where episode_id might not have been set on the slot)
+    // Also fetch unlinked schedules (including COMPLETED historical airings)
     const { data: unlinkedSchedules } = await supabase
       .from('v_schedule_details')
       .select('*')
       .is('episode_id', null)
-      .in('status', ['SCHEDULED', 'ON_AIR'])
+      .in('status', ['SCHEDULED', 'ON_AIR', 'COMPLETED'])
       .order('start_time', { ascending: false });
 
     const schedulesByEpisode = new Map<string, (ScheduleRow | ScheduleDetailsRow)[]>();
@@ -280,21 +424,27 @@ export const qcService = {
   sortCompletedQC: sortCompletedQCEpisodes,
 
   getLifecycleCounts(episodes: EpisodeWithLifecycle[]): LifecycleCounts {
-    let notScheduled = 0;
+    let draft = 0;
     let scheduled = 0;
     let published = 0;
+    let expired = 0;
+    let failed = 0;
 
     for (const ep of episodes) {
-      if (ep.lifecycleStatus === 'NOT_SCHEDULED') notScheduled++;
+      if (ep.lifecycleStatus === 'DRAFT') draft++;
       else if (ep.lifecycleStatus === 'SCHEDULED') scheduled++;
       else if (ep.lifecycleStatus === 'PUBLISHED') published++;
+      else if (ep.lifecycleStatus === 'EXPIRED') expired++;
+      else if (ep.lifecycleStatus === 'FAILED') failed++;
     }
 
     return {
       all: episodes.length,
-      notScheduled,
+      draft,
       scheduled,
       published,
+      expired,
+      failed,
     };
   },
 

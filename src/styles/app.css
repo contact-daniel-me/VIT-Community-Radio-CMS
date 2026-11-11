@@ -456,6 +456,11 @@ a {
   border-color: var(--status-approved-badge-border);
   background: var(--status-approved-badge-bg);
 }
+.badge-purple {
+  color: var(--status-scheduled-badge-text);
+  border-color: var(--status-scheduled-badge-border);
+  background: var(--status-scheduled-badge-bg);
+}
 .badge-green {
   color: var(--status-qc-done-badge-text);
   border-color: var(--status-qc-done-badge-border);

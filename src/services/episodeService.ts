@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { AppError, assertWritten, toAppError } from '@/lib/errors';
 import { unwrap } from '@/lib/query';
-import type { AudioFileRow, EpisodeRow, EpisodeStatus } from '@/types/database';
+import type { AudioFileRow, EpisodeRow, EpisodeStatus, ScheduleRow } from '@/types/database';
 import { r2Service } from '@/services/r2Service';
 
 /** An episode with the joined bits every list and detail screen needs. */
@@ -295,11 +295,101 @@ export const episodeService = {
       if (error) {
         throw new AppError(
           'PERMISSION',
-          'Failed to schedule episode. Please ensure migration 20260917000001_homepage_schedule_title_desc.sql has been executed in Supabase SQL Editor.',
+          'Failed to schedule episode. Please ensure database migrations are up to date.',
           error,
         );
       }
       return data as EpisodeRow;
     }
+  },
+
+  /** Synchronize due scheduled releases, overdue broadcasts, and expired content on the backend. */
+  async syncContentLifecycle(): Promise<void> {
+    await Promise.allSettled([
+      supabase.rpc('sync_content_lifecycle', {}),
+      supabase.rpc('sync_broadcast_state'),
+    ]);
+  },
+
+  /** Fetch lightweight broadcast schedule summaries indexed by episode_id. */
+  async getEpisodeScheduleSummaries(
+    episodeIds?: string[],
+  ): Promise<Map<string, Pick<ScheduleRow, 'id' | 'episode_id' | 'status' | 'start_time' | 'end_time'>[]>> {
+    const map = new Map<
+      string,
+      Pick<ScheduleRow, 'id' | 'episode_id' | 'status' | 'start_time' | 'end_time'>[]
+    >();
+    if (episodeIds && episodeIds.length === 0) return map;
+
+    try {
+      let q = supabase
+        .from('schedules')
+        .select('id, episode_id, status, start_time, end_time')
+        .order('start_time', { ascending: false });
+
+      if (episodeIds) {
+        q = q.in('episode_id', episodeIds);
+      } else {
+        q = q.not('episode_id', 'is', null);
+      }
+
+      const { data, error } = await q;
+      if (error || !data) return map;
+
+      for (const row of data) {
+        if (!row.episode_id) continue;
+        const list = map.get(row.episode_id) ?? [];
+        list.push(row);
+        map.set(row.episode_id, list);
+      }
+    } catch {
+      // Non-fatal fallback
+    }
+    return map;
+  },
+
+  /** Manually move a scheduled or published episode release back to Draft. */
+  async unscheduleHomepageEpisode(episodeId: string): Promise<EpisodeRow> {
+    const { data, error } = await supabase.rpc('unschedule_episode_homepage', {
+      p_episode_id: episodeId,
+    });
+    if (!error && data) {
+      return data as EpisodeRow;
+    }
+
+    const msg = error?.message ?? '';
+    const isMissingRpc =
+      error?.code === 'PGRST202' ||
+      /could not find the function|does not exist/i.test(msg);
+
+    if (isMissingRpc) {
+      return this.scheduleHomepageEpisode(episodeId, false, null, null);
+    }
+
+    if (error) throw toAppError(error);
+    return this.scheduleHomepageEpisode(episodeId, false, null, null);
+  },
+
+  /** Retry a FAILED scheduled publication (transitions FAILED -> SCHEDULED). */
+  async retryPublish(
+    episodeId: string,
+    scheduledAt: string | null = null,
+  ): Promise<EpisodeRow> {
+    return unwrap(
+      supabase.rpc('retry_episode_publish', {
+        p_episode_id: episodeId,
+        p_scheduled_at: scheduledAt,
+      }),
+    );
+  },
+
+  /** Mark a scheduled publication as FAILED with a clear error message. */
+  async failPublish(episodeId: string, errorMessage: string): Promise<EpisodeRow> {
+    return unwrap(
+      supabase.rpc('fail_episode_publish', {
+        p_episode_id: episodeId,
+        p_error: errorMessage,
+      }),
+    );
   },
 };

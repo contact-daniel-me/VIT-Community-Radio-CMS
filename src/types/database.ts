@@ -25,7 +25,32 @@ export type EpisodeStatus =
   | 'REJECTED'
   | 'ARCHIVED';
 
-export type AnnouncementStatus = 'DRAFT' | 'PUBLISHED' | 'SCHEDULED' | 'ARCHIVED';
+export type PublishLifecycleStatus =
+  | 'DRAFT'
+  | 'SCHEDULED'
+  | 'PUBLISHED'
+  | 'EXPIRED'
+  | 'FAILED'
+  | 'ARCHIVED';
+
+export type SyncContentLifecycleResult = {
+  promoted_episodes: number;
+  expired_episodes: number;
+  failed_episodes: number;
+  promoted_announcements: number;
+  expired_announcements: number;
+  failed_announcements: number;
+  synced_schedules: number;
+  synced_at: string;
+};
+
+export type AnnouncementStatus =
+  | 'DRAFT'
+  | 'PUBLISHED'
+  | 'SCHEDULED'
+  | 'EXPIRED'
+  | 'FAILED'
+  | 'ARCHIVED';
 
 export type QcDecision = 'APPROVED' | 'REJECTED';
 
@@ -244,6 +269,13 @@ export type EpisodeRow = {
   show_on_homepage?: boolean;
   homepage_publish_at?: string | null;
   homepage_expires_at?: string | null;
+  publish_status?: PublishLifecycleStatus;
+  scheduled_at?: string | null;
+  published_at?: string | null;
+  expires_at?: string | null;
+  publish_error?: string | null;
+  publish_attempts?: number;
+  last_publish_attempt_at?: string | null;
   created_by: string | null;
   studio_name?: string | null;
   created_at: string;
@@ -307,6 +339,9 @@ export type AnnouncementRow = {
   published_at: string | null;
   scheduled_at: string | null;
   expires_at: string | null;
+  publish_error?: string | null;
+  publish_attempts?: number;
+  last_publish_attempt_at?: string | null;
   created_at: string;
   updated_at: string;
   created_by: string;
@@ -460,6 +495,10 @@ export type PublicApprovedEpisodeRow = {
   show_on_homepage?: boolean;
   homepage_publish_at?: string | null;
   homepage_expires_at?: string | null;
+  publish_status?: PublishLifecycleStatus;
+  scheduled_at?: string | null;
+  published_at?: string | null;
+  expires_at?: string | null;
 };
 
 /** A cached podcast episode from the Spotify/Anchor RSS feed. */
@@ -999,6 +1038,34 @@ export type Database = {
           p_description?: string | null;
         };
         Returns: EpisodeRow;
+      };
+      unschedule_episode_homepage: {
+        Args: { p_episode_id: string };
+        Returns: EpisodeRow;
+      };
+      fail_episode_publish: {
+        Args: { p_episode_id: string; p_error: string };
+        Returns: EpisodeRow;
+      };
+      retry_episode_publish: {
+        Args: { p_episode_id: string; p_scheduled_at?: string | null };
+        Returns: EpisodeRow;
+      };
+      unschedule_announcement: {
+        Args: { p_announcement_id: string };
+        Returns: AnnouncementRow;
+      };
+      fail_announcement_publish: {
+        Args: { p_announcement_id: string; p_error: string };
+        Returns: AnnouncementRow;
+      };
+      retry_announcement_publish: {
+        Args: { p_announcement_id: string; p_scheduled_at?: string | null };
+        Returns: AnnouncementRow;
+      };
+      sync_content_lifecycle: {
+        Args: Record<PropertyKey, never>;
+        Returns: SyncContentLifecycleResult;
       };
       sync_podcast_episodes: {
         Args: {

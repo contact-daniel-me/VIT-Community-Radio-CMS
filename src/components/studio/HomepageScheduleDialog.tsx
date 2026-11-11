@@ -2,20 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { episodeService, type EpisodeWithRelations } from '@/services/episodeService';
 import { AppError, errorMessage } from '@/lib/errors';
 import { Banner } from '@/components/ui';
-import { stationLocalToIso } from '@/utils/datetime';
-
-function toLocalDateString(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function toLocalTimeString(d: Date): string {
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
-}
+import { stationDateAndTime, stationLocalToIso } from '@/utils/datetime';
 
 interface HomepageScheduleDialogProps {
   episode: EpisodeWithRelations;
@@ -33,9 +20,18 @@ export function HomepageScheduleDialog({
   const [title, setTitle] = useState(episode.title || '');
   const [description, setDescription] = useState(episode.description || '');
 
+  const isAlreadyPublished =
+    episode.publish_status === 'PUBLISHED' ||
+    (Boolean(episode.show_on_homepage) &&
+      (!episode.homepage_publish_at || new Date(episode.homepage_publish_at) <= new Date()) &&
+      (!episode.homepage_expires_at || new Date(episode.homepage_expires_at) > new Date()));
+
+  const existingScheduledIso = episode.scheduled_at ?? episode.homepage_publish_at ?? null;
+  const existingExpiresIso = episode.expires_at ?? episode.homepage_expires_at ?? null;
+
   const [mode, setMode] = useState<'immediate' | 'schedule'>(() => {
-    if (episode.homepage_publish_at) {
-      const pubDate = new Date(episode.homepage_publish_at);
+    if (existingScheduledIso && episode.publish_status !== 'PUBLISHED') {
+      const pubDate = new Date(existingScheduledIso);
       if (pubDate > new Date()) return 'schedule';
     }
     return 'immediate';
@@ -45,8 +41,8 @@ export function HomepageScheduleDialog({
   const [startTime, setStartTime] = useState('');
 
   const [hasExpiry, setHasExpiry] = useState(() => {
-    if (!episode.homepage_expires_at) return false;
-    return new Date(episode.homepage_expires_at) > new Date();
+    if (!existingExpiresIso) return false;
+    return new Date(existingExpiresIso) > new Date();
   });
   const [endDate, setEndDate] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -54,39 +50,43 @@ export function HomepageScheduleDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize form fields and dates
+  // Initialize form fields and dates in station timezone (IST)
   useEffect(() => {
     setTitle(episode.title || '');
     setDescription(episode.description || '');
 
     const now = new Date();
-    if (episode.homepage_publish_at) {
-      const d = new Date(episode.homepage_publish_at);
-      setStartDate(toLocalDateString(d));
-      setStartTime(toLocalTimeString(d));
+    const initialSchedIso = episode.scheduled_at ?? episode.homepage_publish_at;
+    if (initialSchedIso) {
+      const parts = stationDateAndTime(initialSchedIso);
+      setStartDate(parts.date);
+      setStartTime(parts.time);
     } else {
-      setStartDate(toLocalDateString(now));
-      setStartTime(toLocalTimeString(now));
+      const parts = stationDateAndTime(now);
+      setStartDate(parts.date);
+      setStartTime(parts.time);
     }
 
-    if (episode.homepage_expires_at) {
-      const expDate = new Date(episode.homepage_expires_at);
+    const initialExpIso = episode.expires_at ?? episode.homepage_expires_at;
+    if (initialExpIso) {
+      const expDate = new Date(initialExpIso);
       if (expDate > now) {
-        setEndDate(toLocalDateString(expDate));
-        setEndTime(toLocalTimeString(expDate));
+        const parts = stationDateAndTime(expDate);
+        setEndDate(parts.date);
+        setEndTime(parts.time);
         setHasExpiry(true);
       } else {
-        // Was expired: default to 7 days in future and leave expiry untoggled unless user enables it
         const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-        setEndDate(toLocalDateString(nextWeek));
-        setEndTime(toLocalTimeString(nextWeek));
+        const parts = stationDateAndTime(nextWeek);
+        setEndDate(parts.date);
+        setEndTime(parts.time);
         setHasExpiry(false);
       }
     } else {
-      // Default expiry 7 days later
       const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-      setEndDate(toLocalDateString(nextWeek));
-      setEndTime(toLocalTimeString(nextWeek));
+      const parts = stationDateAndTime(nextWeek);
+      setEndDate(parts.date);
+      setEndTime(parts.time);
       setHasExpiry(false);
     }
   }, [episode]);
@@ -103,7 +103,7 @@ export function HomepageScheduleDialog({
 
   const applySameDayMidnightExpiry = () => {
     setHasExpiry(true);
-    const todayStr = toLocalDateString(new Date());
+    const todayStr = stationDateAndTime(new Date()).date;
     let targetDate = todayStr;
     if (mode === 'schedule' && startDate) {
       targetDate = startDate;
@@ -116,12 +116,14 @@ export function HomepageScheduleDialog({
     setHasExpiry(true);
     let baseTime = Date.now();
     if (mode === 'schedule' && startDate && startTime) {
-      const parsed = new Date(`${startDate}T${startTime}:00`).getTime();
+      const iso = stationLocalToIso(`${startDate}T${startTime}`);
+      const parsed = iso ? new Date(iso).getTime() : NaN;
       if (!isNaN(parsed) && parsed > baseTime) baseTime = parsed;
     }
     const target = new Date(baseTime + days * 24 * 60 * 60 * 1000);
-    setEndDate(toLocalDateString(target));
-    setEndTime(toLocalTimeString(target));
+    const parts = stationDateAndTime(target);
+    setEndDate(parts.date);
+    setEndTime(parts.time);
   };
 
   const handleSave = async () => {
@@ -147,8 +149,11 @@ export function HomepageScheduleDialog({
         if (!publishAtIso) {
           throw new AppError('VALIDATION', 'Invalid schedule start date or time.');
         }
+      } else if (isAlreadyPublished) {
+        // Preserve existing publication timestamp when editing a live published episode
+        publishAtIso = episode.published_at ?? episode.homepage_publish_at ?? new Date().toISOString();
       } else {
-        // Immediate: record current time
+        // Immediate publish: record current time
         publishAtIso = new Date().toISOString();
       }
 
@@ -161,7 +166,9 @@ export function HomepageScheduleDialog({
           throw new AppError('VALIDATION', 'Invalid expiration date or time.');
         }
 
-        const baseTimestamp = publishAtIso ? new Date(publishAtIso).getTime() : Date.now();
+        const baseTimestamp = mode === 'schedule' && publishAtIso
+          ? new Date(publishAtIso).getTime()
+          : Date.now();
         if (new Date(expiresAtIso).getTime() <= baseTimestamp) {
           throw new AppError('VALIDATION', 'The expiration time must be after the publish / release time.');
         }
@@ -179,8 +186,10 @@ export function HomepageScheduleDialog({
       );
 
       const notice = mode === 'schedule'
-        ? `Scheduled "${trimmedTitle}" to appear on homepage at ${startDate} ${startTime}.`
-        : `Published "${trimmedTitle}" to the homepage!`;
+        ? `Scheduled "${trimmedTitle}" to publish at ${startDate} ${startTime} IST.`
+        : isAlreadyPublished
+          ? `Updated published settings for "${trimmedTitle}".`
+          : `Published "${trimmedTitle}" to the homepage!`;
       onSaved(notice);
     } catch (err) {
       setError(errorMessage(err));
@@ -189,13 +198,16 @@ export function HomepageScheduleDialog({
   };
 
   const handleRemove = async () => {
-    if (!confirm('Are you sure you want to remove this episode from the homepage?')) return;
+    const promptMsg = isAlreadyPublished
+      ? 'Move this published episode back to Draft and remove it from the homepage?'
+      : 'Unschedule this episode and return it to Draft?';
+    if (!confirm(promptMsg)) return;
     setError(null);
     setBusy(true);
 
     try {
-      await episodeService.scheduleHomepageEpisode(episode.id, false, null, null);
-      onSaved(`"${episode.title}" has been removed from the homepage.`);
+      await episodeService.unscheduleHomepageEpisode(episode.id);
+      onSaved(`"${episode.title}" has been moved back to Draft.`);
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);
@@ -527,14 +539,22 @@ export function HomepageScheduleDialog({
             }}
           >
             <div>
-              {episode.show_on_homepage && (
+              {(episode.show_on_homepage ||
+                episode.publish_status === 'SCHEDULED' ||
+                episode.publish_status === 'PUBLISHED' ||
+                episode.publish_status === 'FAILED' ||
+                episode.publish_status === 'EXPIRED') && (
                 <button
                   type="button"
                   className="small danger"
                   disabled={busy}
                   onClick={handleRemove}
                 >
-                  {busy ? 'Working…' : 'Remove from homepage'}
+                  {busy
+                    ? 'Working…'
+                    : episode.publish_status === 'SCHEDULED' || episode.publish_status === 'FAILED'
+                      ? 'Unschedule to Draft'
+                      : 'Move to Draft'}
                 </button>
               )}
             </div>

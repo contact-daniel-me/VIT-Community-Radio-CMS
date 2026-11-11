@@ -1,10 +1,13 @@
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
+import { useScheduledTransitionRefresh } from '@/hooks/useScheduledTransitionRefresh';
 import { useStationStatus } from '@/hooks/useStationStatus';
-import { Banner, Loading, UnifiedStatusBadge } from '@/components/ui';
+import { Banner, Loading, PublishStatusBadge, UnifiedStatusBadge } from '@/components/ui';
 import { AnnouncementsCard } from '@/components/studio/AnnouncementsCard';
-import { qcService } from '@/services/qcService';
+import { qcService, resolveEpisodePublishStatus } from '@/services/qcService';
+import { announcementService, computeAnnouncementLifecycleStatus } from '@/services/announcementService';
 import { episodeService } from '@/services/episodeService';
 import { activityService } from '@/services/activityService';
 import { bookingService } from '@/services/bookingService';
@@ -12,9 +15,10 @@ import { scheduleService } from '@/services/scheduleService';
 import { dashboardMetricsService } from '@/services/dashboardMetricsService';
 import { isStudioTourBooking, slotStartsAt } from '@/utils/studio';
 import { can } from '@/lib/permissions';
-import { formatTime, formatDate, stationDay } from '@/utils/datetime';
+import { formatTime, formatDate, formatDateTime, stationDay } from '@/utils/datetime';
 import { MetricCard, CompactEmptyState, QuickAction, PipelineVisual } from '@/components/ui/DashboardCards';
 import { supabase } from '@/lib/supabase';
+import type { PublishLifecycleStatus } from '@/types/database';
 
 const CalendarIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>);
 const ClockIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>);
@@ -36,9 +40,12 @@ function getShowTitle(programName?: string | null, notes?: string | null, episod
 export function DashboardPage() {
   const profile = useCurrentUser();
   const station = useStationStatus();
+  const [lifecycleTab, setLifecycleTab] = useState<'ALL' | 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'EXPIRED' | 'FAILED'>('PUBLISHED');
+  const [lifecycleSearch, setLifecycleSearch] = useState('');
 
   const dashboard = useAsync(async () => {
     const today = stationDay();
+    await episodeService.syncContentLifecycle();
     const [
       pendingQc,
       recentEpisodes,
@@ -49,7 +56,10 @@ export function DashboardPage() {
       upcomingBookings,
       todaysSchedule,
       totalEpisodesResult,
-      pendingRequests
+      pendingRequests,
+      lifecycleEpisodes,
+      lifecycleAnnouncements,
+      episodeSchedules,
     ] = await Promise.all([
       can.reviewQC(profile.role) ? qcService.getPendingQC() : Promise.resolve([]),
       episodeService.getEpisodes({
@@ -65,7 +75,10 @@ export function DashboardPage() {
       profile.role === 'RJ' 
         ? supabase.from('episodes').select('*', { count: 'exact', head: true }).eq('created_by', profile.id)
         : supabase.from('episodes').select('*', { count: 'exact', head: true }),
-      can.manageProgram(profile.role) ? bookingService.getPendingRequests() : Promise.resolve([])
+      can.manageProgram(profile.role) ? bookingService.getPendingRequests() : Promise.resolve([]),
+      episodeService.getEpisodes(profile.role === 'RJ' ? { mineOnly: profile.id } : {}),
+      announcementService.getAllAnnouncements().catch(() => []),
+      episodeService.getEpisodeScheduleSummaries(),
     ]);
 
     const awaitingUpload = myBookings.filter(
@@ -83,11 +96,104 @@ export function DashboardPage() {
       upcomingBookings: activeUpcoming, 
       todaysSchedule,
       totalEpisodes: totalEpisodesResult.count || 0,
-      pendingRequests
+      pendingRequests,
+      lifecycleEpisodes,
+      lifecycleAnnouncements,
+      episodeSchedules,
     };
   }, [profile.id, profile.role]);
 
+  const lifecycleItems = useMemo(() => {
+    const data = dashboard.data;
+    if (!data) return [];
+    const now = new Date();
+    const items: {
+      id: string;
+      kind: 'Episode' | 'Announcement';
+      title: string;
+      status: PublishLifecycleStatus;
+      scheduledAt: string | null;
+      publishedAt: string | null;
+      expiresAt: string | null;
+      error: string | null;
+      to: string;
+    }[] = [];
 
+    for (const ep of data.lifecycleEpisodes) {
+      if (ep.status === 'ARCHIVED') continue;
+      const epSchedules = data.episodeSchedules.get(ep.id) ?? [];
+      const status = resolveEpisodePublishStatus(ep, now, epSchedules);
+      if (status === 'ARCHIVED') continue;
+      const completedBroadcast = epSchedules.find((s) => s.status === 'COMPLETED');
+      const activeBroadcast = epSchedules.find((s) => s.status === 'SCHEDULED' || s.status === 'ON_AIR');
+      items.push({
+        id: `ep-${ep.id}`,
+        kind: 'Episode',
+        title: ep.title,
+        status,
+        scheduledAt: ep.scheduled_at ?? ep.homepage_publish_at ?? activeBroadcast?.start_time ?? null,
+        publishedAt:
+          ep.published_at ??
+          (status === 'PUBLISHED'
+            ? (ep.homepage_publish_at ?? completedBroadcast?.end_time ?? completedBroadcast?.start_time ?? ep.reviewed_at ?? ep.updated_at)
+            : null),
+        expiresAt: ep.expires_at ?? ep.homepage_expires_at ?? null,
+        error: ep.publish_error ?? null,
+        to: `/admin/episodes/${ep.id}`,
+      });
+    }
+
+    for (const ann of data.lifecycleAnnouncements) {
+      const status = computeAnnouncementLifecycleStatus(ann, now) as PublishLifecycleStatus;
+      if (status === 'ARCHIVED') continue;
+      items.push({
+        id: `ann-${ann.id}`,
+        kind: 'Announcement',
+        title: ann.title,
+        status,
+        scheduledAt: ann.scheduled_at,
+        publishedAt: ann.published_at,
+        expiresAt: ann.expires_at,
+        error: ann.publish_error ?? null,
+        to: '/announcements',
+      });
+    }
+
+    return items;
+  }, [dashboard.data]);
+
+  const lifecycleCounts = useMemo(() => {
+    let draft = 0;
+    let scheduled = 0;
+    let published = 0;
+    let expired = 0;
+    let failed = 0;
+    for (const item of lifecycleItems) {
+      if (item.status === 'DRAFT') draft++;
+      else if (item.status === 'SCHEDULED') scheduled++;
+      else if (item.status === 'PUBLISHED') published++;
+      else if (item.status === 'EXPIRED') expired++;
+      else if (item.status === 'FAILED') failed++;
+    }
+    return { all: lifecycleItems.length, draft, scheduled, published, expired, failed };
+  }, [lifecycleItems]);
+
+  const visibleLifecycleItems = useMemo(() => {
+    const q = lifecycleSearch.trim().toLowerCase();
+    return lifecycleItems
+      .filter((item) => lifecycleTab === 'ALL' || item.status === lifecycleTab)
+      .filter((item) => !q || item.title.toLowerCase().includes(q) || item.kind.toLowerCase().includes(q));
+  }, [lifecycleItems, lifecycleTab, lifecycleSearch]);
+
+
+
+  const boundaryTimestamps = useMemo(
+    () => lifecycleItems.flatMap((i) => [i.scheduledAt, i.expiresAt]),
+    [lifecycleItems],
+  );
+  useScheduledTransitionRefresh(boundaryTimestamps, () => {
+    void dashboard.reload();
+  });
 
   if (dashboard.loading) return <Loading />;
   if (dashboard.error) return <Banner>{dashboard.error}</Banner>;
@@ -154,7 +260,7 @@ export function DashboardPage() {
         {/* LEFT COLUMN */}
         <div className="dash-col">
           <AnnouncementsCard />
-        </div>
+         </div>
 
         {/* CENTER COLUMN */}
         <div className="dash-col dash-col--wide">
@@ -331,6 +437,127 @@ export function DashboardPage() {
 
         </div>
       </div>
+
+      {/* CONTENT PUBLISHING LIFECYCLE */}
+      <section className="card fade-in" style={{ marginTop: '1.5rem' }}>
+        <div className="row spread wrap align-center" style={{ gap: '0.75rem', marginBottom: '1rem' }}>
+          <div>
+            <h2 style={{ margin: '0 0 0.2rem', fontSize: '1.15rem' }}>Content Publishing Lifecycle</h2>
+            <p className="small muted" style={{ margin: 0 }}>
+              Draft &rarr; Scheduled &rarr; Published &rarr; Expired tracking across episodes and announcements.
+            </p>
+          </div>
+          <input
+            type="search"
+            value={lifecycleSearch}
+            onChange={(e) => setLifecycleSearch(e.target.value)}
+            placeholder="Search content..."
+            aria-label="Search publishing lifecycle content"
+            style={{
+              padding: '0.4rem 0.65rem',
+              borderRadius: 'var(--r-sm)',
+              border: '1px solid var(--line)',
+              fontSize: '0.88rem',
+              minWidth: '210px',
+            }}
+          />
+        </div>
+
+        <div className="tabs" role="tablist" aria-label="Content publishing lifecycle sections" style={{ marginBottom: '1rem' }}>
+          {(
+            [
+              { key: 'DRAFT', label: 'Draft', count: lifecycleCounts.draft },
+              { key: 'SCHEDULED', label: 'Scheduled', count: lifecycleCounts.scheduled },
+              { key: 'PUBLISHED', label: 'Published', count: lifecycleCounts.published },
+              { key: 'EXPIRED', label: 'Expired', count: lifecycleCounts.expired },
+              { key: 'FAILED', label: 'Failed', count: lifecycleCounts.failed },
+              { key: 'ALL', label: 'All', count: lifecycleCounts.all },
+            ] as const
+          ).map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              role="tab"
+              aria-selected={lifecycleTab === item.key}
+              className={`tab ${lifecycleTab === item.key ? 'is-active' : ''}`}
+              onClick={() => setLifecycleTab(item.key)}
+            >
+              {item.label}
+              <span className="tab-count">{item.count}</span>
+            </button>
+          ))}
+        </div>
+
+        {visibleLifecycleItems.length === 0 ? (
+          <CompactEmptyState message="No content items in this lifecycle stage." />
+        ) : (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Content</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Timeline / Details</th>
+                  <th style={{ textAlign: 'right' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleLifecycleItems.slice(0, 12).map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <Link to={item.to} style={{ fontWeight: 600 }}>
+                        {item.title}
+                      </Link>
+                    </td>
+                    <td className="small muted">{item.kind}</td>
+                    <td>
+                      <PublishStatusBadge status={item.status} />
+                    </td>
+                    <td className="small">
+                      {item.status === 'FAILED' && (
+                        <span style={{ color: 'var(--accent)' }}>{item.error ?? 'Publishing failed'}</span>
+                      )}
+                      {item.status === 'PUBLISHED' && (
+                        <span>
+                          Published {item.publishedAt ? formatDateTime(item.publishedAt) : '--'}
+                          {item.expiresAt ? (
+                            <span className="muted"> &middot; Expires {formatDateTime(item.expiresAt)}</span>
+                          ) : (
+                            <span className="muted"> &middot; No expiry</span>
+                          )}
+                        </span>
+                      )}
+                      {item.status === 'SCHEDULED' && (
+                        <span>
+                          Scheduled for {item.scheduledAt ? formatDateTime(item.scheduledAt) : '--'}
+                          {item.expiresAt && (
+                            <span className="muted"> &middot; Expires {formatDateTime(item.expiresAt)}</span>
+                          )}
+                        </span>
+                      )}
+                      {item.status === 'EXPIRED' && (
+                        <span>
+                          Expired {item.expiresAt ? formatDateTime(item.expiresAt) : '--'}
+                          {item.publishedAt && (
+                            <span className="muted"> &middot; Published {formatDateTime(item.publishedAt)}</span>
+                          )}
+                        </span>
+                      )}
+                      {item.status === 'DRAFT' && <span className="muted">Ready to schedule or publish</span>}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <Link to={item.to} className="btn btn-outline small">
+                        Open
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
     </div>
   );

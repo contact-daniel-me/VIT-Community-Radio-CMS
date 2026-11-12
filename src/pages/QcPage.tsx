@@ -127,7 +127,7 @@ export function QcPage() {
     try {
       if (decision === 'APPROVE') {
         await qcService.approveEpisode(episodeId, comment);
-        setNotice('Approved. The episode is in Draft ready to be scheduled or published.');
+        setNotice('Approved. The episode is in Not Scheduled and ready to be scheduled or published.');
         notifyApproval({
           title: 'Episode approved',
           detail: target?.title,
@@ -163,8 +163,8 @@ export function QcPage() {
     try {
       if (action === 'unschedule') {
         await episodeService.unscheduleHomepageEpisode(episodeId);
-        setNotice(`"${title}" moved back to Draft.`);
-        notifySave({ title: 'Moved to Draft', detail: title, dedupeKey: `qc-unschedule:${episodeId}` });
+        setNotice(`"${title}" moved to Not Scheduled.`);
+        notifySave({ title: 'Moved to Not Scheduled', detail: title, dedupeKey: `qc-unschedule:${episodeId}` });
       } else if (action === 'retry') {
         await episodeService.retryPublish(episodeId);
         setNotice(`"${title}" queued for publication retry.`);
@@ -367,6 +367,16 @@ export function QcPage() {
             <button
               type="button"
               role="tab"
+              aria-selected={lifecycleFilter === 'NOT_SCHEDULED'}
+              className={`tab ${lifecycleFilter === 'NOT_SCHEDULED' ? 'is-active' : ''}`}
+              onClick={() => setLifecycleFilter('NOT_SCHEDULED')}
+            >
+              Not Scheduled
+              <span className="tab-count">{lifecycleCounts.notScheduled}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
               aria-selected={lifecycleFilter === 'DRAFT'}
               className={`tab ${lifecycleFilter === 'DRAFT' ? 'is-active' : ''}`}
               onClick={() => setLifecycleFilter('DRAFT')}
@@ -537,8 +547,10 @@ export function QcPage() {
           <Empty>
             {searchQuery.trim()
               ? `No completed QC files match "${searchQuery.trim()}".`
+              : lifecycleFilter === 'NOT_SCHEDULED'
+              ? 'No QC-approved episodes are waiting to be scheduled.'
               : lifecycleFilter === 'DRAFT'
-              ? 'No QC-approved episodes are in Draft.'
+              ? 'No unapproved or saved drafts in QC Done — unapproved drafts appear under Episodes and Dashboard.'
               : lifecycleFilter === 'SCHEDULED'
               ? 'No QC-approved episodes are currently scheduled.'
               : lifecycleFilter === 'PUBLISHED'
@@ -579,7 +591,8 @@ export function QcPage() {
                         letterSpacing: '0.04em',
                       }}
                     >
-                      {episode.lifecycleStatus === 'DRAFT' && 'Draft (Ready to Schedule)'}
+                      {episode.lifecycleStatus === 'NOT_SCHEDULED' && 'Not Scheduled (Ready to Schedule)'}
+                      {episode.lifecycleStatus === 'DRAFT' && 'Draft'}
                       {episode.lifecycleStatus === 'SCHEDULED' && 'Scheduled for Release'}
                       {episode.lifecycleStatus === 'PUBLISHED' && 'Published'}
                       {episode.lifecycleStatus === 'EXPIRED' && 'Expired'}
@@ -591,7 +604,8 @@ export function QcPage() {
                     </span>
                   </div>
                   <span className="small muted">
-                    {episode.lifecycleStatus === 'DRAFT' && 'Newest reviewed first'}
+                    {episode.lifecycleStatus === 'NOT_SCHEDULED' && 'Newest reviewed first'}
+                    {episode.lifecycleStatus === 'DRAFT' && 'Saved or awaiting QC approval'}
                     {episode.lifecycleStatus === 'SCHEDULED' && 'Nearest upcoming release first'}
                     {episode.lifecycleStatus === 'PUBLISHED' && 'Most recently published first'}
                     {episode.lifecycleStatus === 'EXPIRED' && 'Historical expired releases'}
@@ -619,7 +633,8 @@ export function QcPage() {
               </div>
               <div className="row align-center wrap" style={{ gap: '0.4rem' }}>
                 {canManageRelease &&
-                  (episode.lifecycleStatus === 'DRAFT' ||
+                  (episode.lifecycleStatus === 'NOT_SCHEDULED' ||
+                    episode.lifecycleStatus === 'DRAFT' ||
                     episode.lifecycleStatus === 'SCHEDULED' ||
                     episode.lifecycleStatus === 'PUBLISHED' ||
                     episode.lifecycleStatus === 'EXPIRED') && (
@@ -629,7 +644,7 @@ export function QcPage() {
                       disabled={busy}
                       onClick={() => setScheduleEpisode(episode)}
                     >
-                      {episode.lifecycleStatus === 'DRAFT'
+                      {episode.lifecycleStatus === 'NOT_SCHEDULED' || episode.lifecycleStatus === 'DRAFT'
                         ? 'Schedule / Publish'
                         : episode.lifecycleStatus === 'EXPIRED'
                           ? 'Re-publish'
@@ -639,7 +654,7 @@ export function QcPage() {
                 {canManageRelease && episode.lifecycleStatus === 'SCHEDULED' && episode.homepageScheduledAt && (
                   <ConfirmButton
                     className="small"
-                    confirmLabel="Move to Draft?"
+                    confirmLabel="Move to Not Scheduled?"
                     disabled={busy}
                     onConfirm={() => void handleLifecycleAction(episode.id, 'unschedule', episode.title)}
                   >
@@ -658,11 +673,11 @@ export function QcPage() {
                     </button>
                     <ConfirmButton
                       className="small"
-                      confirmLabel="Move to Draft?"
+                      confirmLabel="Move to Not Scheduled?"
                       disabled={busy}
                       onConfirm={() => void handleLifecycleAction(episode.id, 'unschedule', episode.title)}
                     >
-                      Move to Draft
+                      Move to Not Scheduled
                     </ConfirmButton>
                   </>
                 )}
@@ -804,7 +819,7 @@ export function QcPage() {
               </div>
             )}
 
-            {episode.lifecycleStatus === 'DRAFT' && (
+            {(episode.lifecycleStatus === 'NOT_SCHEDULED' || episode.lifecycleStatus === 'DRAFT') && (
               <div
                 className="row spread align-center wrap small"
                 style={{
@@ -817,7 +832,11 @@ export function QcPage() {
                   gap: '0.5rem',
                 }}
               >
-                <span>Draft &middot; QC approved and ready to schedule or publish</span>
+                <span>
+                  {episode.lifecycleStatus === 'NOT_SCHEDULED'
+                    ? 'Not Scheduled \u00b7 QC approved and ready to schedule or publish'
+                    : 'Draft \u00b7 Saved or awaiting QC approval'}
+                </span>
                 <div className="row align-center" style={{ gap: '0.75rem' }}>
                   {can.schedule(profile.role) && (
                     <Link

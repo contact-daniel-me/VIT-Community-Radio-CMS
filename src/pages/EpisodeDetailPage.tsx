@@ -794,7 +794,7 @@ export function EpisodeDetailPage() {
                 </div>
 
                 <p className="small muted" style={{ marginTop: 0 }}>
-                  Tracks Draft, Scheduled, Published, Expired, Failed, and Archived transitions across homepage &amp; broadcast releases.
+                  Tracks Not Scheduled, Scheduled, Published, Expired, Failed, and Archived transitions across homepage &amp; broadcast releases.
                 </p>
 
                 {pubStatus === 'FAILED' && ep.publish_error && (
@@ -804,9 +804,11 @@ export function EpisodeDetailPage() {
                 )}
 
                 <div className="stack small" style={{ marginBottom: '1rem' }}>
-                  {pubStatus === 'DRAFT' && (
+                  {(pubStatus === 'NOT_SCHEDULED' || pubStatus === 'DRAFT') && (
                     <div className="muted">
-                      In Draft &mdash; ready to schedule for future publication or publish immediately.
+                      {pubStatus === 'NOT_SCHEDULED'
+                        ? 'Not Scheduled \u2014 QC approved and ready to schedule for future publication or publish immediately.'
+                        : 'In Draft \u2014 awaiting approval or release scheduling.'}
                     </div>
                   )}
                   {schedAt && (
@@ -840,14 +842,14 @@ export function EpisodeDetailPage() {
                       disabled={busy}
                       onClick={() => setShowHomepageSchedule(true)}
                     >
-                      {pubStatus === 'DRAFT'
+                      {pubStatus === 'NOT_SCHEDULED' || pubStatus === 'DRAFT'
                         ? 'Schedule / Publish'
                         : pubStatus === 'EXPIRED'
                           ? 'Re-publish'
                           : 'Edit Schedule / Expiry'}
                     </button>
 
-                    {pubStatus === 'DRAFT' && (
+                    {(pubStatus === 'NOT_SCHEDULED' || pubStatus === 'DRAFT') && (
                       <button
                         type="button"
                         className="small"
@@ -879,20 +881,20 @@ export function EpisodeDetailPage() {
                         className="small danger"
                         confirmLabel={
                           pubStatus === 'SCHEDULED' || pubStatus === 'FAILED'
-                            ? 'Unschedule and return to Draft?'
-                            : 'Move episode back to Draft?'
+                            ? 'Unschedule and move to Not Scheduled?'
+                            : 'Move episode to Not Scheduled?'
                         }
                         disabled={busy}
                         onConfirm={() =>
                           void run(
                             () => episodeService.unscheduleHomepageEpisode(ep.id),
-                            `"${ep.title}" moved to Draft.`,
+                            `"${ep.title}" moved to Not Scheduled.`,
                           )
                         }
                       >
                         {pubStatus === 'SCHEDULED' || pubStatus === 'FAILED'
-                          ? 'Unschedule to Draft'
-                          : 'Move to Draft'}
+                          ? 'Unschedule'
+                          : 'Move to Not Scheduled'}
                       </ConfirmButton>
                     )}
 

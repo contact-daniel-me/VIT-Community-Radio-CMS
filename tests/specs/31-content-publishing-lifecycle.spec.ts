@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDb, expectFailure, type TestDb } from '../harness/db';
 import {
@@ -491,7 +493,22 @@ describe('Content Scheduling and Publishing Lifecycle (SQL + Services)', () => {
       ).toBe('PUBLISHED');
     });
 
-    it('never classifies persisted EXPIRED or FAILED episodes back into DRAFT', () => {
+    it('separates QC-approved unscheduled episodes (NOT_SCHEDULED) from unapproved/saved drafts (DRAFT)', () => {
+      const unapprovedDraft = makeMockEpisode({ id: 'ep-draft', status: 'DRAFT' });
+      const pendingQc = makeMockEpisode({ id: 'ep-pending', status: 'PENDING_QC' });
+      const rejectedEp = makeMockEpisode({ id: 'ep-rejected', status: 'REJECTED' });
+      const approvedUnscheduled = makeMockEpisode({ id: 'ep-approved-ns', status: 'APPROVED' });
+
+      expect(resolveEpisodePublishStatus(unapprovedDraft, refTime)).toBe('DRAFT');
+      expect(resolveEpisodePublishStatus(pendingQc, refTime)).toBe('DRAFT');
+      expect(resolveEpisodePublishStatus(rejectedEp, refTime)).toBe('DRAFT');
+      expect(resolveEpisodePublishStatus(approvedUnscheduled, refTime)).toBe('NOT_SCHEDULED');
+
+      expect(computeEpisodeLifecycle(unapprovedDraft, [], refTime).lifecycleStatus).toBe('DRAFT');
+      expect(computeEpisodeLifecycle(approvedUnscheduled, [], refTime).lifecycleStatus).toBe('NOT_SCHEDULED');
+    });
+
+    it('never classifies persisted EXPIRED or FAILED episodes back into DRAFT or NOT_SCHEDULED', () => {
       const expiredEp = makeMockEpisode({
         publish_status: 'EXPIRED',
         published_at: '2026-11-02T10:00:00Z',
@@ -511,33 +528,42 @@ describe('Content Scheduling and Publishing Lifecycle (SQL + Services)', () => {
 
     it('counts mutually exclusive buckets for episodes and classifies announcements consistently', () => {
       const episodes: EpisodeWithLifecycle[] = [
-        { ...makeMockEpisode({ id: '1' }), lifecycleStatus: 'DRAFT' },
-        { ...makeMockEpisode({ id: '2' }), lifecycleStatus: 'SCHEDULED' },
+        { ...makeMockEpisode({ id: '1' }), lifecycleStatus: 'NOT_SCHEDULED' },
+        { ...makeMockEpisode({ id: '2', status: 'DRAFT' }), lifecycleStatus: 'DRAFT' },
+        { ...makeMockEpisode({ id: '3' }), lifecycleStatus: 'SCHEDULED' },
         {
-          ...makeMockEpisode({ id: '3' }),
+          ...makeMockEpisode({ id: '4' }),
           lifecycleStatus: 'PUBLISHED',
           publishedAt: '2026-11-09T10:00:00Z',
         },
         {
-          ...makeMockEpisode({ id: '4' }),
+          ...makeMockEpisode({ id: '5' }),
           lifecycleStatus: 'EXPIRED',
           publishedAt: '2026-11-01T10:00:00Z',
         },
         {
-          ...makeMockEpisode({ id: '5' }),
+          ...makeMockEpisode({ id: '6' }),
           lifecycleStatus: 'FAILED',
           publishError: 'Program inactive',
         },
       ];
 
       const counts = qcService.getLifecycleCounts(episodes);
-      expect(counts.all).toBe(5);
+      expect(counts.all).toBe(6);
+      expect(counts.notScheduled).toBe(1);
       expect(counts.draft).toBe(1);
       expect(counts.scheduled).toBe(1);
       expect(counts.published).toBe(1);
       expect(counts.expired).toBe(1);
       expect(counts.failed).toBe(1);
-      expect(counts.draft + counts.scheduled + counts.published + counts.expired + counts.failed).toBe(counts.all);
+      expect(
+        counts.notScheduled +
+          counts.draft +
+          counts.scheduled +
+          counts.published +
+          counts.expired +
+          counts.failed,
+      ).toBe(counts.all);
 
       const anns: AnnouncementRow[] = [
         makeMockAnnouncement({ id: 'a-draft', status: 'DRAFT' }),
@@ -558,19 +584,38 @@ describe('Content Scheduling and Publishing Lifecycle (SQL + Services)', () => {
       expect(computeAnnouncementLifecycleStatus(anns[6], refTime)).toBe('ARCHIVED');
 
       const sorted = sortCompletedQCEpisodes([
-        episodes[3],
-        episodes[2],
         episodes[4],
+        episodes[3],
+        episodes[5],
+        episodes[2],
         episodes[1],
         episodes[0],
       ] as (EpisodeWithLifecycle & { activeSchedule?: ScheduleRow | null })[]);
       expect(sorted.map((e) => e.lifecycleStatus)).toEqual([
+        'NOT_SCHEDULED',
         'DRAFT',
         'SCHEDULED',
         'PUBLISHED',
         'FAILED',
         'EXPIRED',
       ]);
+    });
+
+    it('exposes Not Scheduled alongside Draft, Scheduled, Published, Expired, and Failed across QC Done, Dashboard, and Episodes', () => {
+      for (const relPath of [
+        'src/pages/QcPage.tsx',
+        'src/pages/DashboardPage.tsx',
+        'src/pages/EpisodesPage.tsx',
+      ]) {
+        const src = readFileSync(resolve(process.cwd(), relPath), 'utf8');
+        expect(src).toContain('NOT_SCHEDULED');
+        expect(src).toContain('Not Scheduled');
+        expect(src).toContain('Draft');
+        expect(src).toContain('Scheduled');
+        expect(src).toContain('Published');
+        expect(src).toContain('Expired');
+        expect(src).toContain('Failed');
+      }
     });
   });
 });

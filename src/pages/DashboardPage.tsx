@@ -18,7 +18,7 @@ import { can } from '@/lib/permissions';
 import { formatTime, formatDate, formatDateTime, stationDay } from '@/utils/datetime';
 import { MetricCard, CompactEmptyState, QuickAction, PipelineVisual } from '@/components/ui/DashboardCards';
 import { supabase } from '@/lib/supabase';
-import type { PublishLifecycleStatus } from '@/types/database';
+import type { ContentLifecycleBucket } from '@/types/database';
 
 const CalendarIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>);
 const ClockIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>);
@@ -40,7 +40,9 @@ function getShowTitle(programName?: string | null, notes?: string | null, episod
 export function DashboardPage() {
   const profile = useCurrentUser();
   const station = useStationStatus();
-  const [lifecycleTab, setLifecycleTab] = useState<'ALL' | 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'EXPIRED' | 'FAILED'>('PUBLISHED');
+  const [lifecycleTab, setLifecycleTab] = useState<
+    'ALL' | 'DRAFT' | 'NOT_SCHEDULED' | 'SCHEDULED' | 'PUBLISHED' | 'EXPIRED' | 'FAILED'
+  >('PUBLISHED');
   const [lifecycleSearch, setLifecycleSearch] = useState('');
 
   const dashboard = useAsync(async () => {
@@ -111,7 +113,7 @@ export function DashboardPage() {
       id: string;
       kind: 'Episode' | 'Announcement';
       title: string;
-      status: PublishLifecycleStatus;
+      status: ContentLifecycleBucket;
       scheduledAt: string | null;
       publishedAt: string | null;
       expiresAt: string | null;
@@ -144,7 +146,7 @@ export function DashboardPage() {
     }
 
     for (const ann of data.lifecycleAnnouncements) {
-      const status = computeAnnouncementLifecycleStatus(ann, now) as PublishLifecycleStatus;
+      const status = computeAnnouncementLifecycleStatus(ann, now) as ContentLifecycleBucket;
       if (status === 'ARCHIVED') continue;
       items.push({
         id: `ann-${ann.id}`,
@@ -164,18 +166,20 @@ export function DashboardPage() {
 
   const lifecycleCounts = useMemo(() => {
     let draft = 0;
+    let notScheduled = 0;
     let scheduled = 0;
     let published = 0;
     let expired = 0;
     let failed = 0;
     for (const item of lifecycleItems) {
       if (item.status === 'DRAFT') draft++;
+      else if (item.status === 'NOT_SCHEDULED') notScheduled++;
       else if (item.status === 'SCHEDULED') scheduled++;
       else if (item.status === 'PUBLISHED') published++;
       else if (item.status === 'EXPIRED') expired++;
       else if (item.status === 'FAILED') failed++;
     }
-    return { all: lifecycleItems.length, draft, scheduled, published, expired, failed };
+    return { all: lifecycleItems.length, draft, notScheduled, scheduled, published, expired, failed };
   }, [lifecycleItems]);
 
   const visibleLifecycleItems = useMemo(() => {
@@ -444,7 +448,7 @@ export function DashboardPage() {
           <div>
             <h2 style={{ margin: '0 0 0.2rem', fontSize: '1.15rem' }}>Content Publishing Lifecycle</h2>
             <p className="small muted" style={{ margin: 0 }}>
-              Draft &rarr; Scheduled &rarr; Published &rarr; Expired tracking across episodes and announcements.
+              Draft &rarr; Not Scheduled &rarr; Scheduled &rarr; Published &rarr; Expired tracking across episodes and announcements.
             </p>
           </div>
           <input
@@ -463,29 +467,32 @@ export function DashboardPage() {
           />
         </div>
 
-        <div className="tabs" role="tablist" aria-label="Content publishing lifecycle sections" style={{ marginBottom: '1rem' }}>
-          {(
-            [
-              { key: 'DRAFT', label: 'Draft', count: lifecycleCounts.draft },
-              { key: 'SCHEDULED', label: 'Scheduled', count: lifecycleCounts.scheduled },
-              { key: 'PUBLISHED', label: 'Published', count: lifecycleCounts.published },
-              { key: 'EXPIRED', label: 'Expired', count: lifecycleCounts.expired },
-              { key: 'FAILED', label: 'Failed', count: lifecycleCounts.failed },
-              { key: 'ALL', label: 'All', count: lifecycleCounts.all },
-            ] as const
-          ).map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              role="tab"
-              aria-selected={lifecycleTab === item.key}
-              className={`tab ${lifecycleTab === item.key ? 'is-active' : ''}`}
-              onClick={() => setLifecycleTab(item.key)}
-            >
-              {item.label}
-              <span className="tab-count">{item.count}</span>
-            </button>
-          ))}
+        <div className="tabs-nav-wrap" style={{ marginBottom: '1rem' }}>
+          <div className="tabs" role="tablist" aria-label="Content publishing lifecycle sections" style={{ margin: 0 }}>
+            {(
+              [
+                { key: 'DRAFT', label: 'Draft', count: lifecycleCounts.draft },
+                { key: 'NOT_SCHEDULED', label: 'Not Scheduled', count: lifecycleCounts.notScheduled },
+                { key: 'SCHEDULED', label: 'Scheduled', count: lifecycleCounts.scheduled },
+                { key: 'PUBLISHED', label: 'Published', count: lifecycleCounts.published },
+                { key: 'EXPIRED', label: 'Expired', count: lifecycleCounts.expired },
+                { key: 'FAILED', label: 'Failed', count: lifecycleCounts.failed },
+                { key: 'ALL', label: 'All', count: lifecycleCounts.all },
+              ] as const
+            ).map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                role="tab"
+                aria-selected={lifecycleTab === item.key}
+                className={`tab ${lifecycleTab === item.key ? 'is-active' : ''}`}
+                onClick={() => setLifecycleTab(item.key)}
+              >
+                {item.label}
+                <span className="tab-count">{item.count}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {visibleLifecycleItems.length === 0 ? (
@@ -544,7 +551,12 @@ export function DashboardPage() {
                           )}
                         </span>
                       )}
-                      {item.status === 'DRAFT' && <span className="muted">Ready to schedule or publish</span>}
+                      {item.status === 'NOT_SCHEDULED' && (
+                        <span className="muted">QC approved &middot; Ready to schedule or publish</span>
+                      )}
+                      {item.status === 'DRAFT' && (
+                        <span className="muted">Saved draft or awaiting QC approval</span>
+                      )}
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <Link to={item.to} className="btn btn-outline small">

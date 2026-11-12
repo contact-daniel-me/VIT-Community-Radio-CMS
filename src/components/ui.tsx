@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import type {
+  ContentLifecycleBucket,
   EpisodeStatus,
-  PublishLifecycleStatus,
   ScheduleStatus,
 } from '@/types/database';
 
@@ -67,8 +67,9 @@ const SCHEDULE_BADGE: Record<ScheduleStatus, { tone: string; label: string }> = 
   CANCELLED: { tone: 'badge-grey', label: 'Cancelled' },
 };
 
-const PUBLISH_BADGE: Record<PublishLifecycleStatus, { tone: string; label: string }> = {
+const PUBLISH_BADGE: Record<ContentLifecycleBucket, { tone: string; label: string }> = {
   DRAFT: { tone: 'badge-grey', label: 'Draft' },
+  NOT_SCHEDULED: { tone: 'badge-orange', label: 'Not Scheduled' },
   SCHEDULED: { tone: 'badge-purple', label: 'Scheduled' },
   PUBLISHED: { tone: 'badge-green', label: 'Published' },
   EXPIRED: { tone: 'badge-amber', label: 'Expired' },
@@ -86,7 +87,7 @@ export function ScheduleStatusBadge({ status }: { status: ScheduleStatus }) {
   return <span className={`badge ${badge.tone}`}>{badge.label}</span>;
 }
 
-export function PublishStatusBadge({ status }: { status: PublishLifecycleStatus }) {
+export function PublishStatusBadge({ status }: { status: ContentLifecycleBucket }) {
   const badge = PUBLISH_BADGE[status] ?? PUBLISH_BADGE.DRAFT;
   return <span className={`badge ${badge.tone}`}>{badge.label}</span>;
 }

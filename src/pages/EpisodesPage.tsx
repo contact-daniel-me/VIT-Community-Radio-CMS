@@ -21,7 +21,7 @@ import { can } from '@/lib/permissions';
 import { errorMessage } from '@/lib/errors';
 import { formatDate, formatDateTime, formatDuration } from '@/utils/datetime';
 import { downloadBulkZip } from '@/utils/download';
-import type { EpisodeStatus, PublishLifecycleStatus } from '@/types/database';
+import type { ContentLifecycleBucket, EpisodeStatus } from '@/types/database';
 
 type TabKey = 'ALL' | 'DRAFT' | 'RAW_AUDIO' | 'PENDING_QC' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
 
@@ -69,7 +69,9 @@ export function EpisodesPage() {
     setParams(next, { replace: true });
   };
 
-  const [publishFilter, setPublishFilter] = useState<'ALL' | 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'EXPIRED' | 'FAILED'>('ALL');
+  const [publishFilter, setPublishFilter] = useState<
+    'ALL' | 'DRAFT' | 'NOT_SCHEDULED' | 'SCHEDULED' | 'PUBLISHED' | 'EXPIRED' | 'FAILED'
+  >('ALL');
 
   const handleTabClick = (tabKey: TabKey) => {
     setSelected(new Set());
@@ -123,16 +125,18 @@ export function EpisodesPage() {
     const countsByBucket = {
       ALL: list.length,
       DRAFT: 0,
+      NOT_SCHEDULED: 0,
       SCHEDULED: 0,
       PUBLISHED: 0,
       EXPIRED: 0,
       FAILED: 0,
     };
-    const statusMap = new Map<string, PublishLifecycleStatus>();
+    const statusMap = new Map<string, ContentLifecycleBucket>();
     for (const ep of list) {
       const bucket = resolveEpisodePublishStatus(ep, now, schedulesByEp.get(ep.id) ?? []);
       statusMap.set(ep.id, bucket);
       if (bucket === 'DRAFT') countsByBucket.DRAFT++;
+      else if (bucket === 'NOT_SCHEDULED') countsByBucket.NOT_SCHEDULED++;
       else if (bucket === 'SCHEDULED') countsByBucket.SCHEDULED++;
       else if (bucket === 'PUBLISHED') countsByBucket.PUBLISHED++;
       else if (bucket === 'EXPIRED') countsByBucket.EXPIRED++;
@@ -398,32 +402,35 @@ export function EpisodesPage() {
           )}
         </div>
 
-        <div className="tabs" role="tablist" aria-label="Publishing lifecycle filter" style={{ marginBottom: '0.85rem' }}>
-          {(
-            [
-              { key: 'ALL', label: 'All Releases' },
-              { key: 'DRAFT', label: 'Draft' },
-              { key: 'SCHEDULED', label: 'Scheduled' },
-              { key: 'PUBLISHED', label: 'Published' },
-              { key: 'EXPIRED', label: 'Expired' },
-              { key: 'FAILED', label: 'Failed' },
-            ] as const
-          ).map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              role="tab"
-              aria-selected={publishFilter === item.key}
-              className={`tab ${publishFilter === item.key ? 'is-active' : ''}`}
-              onClick={() => {
-                setSelected(new Set());
-                setPublishFilter(item.key);
-              }}
-            >
-              {item.label}
-              <span className="tab-count">{publishSummary.countsByBucket[item.key]}</span>
-            </button>
-          ))}
+        <div className="tabs-nav-wrap" style={{ marginBottom: '0.85rem' }}>
+          <div className="tabs" role="tablist" aria-label="Publishing lifecycle filter" style={{ margin: 0 }}>
+            {(
+              [
+                { key: 'ALL', label: 'All Releases' },
+                { key: 'DRAFT', label: 'Draft' },
+                { key: 'NOT_SCHEDULED', label: 'Not Scheduled' },
+                { key: 'SCHEDULED', label: 'Scheduled' },
+                { key: 'PUBLISHED', label: 'Published' },
+                { key: 'EXPIRED', label: 'Expired' },
+                { key: 'FAILED', label: 'Failed' },
+              ] as const
+            ).map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                role="tab"
+                aria-selected={publishFilter === item.key}
+                className={`tab ${publishFilter === item.key ? 'is-active' : ''}`}
+                onClick={() => {
+                  setSelected(new Set());
+                  setPublishFilter(item.key);
+                }}
+              >
+                {item.label}
+                <span className="tab-count">{publishSummary.countsByBucket[item.key]}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {episodes.loading ? (

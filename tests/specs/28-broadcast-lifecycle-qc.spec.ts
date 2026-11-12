@@ -70,14 +70,21 @@ function createMockSchedule(overrides: Partial<ScheduleRow> = {}): ScheduleRow {
 describe('Broadcast Lifecycle Tracking in QC Dashboard', () => {
   const refTime = new Date('2026-11-05T12:00:00Z');
 
-  describe('Scenario 1: QC completed, no schedule', () => {
-    it('classifies approved episode as DRAFT when no schedule exists', () => {
-      const ep = createMockEpisode();
-      const result = computeEpisodeLifecycle(ep, [], refTime);
+  describe('Scenario 1: QC completed vs unapproved draft with no schedule', () => {
+    it('classifies approved episode as NOT_SCHEDULED and unapproved episode as DRAFT when no schedule exists', () => {
+      const approvedEp = createMockEpisode({ status: 'APPROVED' });
+      const draftEp = createMockEpisode({ id: 'ep-draft', status: 'DRAFT' });
 
-      expect(result.lifecycleStatus).toBe('DRAFT');
-      expect(result.activeSchedule).toBeNull();
-      expect(result.publishedAt).toBeNull();
+      const approvedResult = computeEpisodeLifecycle(approvedEp, [], refTime);
+      const draftResult = computeEpisodeLifecycle(draftEp, [], refTime);
+
+      expect(approvedResult.lifecycleStatus).toBe('NOT_SCHEDULED');
+      expect(approvedResult.activeSchedule).toBeNull();
+      expect(approvedResult.publishedAt).toBeNull();
+
+      expect(draftResult.lifecycleStatus).toBe('DRAFT');
+      expect(draftResult.activeSchedule).toBeNull();
+      expect(draftResult.publishedAt).toBeNull();
     });
   });
 
@@ -131,12 +138,12 @@ describe('Broadcast Lifecycle Tracking in QC Dashboard', () => {
   });
 
   describe('Scenario 3: Schedule cancelled or removed', () => {
-    it('returns to DRAFT when an existing schedule is cancelled', () => {
+    it('returns to NOT_SCHEDULED when an approved episode schedule is cancelled', () => {
       const ep = createMockEpisode();
       const cancelledSched = createMockSchedule({ status: 'CANCELLED' });
       const result = computeEpisodeLifecycle(ep, [cancelledSched], refTime);
 
-      expect(result.lifecycleStatus).toBe('DRAFT');
+      expect(result.lifecycleStatus).toBe('NOT_SCHEDULED');
       expect(result.activeSchedule).toBeNull();
     });
   });
@@ -212,15 +219,15 @@ describe('Broadcast Lifecycle Tracking in QC Dashboard', () => {
       expect(result.lifecycleStatus).toBe('SCHEDULED');
     });
 
-    it('reverts to DRAFT if unscheduled from homepage and no active schedule exists', () => {
+    it('reverts to NOT_SCHEDULED if an approved episode is unscheduled from homepage and no active schedule exists', () => {
       const ep = createMockEpisode({ show_on_homepage: false, homepage_publish_at: null });
 
       const result = computeEpisodeLifecycle(ep, [], refTime);
 
-      expect(result.lifecycleStatus).toBe('DRAFT');
+      expect(result.lifecycleStatus).toBe('NOT_SCHEDULED');
     });
 
-    it('classifies episode as EXPIRED (never DRAFT) once homepage expiry has passed', () => {
+    it('classifies episode as EXPIRED (never DRAFT or NOT_SCHEDULED) once homepage expiry has passed', () => {
       const ep = createMockEpisode({
         show_on_homepage: true,
         homepage_publish_at: '2026-11-01T10:00:00Z',
@@ -251,12 +258,12 @@ describe('Broadcast Lifecycle Tracking in QC Dashboard', () => {
     it('accurately counts episodes in each lifecycle status', () => {
       const ep1: EpisodeWithLifecycle = {
         ...createMockEpisode({ id: 'ep-1' }),
-        lifecycleStatus: 'DRAFT',
+        lifecycleStatus: 'NOT_SCHEDULED',
         activeSchedule: null,
         publishedAt: null,
       };
       const ep2: EpisodeWithLifecycle = {
-        ...createMockEpisode({ id: 'ep-2' }),
+        ...createMockEpisode({ id: 'ep-2', status: 'DRAFT' }),
         lifecycleStatus: 'DRAFT',
         activeSchedule: null,
         publishedAt: null,
@@ -289,7 +296,8 @@ describe('Broadcast Lifecycle Tracking in QC Dashboard', () => {
       const counts = qcService.getLifecycleCounts([ep1, ep2, ep3, ep4, ep5, ep6]);
 
       expect(counts.all).toBe(6);
-      expect(counts.draft).toBe(2);
+      expect(counts.notScheduled).toBe(1);
+      expect(counts.draft).toBe(1);
       expect(counts.scheduled).toBe(1);
       expect(counts.published).toBe(1);
       expect(counts.expired).toBe(1);
@@ -298,7 +306,7 @@ describe('Broadcast Lifecycle Tracking in QC Dashboard', () => {
   });
 
   describe('Scenario 8: QC Status Ordering & Date-Wise Grouping', () => {
-    it('orders categories: Draft -> Scheduled -> Published -> Expired', () => {
+    it('orders categories: Not Scheduled -> Draft -> Scheduled -> Published -> Expired', () => {
       const pub: EpisodeWithLifecycle = {
         ...createMockEpisode({ id: 'ep-pub', title: 'Published Episode' }),
         lifecycleStatus: 'PUBLISHED',
@@ -309,8 +317,13 @@ describe('Broadcast Lifecycle Tracking in QC Dashboard', () => {
         lifecycleStatus: 'SCHEDULED',
         activeSchedule: createMockSchedule({ start_time: '2026-11-07T10:00:00Z' }),
       };
+      const notSched: EpisodeWithLifecycle = {
+        ...createMockEpisode({ id: 'ep-not-sched', title: 'Not Scheduled Episode' }),
+        lifecycleStatus: 'NOT_SCHEDULED',
+        reviewed_at: '2026-11-05T09:00:00Z',
+      };
       const draft: EpisodeWithLifecycle = {
-        ...createMockEpisode({ id: 'ep-draft', title: 'Draft Episode' }),
+        ...createMockEpisode({ id: 'ep-draft', title: 'Draft Episode', status: 'DRAFT' }),
         lifecycleStatus: 'DRAFT',
         reviewed_at: '2026-11-05T09:00:00Z',
       };
@@ -320,30 +333,31 @@ describe('Broadcast Lifecycle Tracking in QC Dashboard', () => {
         publishedAt: '2026-11-02T09:00:00Z',
       };
 
-      const sorted = sortCompletedQCEpisodes([pub, exp, sched, draft]);
+      const sorted = sortCompletedQCEpisodes([pub, exp, draft, sched, notSched]);
 
-      expect(sorted.map((e) => e.id)).toEqual(['ep-draft', 'ep-sched', 'ep-pub', 'ep-exp']);
-      expect(sorted[0].lifecycleStatus).toBe('DRAFT');
-      expect(sorted[1].lifecycleStatus).toBe('SCHEDULED');
-      expect(sorted[2].lifecycleStatus).toBe('PUBLISHED');
-      expect(sorted[3].lifecycleStatus).toBe('EXPIRED');
+      expect(sorted.map((e) => e.id)).toEqual(['ep-not-sched', 'ep-draft', 'ep-sched', 'ep-pub', 'ep-exp']);
+      expect(sorted[0].lifecycleStatus).toBe('NOT_SCHEDULED');
+      expect(sorted[1].lifecycleStatus).toBe('DRAFT');
+      expect(sorted[2].lifecycleStatus).toBe('SCHEDULED');
+      expect(sorted[3].lifecycleStatus).toBe('PUBLISHED');
+      expect(sorted[4].lifecycleStatus).toBe('EXPIRED');
     });
 
-    it('sorts Draft episodes by QC completion date (newest first)', () => {
-      const olderDraft: EpisodeWithLifecycle = {
+    it('sorts Not Scheduled episodes by QC completion date (newest first)', () => {
+      const olderNs: EpisodeWithLifecycle = {
         ...createMockEpisode({ id: 'ep-older', title: 'Older Review', reviewed_at: '2026-11-01T10:00:00Z' }),
-        lifecycleStatus: 'DRAFT',
+        lifecycleStatus: 'NOT_SCHEDULED',
       };
-      const newerDraft: EpisodeWithLifecycle = {
+      const newerNs: EpisodeWithLifecycle = {
         ...createMockEpisode({ id: 'ep-newer', title: 'Newer Review', reviewed_at: '2026-11-05T14:00:00Z' }),
-        lifecycleStatus: 'DRAFT',
+        lifecycleStatus: 'NOT_SCHEDULED',
       };
-      const newestDraft: EpisodeWithLifecycle = {
+      const newestNs: EpisodeWithLifecycle = {
         ...createMockEpisode({ id: 'ep-newest', title: 'Newest Review', reviewed_at: '2026-11-05T18:00:00Z' }),
-        lifecycleStatus: 'DRAFT',
+        lifecycleStatus: 'NOT_SCHEDULED',
       };
 
-      const sorted = sortCompletedQCEpisodes([olderDraft, newestDraft, newerDraft]);
+      const sorted = sortCompletedQCEpisodes([olderNs, newestNs, newerNs]);
 
       expect(sorted.map((e) => e.id)).toEqual(['ep-newest', 'ep-newer', 'ep-older']);
     });
@@ -397,11 +411,11 @@ describe('Broadcast Lifecycle Tracking in QC Dashboard', () => {
     it('correctly orders a complete mixed list with all criteria combined', () => {
       const ns1: EpisodeWithLifecycle = {
         ...createMockEpisode({ id: 'ns-1', reviewed_at: '2026-11-05T16:00:00Z' }),
-        lifecycleStatus: 'DRAFT',
+        lifecycleStatus: 'NOT_SCHEDULED',
       };
       const ns2: EpisodeWithLifecycle = {
         ...createMockEpisode({ id: 'ns-2', reviewed_at: '2026-11-03T10:00:00Z' }),
-        lifecycleStatus: 'DRAFT',
+        lifecycleStatus: 'NOT_SCHEDULED',
       };
       const sc1: EpisodeWithLifecycle = {
         ...createMockEpisode({ id: 'sc-1' }),
@@ -429,7 +443,7 @@ describe('Broadcast Lifecycle Tracking in QC Dashboard', () => {
       const result = sortCompletedQCEpisodes(input);
 
       // Expected:
-      // 1. Draft (top): ns-1 (Nov 5) -> ns-2 (Nov 3)
+      // 1. Not Scheduled (top): ns-1 (Nov 5) -> ns-2 (Nov 3)
       // 2. Scheduled (middle): sc-1 (Nov 6) -> sc-2 (Nov 10)
       // 3. Published (bottom): pb-1 (Nov 5) -> pb-2 (Nov 1)
       expect(result.map((e) => e.id)).toEqual(['ns-1', 'ns-2', 'sc-1', 'sc-2', 'pb-1', 'pb-2']);

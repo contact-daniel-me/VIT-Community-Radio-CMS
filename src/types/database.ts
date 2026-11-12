@@ -33,6 +33,9 @@ export type PublishLifecycleStatus =
   | 'FAILED'
   | 'ARCHIVED';
 
+/** Display / UI lifecycle bucket separating unapproved/saved drafts from QC-approved unscheduled items. */
+export type ContentLifecycleBucket = PublishLifecycleStatus | 'NOT_SCHEDULED';
+
 export type SyncContentLifecycleResult = {
   promoted_episodes: number;
   expired_episodes: number;

@@ -227,8 +227,8 @@ export function HomepageScheduleDialog({
 
   const handleRemove = async () => {
     const promptMsg = isAlreadyPublished
-      ? 'Move this published episode back to Draft and remove it from the homepage?'
-      : 'Unschedule this episode and return it to Draft?';
+      ? 'Move this published episode to Not Scheduled and remove it from the homepage?'
+      : 'Unschedule this episode and move it back to Not Scheduled?';
     if (!confirm(promptMsg)) return;
     setError(null);
     setBusy(true);
@@ -236,11 +236,11 @@ export function HomepageScheduleDialog({
     try {
       await episodeService.unscheduleHomepageEpisode(episode.id);
       notifySave({
-        title: 'Moved back to Draft',
+        title: 'Moved to Not Scheduled',
         detail: episode.title,
         dedupeKey: `unschedule-episode:${episode.id}`,
       });
-      onSaved(`"${episode.title}" has been moved back to Draft.`);
+      onSaved(`"${episode.title}" has been moved to Not Scheduled.`);
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);

@@ -2,8 +2,8 @@ import { supabase } from '@/lib/supabase';
 import { AppError } from '@/lib/errors';
 import { unwrap } from '@/lib/query';
 import type {
+  ContentLifecycleBucket,
   EpisodeRow,
-  PublishLifecycleStatus,
   QcReviewRow,
   ScheduleRow,
   ScheduleDetailsRow,
@@ -11,6 +11,7 @@ import type {
 import { episodeService, type EpisodeWithRelations } from './episodeService';
 
 export type BroadcastLifecycleStatus =
+  | 'NOT_SCHEDULED'
   | 'DRAFT'
   | 'SCHEDULED'
   | 'PUBLISHED'
@@ -30,6 +31,7 @@ export interface EpisodeWithLifecycle extends EpisodeWithRelations {
 
 export interface LifecycleCounts {
   all: number;
+  notScheduled: number;
   draft: number;
   scheduled: number;
   published: number;
@@ -66,7 +68,7 @@ export function resolveEpisodePublishStatus(
   >,
   now: Date = new Date(),
   epSchedules: Pick<ScheduleRow, 'status' | 'start_time' | 'end_time'>[] = [],
-): PublishLifecycleStatus {
+): ContentLifecycleBucket {
   if (ep.status === 'ARCHIVED' || ep.publish_status === 'ARCHIVED') {
     return 'ARCHIVED';
   }
@@ -108,7 +110,7 @@ export function resolveEpisodePublishStatus(
     return 'SCHEDULED';
   }
 
-  return 'DRAFT';
+  return ep.status === 'APPROVED' ? 'NOT_SCHEDULED' : 'DRAFT';
 }
 
 /**
@@ -235,9 +237,9 @@ export function computeEpisodeLifecycle(
     };
   }
 
-  // 5. Draft (not yet scheduled or manually unscheduled)
+  // 5. Waiting to be scheduled: QC-approved items enter NOT_SCHEDULED; unapproved/saved drafts remain DRAFT
   return {
-    lifecycleStatus: 'DRAFT',
+    lifecycleStatus: episode.status === 'APPROVED' ? 'NOT_SCHEDULED' : 'DRAFT',
     activeSchedule: null,
     publishedAt: null,
     homepageScheduledAt: null,
@@ -282,26 +284,32 @@ export function getEpisodePublicationDate(ep: EpisodeWithLifecycle): string {
 
 /**
  * Reorganizes QC Done episodes by lifecycle priority:
- * 1. Draft (top) – newest QC reviewed first
- * 2. Scheduled (middle) – nearest upcoming date first
- * 3. Published – most recently published first
- * 4. Failed – most recent attempt first
- * 5. Expired (bottom) – most recently expired first
+ * 1. Not Scheduled (top) – QC-approved & awaiting schedule/release, newest reviewed first
+ * 2. Draft – unapproved/saved drafts, newest reviewed first
+ * 3. Scheduled – nearest upcoming date first
+ * 4. Published – most recently published first
+ * 5. Failed – most recent attempt first
+ * 6. Expired (bottom) – most recently expired first
  */
 export function sortCompletedQCEpisodes(episodes: EpisodeWithLifecycle[]): EpisodeWithLifecycle[] {
   const STATUS_PRIORITY: Record<BroadcastLifecycleStatus, number> = {
-    DRAFT: 1,
-    SCHEDULED: 2,
-    PUBLISHED: 3,
-    FAILED: 4,
-    EXPIRED: 5,
+    NOT_SCHEDULED: 1,
+    DRAFT: 2,
+    SCHEDULED: 3,
+    PUBLISHED: 4,
+    FAILED: 5,
+    EXPIRED: 6,
   };
 
   return [...episodes].sort((a, b) => {
     const priorityDiff = STATUS_PRIORITY[a.lifecycleStatus] - STATUS_PRIORITY[b.lifecycleStatus];
     if (priorityDiff !== 0) return priorityDiff;
 
-    if (a.lifecycleStatus === 'DRAFT' || a.lifecycleStatus === 'FAILED') {
+    if (
+      a.lifecycleStatus === 'NOT_SCHEDULED' ||
+      a.lifecycleStatus === 'DRAFT' ||
+      a.lifecycleStatus === 'FAILED'
+    ) {
       const diff = toEpoch(getEpisodeReviewedDate(b)) - toEpoch(getEpisodeReviewedDate(a));
       if (diff !== 0) return diff;
       return (a.title || '').localeCompare(b.title || '');
@@ -424,6 +432,7 @@ export const qcService = {
   sortCompletedQC: sortCompletedQCEpisodes,
 
   getLifecycleCounts(episodes: EpisodeWithLifecycle[]): LifecycleCounts {
+    let notScheduled = 0;
     let draft = 0;
     let scheduled = 0;
     let published = 0;
@@ -431,7 +440,8 @@ export const qcService = {
     let failed = 0;
 
     for (const ep of episodes) {
-      if (ep.lifecycleStatus === 'DRAFT') draft++;
+      if (ep.lifecycleStatus === 'NOT_SCHEDULED') notScheduled++;
+      else if (ep.lifecycleStatus === 'DRAFT') draft++;
       else if (ep.lifecycleStatus === 'SCHEDULED') scheduled++;
       else if (ep.lifecycleStatus === 'PUBLISHED') published++;
       else if (ep.lifecycleStatus === 'EXPIRED') expired++;
@@ -440,6 +450,7 @@ export const qcService = {
 
     return {
       all: episodes.length,
+      notScheduled,
       draft,
       scheduled,
       published,

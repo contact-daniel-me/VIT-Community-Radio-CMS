@@ -18,6 +18,7 @@ interface GlobalAudioState {
   setVolume: (v: number) => void;
   muted: boolean;
   setMuted: (m: boolean) => void;
+  getAudioElement?: () => HTMLAudioElement | null;
 }
 
 const GlobalAudioContext = createContext<GlobalAudioState | undefined>(undefined);
@@ -34,6 +35,11 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio();
+      try {
+        audioRef.current.crossOrigin = 'anonymous';
+      } catch {
+        // no-op if browser restricts crossOrigin attribute assignment
+      }
     }
     const audio = audioRef.current;
 
@@ -63,9 +69,18 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = volume;
-      audioRef.current.muted = muted;
+      audioRef.current.muted = muted || volume === 0;
     }
   }, [volume, muted]);
+
+  const handleSetVolume = (v: number) => {
+    const clamped = Math.min(1, Math.max(0, Number.isFinite(v) ? v : 0.8));
+    setVolume(clamped);
+    if (audioRef.current) {
+      audioRef.current.volume = clamped;
+      audioRef.current.muted = clamped === 0;
+    }
+  };
 
   const playTrack = async (track: PublicTopAudioRow) => {
     // Stop any currently playing audio first
@@ -89,7 +104,12 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
       console.debug('[GlobalAudio] playTrack url:', url);
       if (audioRef.current) {
         audioRef.current.src = url;
+        audioRef.current.volume = volume;
+        audioRef.current.muted = muted || volume === 0;
         audioRef.current.load(); // ensure browser re-reads the new src
+        audioRef.current.volume = volume;
+        audioRef.current.volume = volume;
+        audioRef.current.muted = muted || volume === 0;
         const playPromise = audioRef.current.play();
         if (playPromise !== undefined) {
           await playPromise;
@@ -142,6 +162,8 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
           'src=', audioRef.current.src,
           'readyState=', audioRef.current.readyState,
         );
+        audioRef.current.volume = volume;
+        audioRef.current.muted = muted || volume === 0;
         const playPromise = audioRef.current.play();
         if (playPromise !== undefined) {
           await playPromise;
@@ -175,9 +197,10 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
         resume,
         seek,
         volume,
-        setVolume,
+        setVolume: handleSetVolume,
         muted,
         setMuted,
+        getAudioElement: () => audioRef.current,
       }}
     >
       {children}

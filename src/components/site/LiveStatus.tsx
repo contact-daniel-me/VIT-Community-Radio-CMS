@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { PublicNowPlayingRow } from '@/types/database';
 import { formatTime } from '@/utils/datetime';
 import { Waveform } from './Waveform';
-import { WhatsNew } from './WhatsNew';
+import { RetroRadio } from './RetroRadio/RetroRadio';
 
 /** "38 min left" — recomputed each minute while a broadcast is running. */
 function useRemaining(endTime: string | null | undefined): string | null {
@@ -39,7 +39,7 @@ export function LiveStatus({ now }: { now: PublicNowPlayingRow | null }) {
   const remaining = useRemaining(live ? now?.end_time : null);
 
   if (!live || !now) {
-    return <WhatsNew />;
+    return <RetroRadio now={now} />;
   }
 
   return (

@@ -551,6 +551,8 @@
   grid-area: live;
   position: relative;
   z-index: 2;
+  display: flex;
+  justify-content: flex-end;
 }
 
 /* Broadcast metadata ticker under the hero. */
@@ -1732,6 +1734,9 @@
       'lede'
       'live';
     gap: 1.5rem;
+  }
+  .hero-live {
+    justify-content: center;
   }
   .hero-visual {
     inset: auto;
@@ -3122,6 +3127,9 @@
       'live';
     gap: 1.5rem;
   }
+  .hero-live {
+    justify-content: center;
+  }
   .hero-visual {
     inset: auto;
     position: absolute;
@@ -4251,6 +4259,9 @@
       'lede'
       'live';
     gap: 1.5rem;
+  }
+  .hero-live {
+    justify-content: center;
   }
   .hero-visual {
     inset: auto;

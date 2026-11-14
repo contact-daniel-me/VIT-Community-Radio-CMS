@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { PublicNowPlayingRow } from '@/types/database';
-import { LiveStatus } from './LiveStatus';
+import { RetroRadio } from './RetroRadio/RetroRadio';
 
 /**
  * The hero.
@@ -49,11 +49,7 @@ export function Hero({ now }: { now: PublicNowPlayingRow | null }) {
         </div>
 
         <div className="hero-live">
-          <div className="hero-onair-sign">
-            <span>ON</span>
-            <span>AIR</span>
-          </div>
-          <LiveStatus now={now} />
+          <RetroRadio now={now} />
         </div>
       </div>
 

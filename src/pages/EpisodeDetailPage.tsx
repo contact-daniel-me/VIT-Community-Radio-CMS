@@ -674,9 +674,7 @@ export function EpisodeDetailPage() {
                   <span className="muted">Recommended Duration:</span> <strong>Up to 60 minutes</strong>
                 </div>
               </div>
-              <p className="small muted" style={{ margin: '0.4rem 0 0', opacity: 0.85, lineHeight: 1.4 }}>
-                Optimized for RJ speech, instrumental background music (BGM), station jingles, and SFX. Uploading again replaces the current file.
-              </p>
+
             </div>
           </section>
 

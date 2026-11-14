@@ -47,6 +47,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (!s3) {
+      // Fallback: request signed playback URL from deployed Supabase Edge Function gateway
+      const sbUrl =
+        process.env.VITE_SUPABASE_URL ||
+        process.env.SUPABASE_URL ||
+        'https://qqoybhevvnkycepujosm.supabase.co';
+      const sbKey =
+        process.env.VITE_SUPABASE_ANON_KEY ||
+        process.env.SUPABASE_ANON_KEY ||
+        '';
+
+      if (sbUrl && sbKey) {
+        const edgeRes = await fetch(`${sbUrl.replace(/\/+$/, '')}/functions/v1/r2-storage`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${sbKey}`,
+            apikey: sbKey,
+          },
+          body: JSON.stringify({
+            action: 'create-download-url',
+            storagePath,
+            expiresInSeconds,
+          }),
+        });
+
+        if (edgeRes.ok) {
+          const edgeData = await edgeRes.json();
+          if (edgeData.downloadUrl) {
+            return res.status(200).json(edgeData);
+          }
+        }
+      }
+
       return res.status(500).json({ error: 'R2 storage credentials not configured on server.' });
     }
 

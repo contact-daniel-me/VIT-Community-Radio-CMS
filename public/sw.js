@@ -20,7 +20,7 @@
  *    - Avoids disrupting active recording, QC review, or audio uploads.
  */
 
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const STATIC_CACHE = `vit-radio-static-${CACHE_VERSION}`;
 
 // Pre-cached critical static shell assets

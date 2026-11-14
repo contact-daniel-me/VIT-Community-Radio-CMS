@@ -126,15 +126,20 @@ export const storageResolver = {
       const provider = await this.resolveProvider(target, explicitProvider);
 
       if (provider === 'r2') {
-        const url = await r2Service.requestDownloadUrl(storagePath, expiresInSeconds);
-        const latency = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startTime;
-        storageObservabilityService.recordPlayback({
-          success: true,
-          provider: 'r2',
-          latencyMs: latency,
-          details: storagePath,
-        });
-        return url;
+        try {
+          const url = await r2Service.requestDownloadUrl(storagePath, expiresInSeconds);
+          const latency = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startTime;
+          storageObservabilityService.recordPlayback({
+            success: true,
+            provider: 'r2',
+            latencyMs: latency,
+            details: storagePath,
+          });
+          return url;
+        } catch (r2Err) {
+          if (explicitProvider === 'r2') throw r2Err;
+          // Fall through to try Supabase Storage
+        }
       }
 
       // Supabase Storage resolution
@@ -142,31 +147,47 @@ export const storageResolver = {
         .from(AUDIO_BUCKET)
         .createSignedUrl(storagePath, expiresInSeconds);
 
-      if (error || !data?.signedUrl) {
+      if (!error && data?.signedUrl) {
         const latency = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startTime;
         storageObservabilityService.recordPlayback({
-          success: false,
+          success: true,
           provider: 'supabase',
           latencyMs: latency,
           details: storagePath,
-          errorCode: error?.message || 'NOT_FOUND',
         });
-        throw new AppError(
-          'NOT_FOUND',
-          'This audio file is not available. It may not have been uploaded yet.',
-          error,
-        );
+        return data.signedUrl;
+      }
+
+      // If Supabase Storage failed and provider was not explicitly forced to 'supabase', try R2
+      if (provider !== 'r2' && explicitProvider !== 'supabase') {
+        try {
+          const url = await r2Service.requestDownloadUrl(storagePath, expiresInSeconds);
+          const latency = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startTime;
+          storageObservabilityService.recordPlayback({
+            success: true,
+            provider: 'r2',
+            latencyMs: latency,
+            details: storagePath,
+          });
+          return url;
+        } catch {
+          // Fall through to NOT_FOUND
+        }
       }
 
       const latency = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startTime;
       storageObservabilityService.recordPlayback({
-        success: true,
+        success: false,
         provider: 'supabase',
         latencyMs: latency,
         details: storagePath,
+        errorCode: error?.message || 'NOT_FOUND',
       });
-
-      return data.signedUrl;
+      throw new AppError(
+        'NOT_FOUND',
+        'This audio file is not available. It may not have been uploaded yet.',
+        error,
+      );
     } catch (err: unknown) {
       const latency = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startTime;
       const errorMsg = err instanceof Error ? err.message : String(err);

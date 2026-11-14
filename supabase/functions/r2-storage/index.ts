@@ -188,40 +188,93 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || supabaseAnonKey;
     const bucketName = Deno.env.get('CLOUDFLARE_R2_BUCKET_NAME') || 'vit-radio-media';
 
-    // 1. Authenticate Request
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return errorResponse('Missing or invalid Authorization header.', 401);
-    }
-
-    const token = authHeader.replace('Bearer ', '').trim();
-    const supabaseUserClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-
-    const { data: { user }, error: userError } = await supabaseUserClient.auth.getUser(token);
-    if (userError || !user) {
-      return errorResponse('Unauthorized: Invalid or expired token.', 401);
-    }
-
     // Use service client to safely inspect role and episode metadata
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch user profile and role
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, role, active')
-      .eq('id', user.id)
-      .maybeSingle();
+    // Optional user authentication: extract profile if valid Bearer token provided
+    const authHeader = req.headers.get('Authorization') || '';
+    // deno-lint-ignore no-explicit-any
+    let user: any = null;
+    // deno-lint-ignore no-explicit-any
+    let profile: any = null;
 
-    if (profileError || !profile || !profile.active) {
-      return errorResponse('Forbidden: User profile is inactive or not found.', 403);
+    if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '').trim();
+      const supabaseUserClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+
+      const { data: userData } = await supabaseUserClient.auth.getUser(token);
+      if (userData?.user) {
+        user = userData.user;
+        const { data: prof } = await supabaseAdmin
+          .from('profiles')
+          .select('id, role, active')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (prof?.active) {
+          profile = prof;
+        }
+      }
     }
 
     const body = await req.json().catch(() => ({}));
     const action = body.action || '';
 
     const s3 = getR2Client();
+
+    // -------------------------------------------------------------------------
+    // ACTION: create-download-url (public approved playback or station members)
+    // -------------------------------------------------------------------------
+    if (action === 'create-download-url') {
+      const { storagePath, expiresInSeconds = 3600 } = body;
+
+      if (!storagePath || typeof storagePath !== 'string' || !storagePath.startsWith('episodes/')) {
+        return errorResponse('Invalid storagePath: must follow canonical episodes/{episodeId}/... format.');
+      }
+
+      // Check access permission:
+      // A. Station members with active role can listen to review/schedule audio
+      // B. Public listeners can stream any approved published broadcast episode
+      let isAllowed = Boolean(profile?.role);
+
+      if (!isAllowed) {
+        const { data: publicEp } = await supabaseAdmin
+          .from('v_public_approved_episodes')
+          .select('episode_id')
+          .eq('storage_path', storagePath)
+          .maybeSingle();
+
+        if (publicEp) {
+          isAllowed = true;
+        }
+      }
+
+      if (!isAllowed) {
+        return errorResponse('Forbidden: Station role required or episode is not published.', 403);
+      }
+
+      const expiry = Math.min(Math.max(expiresInSeconds, 60), 86400); // between 1 min and 24 hours
+
+      const getCommand = new GetObjectCommand({
+        Bucket: bucketName,
+        Key: storagePath,
+      });
+
+      const downloadUrl = await getSignedUrl(s3, getCommand, { expiresIn: expiry });
+
+      return jsonResponse({
+        downloadUrl,
+        storagePath,
+        expiresIn: expiry,
+      });
+    }
+
+    // All subsequent actions (upload, delete, multipart) require an authenticated active station member
+    if (!profile || !profile.active) {
+      return errorResponse('Unauthorized: Valid active station profile required.', 401);
+    }
 
     // -------------------------------------------------------------------------
     // ACTION: create-upload-url
@@ -269,36 +322,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // -------------------------------------------------------------------------
-    // ACTION: create-download-url
-    // -------------------------------------------------------------------------
-    if (action === 'create-download-url') {
-      const { storagePath, expiresInSeconds = 3600 } = body;
 
-      if (!storagePath || typeof storagePath !== 'string' || !storagePath.startsWith('episodes/')) {
-        return errorResponse('Invalid storagePath: must follow canonical episodes/{episodeId}/... format.');
-      }
-
-      // Check access permission: station members with active role can listen to review/schedule audio
-      if (!profile.role) {
-        return errorResponse('Forbidden: Station role required for playback.', 403);
-      }
-
-      const expiry = Math.min(Math.max(expiresInSeconds, 60), 86400); // between 1 min and 24 hours
-
-      const getCommand = new GetObjectCommand({
-        Bucket: bucketName,
-        Key: storagePath,
-      });
-
-      const downloadUrl = await getSignedUrl(s3, getCommand, { expiresIn: expiry });
-
-      return jsonResponse({
-        downloadUrl,
-        storagePath,
-        expiresIn: expiry,
-      });
-    }
 
     // -------------------------------------------------------------------------
     // ACTION: initiate-multipart-upload

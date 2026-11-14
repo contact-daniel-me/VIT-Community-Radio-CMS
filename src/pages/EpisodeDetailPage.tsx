@@ -59,6 +59,7 @@ export function EpisodeDetailPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [rejectComment, setRejectComment] = useState('');
   const [showReject, setShowReject] = useState(false);
   const [rawFile, setRawFile] = useState<File | null>(null);
@@ -186,10 +187,18 @@ export function EpisodeDetailPage() {
     if (!rawFile) return;
     const newShowName = rawFile.name.replace(/\.[^/.]+$/, '').trim();
     setUploading(true);
+    setUploadProgress(0);
     setError(null);
     setNotice(null);
     try {
-      const uploaded = await audioService.replaceAudio(ep.id, rawFile, profile.id, ep.audio_file_id);
+      const uploaded = await audioService.replaceAudio(
+        ep.id,
+        rawFile,
+        profile.id,
+        ep.audio_file_id,
+        'audio_file_id',
+        (p) => setUploadProgress(p.percent),
+      );
       if (draft && newShowName) {
         setDraft({ ...draft, title: newShowName });
       }
@@ -205,6 +214,7 @@ export function EpisodeDetailPage() {
       setError(errorMessage(cause));
     } finally {
       setUploading(false);
+      setUploadProgress(null);
       if (fileInput.current) fileInput.current.value = '';
     }
   };
@@ -213,10 +223,18 @@ export function EpisodeDetailPage() {
     if (!finalFile) return;
     const newShowName = finalFile.name.replace(/\.[^/.]+$/, '').trim();
     setUploading(true);
+    setUploadProgress(0);
     setError(null);
     setNotice(null);
     try {
-      const uploaded = await audioService.replaceAudio(ep.id, finalFile, profile.id, ep.final_audio_file_id, 'final_audio_file_id');
+      const uploaded = await audioService.replaceAudio(
+        ep.id,
+        finalFile,
+        profile.id,
+        ep.final_audio_file_id,
+        'final_audio_file_id',
+        (p) => setUploadProgress(p.percent),
+      );
       if (draft && newShowName) {
         setDraft({ ...draft, title: newShowName });
       }
@@ -232,6 +250,7 @@ export function EpisodeDetailPage() {
       setError(errorMessage(cause));
     } finally {
       setUploading(false);
+      setUploadProgress(null);
       if (finalFileInput.current) finalFileInput.current.value = '';
     }
   };
@@ -433,7 +452,17 @@ export function EpisodeDetailPage() {
                             </button>
                           </div>
                         )}
-                        {uploading && <span className="small muted">Uploading...</span>}
+                        {uploading && rawFile && (
+                          <div style={{ marginTop: '0.5rem', width: '100%', maxWidth: '360px' }}>
+                            <div className="row align-center justify-between" style={{ fontSize: '0.82rem', marginBottom: '0.25rem' }}>
+                              <span className="small muted">Uploading raw audio...</span>
+                              <span className="small font-mono">{uploadProgress !== null ? `${uploadProgress}%` : 'Processing...'}</span>
+                            </div>
+                            <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--surface-sunken, #e5e5e5)', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{ width: `${uploadProgress ?? 0}%`, height: '100%', backgroundColor: 'var(--brand-red, #D32F2F)', transition: 'width 0.2s ease' }} />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                     {ep.audio_file && !ep.audio_file.deleted_at && (
@@ -542,6 +571,17 @@ export function EpisodeDetailPage() {
                             </button>
                           </div>
                         )}
+                        {uploading && finalFile && (
+                          <div style={{ marginTop: '0.5rem', width: '100%', maxWidth: '360px' }}>
+                            <div className="row align-center justify-between" style={{ fontSize: '0.82rem', marginBottom: '0.25rem' }}>
+                              <span className="small muted">Uploading final audio...</span>
+                              <span className="small font-mono">{uploadProgress !== null ? `${uploadProgress}%` : 'Processing...'}</span>
+                            </div>
+                            <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--surface-sunken, #e5e5e5)', borderRadius: '3px', overflow: 'hidden' }}>
+                              <div style={{ width: `${uploadProgress ?? 0}%`, height: '100%', backgroundColor: 'var(--brand-red, #D32F2F)', transition: 'width 0.2s ease' }} />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                     {ep.final_audio_file && (
@@ -603,9 +643,41 @@ export function EpisodeDetailPage() {
               </div>
             </div>
 
-            <p className="small muted" style={{ marginTop: '1rem' }}>
-              MP3 only. Maximum file size: 50 MB. Uploading again replaces the current file.
-            </p>
+            <div
+              className="audio-upload-guidelines"
+              style={{
+                marginTop: '1.25rem',
+                padding: '0.85rem 1rem',
+                background: 'var(--surface-sunken, #f8f8f8)',
+                border: '1px solid var(--border-subtle, #e0e0e0)',
+                borderRadius: '6px',
+                fontSize: '0.84rem',
+              }}
+            >
+              <div style={{ fontWeight: 600, color: 'var(--ink, #1f1f1f)', marginBottom: '0.45rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <span>🎙 Audio Upload &amp; Broadcast Guidelines</span>
+                <span className="badge" style={{ fontSize: '0.75rem', padding: '0.1rem 0.45rem', backgroundColor: 'var(--brand-red, #D32F2F)', color: '#fff' }}>
+                  100 MB Limit
+                </span>
+              </div>
+              <div className="grid cols-2" style={{ gap: '0.4rem 1.5rem', margin: '0.4rem 0' }}>
+                <div>
+                  <span className="muted">Supported Format:</span> <strong>MP3 (.mp3)</strong>
+                </div>
+                <div>
+                  <span className="muted">Maximum File Size:</span> <strong>100 MB</strong>
+                </div>
+                <div>
+                  <span className="muted">Recommended Quality:</span> <strong>192 kbps, 44.1 kHz, Stereo (CBR)</strong>
+                </div>
+                <div>
+                  <span className="muted">Recommended Duration:</span> <strong>Up to 60 minutes</strong>
+                </div>
+              </div>
+              <p className="small muted" style={{ margin: '0.4rem 0 0', opacity: 0.85, lineHeight: 1.4 }}>
+                Optimized for RJ speech, instrumental background music (BGM), station jingles, and SFX. Uploading again replaces the current file.
+              </p>
+            </div>
           </section>
 
           {isReviewer && ep.status === 'PENDING_QC' && (

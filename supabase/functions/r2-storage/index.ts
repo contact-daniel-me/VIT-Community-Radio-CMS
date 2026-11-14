@@ -27,8 +27,8 @@ import {
 import { getSignedUrl } from 'npm:@aws-sdk/s3-request-presigner@3.658.1';
 import { FetchHttpHandler } from 'npm:@smithy/fetch-http-handler';
 
-// Max audio size: 50 MB (matches database constraint)
-const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
+// Max audio size: 100 MB (matches database constraint)
+const MAX_AUDIO_BYTES = 100 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = ['audio/mpeg', 'audio/mp3'];
 
 const ALLOWED_ORIGINS = [
@@ -292,7 +292,9 @@ Deno.serve(async (req: Request) => {
         return errorResponse(`Invalid MIME type: ${mimeType}. Only audio/mpeg or audio/mp3 accepted.`);
       }
       if (!fileSize || typeof fileSize !== 'number' || fileSize <= 0 || fileSize > MAX_AUDIO_BYTES) {
-        return errorResponse(`File size must be between 1 byte and ${MAX_AUDIO_BYTES} bytes (50 MB).`);
+        return errorResponse(
+          `File size exceeds the 100 MB upload limit. Please upload an audio file smaller than or equal to 100 MB. (File size must be between 1 byte and ${MAX_AUDIO_BYTES} bytes).`,
+        );
       }
 
       // Controlled Rollout & Authorization Check

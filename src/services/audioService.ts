@@ -6,7 +6,23 @@ import { storageResolver, type StorageProvider } from '@/services/storageResolve
 import { r2Service } from '@/services/r2Service';
 import { storageObservabilityService } from '@/services/storageObservabilityService';
 
-export const MAX_AUDIO_BYTES = 50 * 1024 * 1024; // 50 MB, matches the DB CHECK
+export const MAX_AUDIO_BYTES = 100 * 1024 * 1024; // 100 MB, matches the DB CHECK
+
+/**
+ * Recommended audio export/recording settings for VIT Community Radio 90.8 FM.
+ * Intended for radio programmes containing RJ voice, music, instrumental beds, jingles, and SFX.
+ */
+export const RECOMMENDED_AUDIO_SETTINGS = {
+  format: 'MP3',
+  bitrate: '192 kbps',
+  sampleRate: '44.1 kHz',
+  channels: 'Stereo',
+  encoding: 'CBR',
+  maxDurationMinutes: 60,
+  maxDurationSeconds: 3600,
+  maxFileSizeMb: 100,
+  maxFileSizeBytes: 100 * 1024 * 1024,
+} as const;
 
 /**
  * Station policy: MP3 only.
@@ -43,7 +59,7 @@ export function validateAudioFile(file: File): { mimeType: string } {
     const sizeMb = (file.size / 1024 / 1024).toFixed(1);
     throw new AppError(
       'VALIDATION',
-      `That file is ${sizeMb} MB. The limit is 50 MB.`,
+      `File size exceeds the 100 MB upload limit. Please upload an audio file smaller than or equal to 100 MB. (That file is ${sizeMb} MB. The limit is 100 MB.)`,
     );
   }
 

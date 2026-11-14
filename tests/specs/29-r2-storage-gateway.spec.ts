@@ -298,8 +298,8 @@ describe('Phase 2: Cloudflare R2 Storage Comprehensive Verification', () => {
       },
     });
 
-    it('enforces MIME type and 50 MB limits', () => {
-      const MAX_BYTES = 50 * 1024 * 1024;
+    it('enforces MIME type and 100 MB limits', () => {
+      const MAX_BYTES = 100 * 1024 * 1024;
       const ALLOWED = ['audio/mpeg', 'audio/mp3'];
 
       const validateUpload = (fileName: string, mime: string, bytes: number) => {
@@ -310,8 +310,11 @@ describe('Phase 2: Cloudflare R2 Storage Comprehensive Verification', () => {
       };
 
       expect(validateUpload('recording.mp3', 'audio/mpeg', 15 * 1024 * 1024)).toBe(true);
+      expect(validateUpload('recording.mp3', 'audio/mpeg', 50 * 1024 * 1024)).toBe(true);
+      expect(validateUpload('recording.mp3', 'audio/mpeg', 75 * 1024 * 1024)).toBe(true);
+      expect(validateUpload('recording.mp3', 'audio/mpeg', 100 * 1024 * 1024)).toBe(true);
       expect(validateUpload('recording.wav', 'audio/wav', 15 * 1024 * 1024)).toBe(false);
-      expect(validateUpload('recording.mp3', 'audio/mpeg', 52428801)).toBe(false); // > 50 MB
+      expect(validateUpload('recording.mp3', 'audio/mpeg', 104857601)).toBe(false); // > 100 MB
     });
 
     it('generates presigned PUT URL with 900s (15 min) expiration', async () => {

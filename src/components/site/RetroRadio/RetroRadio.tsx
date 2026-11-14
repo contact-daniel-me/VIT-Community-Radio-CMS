@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import type { PublicApprovedEpisodeRow, PublicNowPlayingRow } from '@/types/database';
 import { publicService } from '@/services/publicService';
 import { useGlobalAudio } from '@/hooks/GlobalAudioContext';
-import { useAuth } from '@/hooks/useAuth';
 import { RadioOnAirLamp } from './RadioOnAirLamp';
 import { RadioSpeaker } from './RadioSpeaker';
 import { RadioDisplay } from './RadioDisplay';
@@ -83,7 +82,6 @@ export function RetroRadio({ now }: RetroRadioProps) {
   const [initialTuningSettled, setInitialTuningSettled] = useState(false);
 
   const globalAudio = useGlobalAudio();
-  const { profile } = useAuth();
   const radioRef = useRef<HTMLDivElement>(null);
 
   const isLive = now?.broadcast_status === 'ON_AIR';
@@ -301,12 +299,6 @@ export function RetroRadio({ now }: RetroRadioProps) {
     // Recorded episode item
     const ep = currentItem.episode;
     if (!ep) return;
-
-    if (!profile) {
-      setAuthMessage('Please sign in to listen to full episodes.');
-      setTimeout(() => setAuthMessage(null), 3500);
-      return;
-    }
 
     const isThisTrackActive = globalAudio.currentTrack?.episode_id === ep.episode_id;
 

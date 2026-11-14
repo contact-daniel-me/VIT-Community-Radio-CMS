@@ -97,6 +97,31 @@ export const storageResolver = {
     }
 
     const startTime = typeof performance !== 'undefined' ? performance.now() : Date.now();
+
+    // 1. Try public playback API gateway (allows anonymous visitors to stream without signing in)
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await fetch(
+          `/api/playback-url?path=${encodeURIComponent(storagePath)}&expires=${expiresInSeconds}`,
+        );
+        if (res.ok) {
+          const json = await res.json();
+          if (json.downloadUrl) {
+            const latency = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - startTime;
+            storageObservabilityService.recordPlayback({
+              success: true,
+              provider: 'r2',
+              latencyMs: latency,
+              details: storagePath,
+            });
+            return json.downloadUrl;
+          }
+        }
+      } catch {
+        // Fall through to direct provider resolution
+      }
+    }
+
     try {
       const provider = await this.resolveProvider(target, explicitProvider);
 

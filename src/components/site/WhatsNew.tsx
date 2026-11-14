@@ -22,7 +22,6 @@ export function WhatsNew() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [authMessage, setAuthMessage] = useState<string | null>(null);
   const globalAudio = useGlobalAudio();
   const { profile } = useAuth();
 
@@ -92,11 +91,6 @@ export function WhatsNew() {
    *  - Otherwise → load and play this episode fresh via globalAudio.playTrack.
    */
   const handlePlayPause = async (ep: PublicApprovedEpisodeRow) => {
-    if (!profile) {
-      setAuthMessage('Please sign in to listen to full episodes.');
-      setTimeout(() => setAuthMessage(null), 3000);
-      return;
-    }
     const isThisTrackActive = globalAudio.currentTrack?.episode_id === ep.episode_id;
 
     if (isThisTrackActive) {
@@ -258,12 +252,6 @@ export function WhatsNew() {
           })}
         </div>
       </div>
-
-      {authMessage && (
-        <div className="whats-new-auth-msg" style={{ textAlign: 'center', fontSize: '0.85rem', color: 'var(--brand-red)', marginTop: '0.5rem', fontWeight: 500 }}>
-          {authMessage}
-        </div>
-      )}
 
       <div className="whats-new-controls">
         <div className="whats-new-nav">

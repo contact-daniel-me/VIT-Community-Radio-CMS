@@ -394,8 +394,8 @@ $$;
 
 -- Analytics Overview RPC
 create or replace function public.get_analytics_overview(
-  p_start_date timestamptz,
-  p_end_date timestamptz
+  p_start_date timestamptz default now() - interval '30 days',
+  p_end_date timestamptz default now()
 )
 returns jsonb
 language plpgsql
@@ -403,6 +403,8 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
+  v_start timestamptz := coalesce(p_start_date, now() - interval '30 days');
+  v_end   timestamptz := coalesce(p_end_date, now());
   v_res jsonb;
   v_tot_visitors bigint;
   v_uniq_visitors bigint;
@@ -433,6 +435,15 @@ begin
     raise exception 'Unauthorized: Only administrators can view analytics overview' using errcode = '42501';
   end if;
 
+  if v_start > v_end then
+    declare
+      v_tmp timestamptz := v_start;
+    begin
+      v_start := v_end;
+      v_end := v_tmp;
+    end;
+  end if;
+
   perform public.cleanup_stale_analytics_sessions();
 
   -- Website statistics
@@ -441,7 +452,7 @@ begin
     count(*)
   into v_uniq_visitors, v_tot_sessions
   from public.visitor_sessions
-  where started_at between p_start_date and p_end_date;
+  where started_at between v_start and v_end;
 
   v_tot_visitors := coalesce(v_uniq_visitors, 0);
 
@@ -449,17 +460,17 @@ begin
   into v_page_views
   from public.user_activity_logs
   where event_name = 'PAGE_VIEW'
-    and created_at between p_start_date and p_end_date;
+    and created_at between v_start and v_end;
 
   -- New vs returning
   select count(distinct s.anonymous_session_id)
   into v_new_visitors
   from public.visitor_sessions s
-  where s.started_at between p_start_date and p_end_date
+  where s.started_at between v_start and v_end
     and not exists (
       select 1 from public.visitor_sessions prev
       where prev.anonymous_session_id = s.anonymous_session_id
-        and prev.started_at < p_start_date
+        and prev.started_at < v_start
     );
 
   v_ret_visitors := greatest(0, coalesce(v_tot_visitors, 0) - coalesce(v_new_visitors, 0));
@@ -467,7 +478,7 @@ begin
   select coalesce(avg(extract(epoch from (last_seen_at - started_at))), 0)
   into v_avg_engagement_secs
   from public.visitor_sessions
-  where started_at between p_start_date and p_end_date;
+  where started_at between v_start and v_end;
 
   -- Live statistics (active within last 45 seconds)
   select count(distinct user_id)
@@ -504,33 +515,33 @@ begin
     v_avg_listening_secs,
     v_completed_sessions
   from public.audio_listening_sessions
-  where started_at between p_start_date and p_end_date;
+  where started_at between v_start and v_end;
 
   -- Booking statistics (authoritative from studio_bookings and studio_booking_requests)
   select count(*)
   into v_tot_booking_requests
   from public.studio_booking_requests
-  where created_at between p_start_date and p_end_date;
+  where created_at between v_start and v_end;
 
   select count(*)
   into v_pending_bookings
   from public.studio_booking_requests
-  where status = 'PENDING' and created_at between p_start_date and p_end_date;
+  where status = 'PENDING' and created_at between v_start and v_end;
 
   select count(*)
   into v_approved_bookings
   from public.studio_bookings
-  where status = 'CONFIRMED' and created_at between p_start_date and p_end_date;
+  where status = 'CONFIRMED' and created_at between v_start and v_end;
 
   select count(*)
   into v_rejected_or_cancelled_bookings
   from public.studio_bookings
-  where status = 'CANCELLED' and created_at between p_start_date and p_end_date;
+  where status = 'CANCELLED' and created_at between v_start and v_end;
 
   select count(*)
   into v_completed_bookings
   from public.studio_bookings
-  where status = 'COMPLETED' and created_at between p_start_date and p_end_date;
+  where status = 'COMPLETED' and created_at between v_start and v_end;
 
   v_res := jsonb_build_object(
     'website', jsonb_build_object(
@@ -546,7 +557,8 @@ begin
       'active_registered_users', coalesce(v_act_registered, 0),
       'active_anonymous_visitors', coalesce(v_act_anon, 0),
       'total_active_sessions', coalesce(v_act_sessions, 0),
-      'active_audio_listeners', coalesce(v_act_listeners, 0)
+      'active_audio_listeners', coalesce(v_act_listeners, 0),
+      'active_listeners', coalesce(v_act_listeners, 0)
     ),
     'listening', jsonb_build_object(
       'total_audio_plays', coalesce(v_tot_plays, 0),
@@ -646,8 +658,8 @@ $$;
 
 -- Audio Analytics Aggregation RPC
 create or replace function public.get_audio_analytics(
-  p_start_date timestamptz,
-  p_end_date timestamptz
+  p_start_date timestamptz default now() - interval '30 days',
+  p_end_date timestamptz default now()
 )
 returns jsonb
 language plpgsql
@@ -655,6 +667,8 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
+  v_start timestamptz := coalesce(p_start_date, now() - interval '30 days');
+  v_end   timestamptz := coalesce(p_end_date, now());
   v_summary jsonb;
   v_hourly jsonb;
   v_daily jsonb;
@@ -663,6 +677,15 @@ declare
 begin
   if not app.is_admin() then
     raise exception 'Unauthorized: Only administrators can view audio analytics' using errcode = '42501';
+  end if;
+
+  if v_start > v_end then
+    declare
+      v_tmp timestamptz := v_start;
+    begin
+      v_start := v_end;
+      v_end := v_tmp;
+    end;
   end if;
 
   perform public.cleanup_stale_analytics_sessions();
@@ -683,7 +706,7 @@ begin
   )
   into v_summary
   from public.audio_listening_sessions
-  where started_at between p_start_date and p_end_date;
+  where started_at between v_start and v_end;
 
   -- Hourly distribution (0-23)
   select coalesce(jsonb_agg(h), '[]'::jsonb)
@@ -694,7 +717,7 @@ begin
       count(*) as plays,
       coalesce(sum(total_listening_seconds), 0) as total_seconds
     from public.audio_listening_sessions
-    where started_at between p_start_date and p_end_date
+    where started_at between v_start and v_end
     group by 1
     order by 1
   ) h;
@@ -709,7 +732,7 @@ begin
       count(distinct anonymous_session_id) as listeners,
       coalesce(sum(total_listening_seconds), 0) as total_seconds
     from public.audio_listening_sessions
-    where started_at between p_start_date and p_end_date
+    where started_at between v_start and v_end
     group by 1
     order by 1
   ) d;
@@ -723,7 +746,7 @@ begin
       count(*) as count,
       coalesce(sum(total_listening_seconds), 0) as total_seconds
     from public.audio_listening_sessions
-    where started_at between p_start_date and p_end_date
+    where started_at between v_start and v_end
     group by 1
     order by 2 desc
   ) dev;
@@ -739,7 +762,7 @@ begin
       count(distinct anonymous_session_id) as unique_listeners,
       coalesce(sum(total_listening_seconds), 0) as total_seconds
     from public.audio_listening_sessions
-    where started_at between p_start_date and p_end_date
+    where started_at between v_start and v_end
     group by 1, 2
     order by 3 desc
     limit 10
@@ -757,8 +780,8 @@ $$;
 
 -- Booking Analytics Funnel & Stats RPC
 create or replace function public.get_booking_analytics(
-  p_start_date timestamptz,
-  p_end_date timestamptz
+  p_start_date timestamptz default now() - interval '30 days',
+  p_end_date timestamptz default now()
 )
 returns jsonb
 language plpgsql
@@ -766,6 +789,8 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
+  v_start timestamptz := coalesce(p_start_date, now() - interval '30 days');
+  v_end   timestamptz := coalesce(p_end_date, now());
   v_page_views bigint;
   v_form_opened bigint;
   v_submitted bigint;
@@ -780,54 +805,66 @@ begin
     raise exception 'Unauthorized: Only administrators can view booking analytics' using errcode = '42501';
   end if;
 
+  if v_start > v_end then
+    declare
+      v_tmp timestamptz := v_start;
+    begin
+      v_start := v_end;
+      v_end := v_tmp;
+    end;
+  end if;
+
   -- Funnel steps
   select count(*)
   into v_page_views
   from public.user_activity_logs
   where event_name in ('PAGE_VIEW')
     and (page_path like '%studio%' or page_path like '%booking%')
-    and created_at between p_start_date and p_end_date;
+    and created_at between v_start and v_end;
 
   select count(*)
   into v_form_opened
   from public.user_activity_logs
   where event_name in ('BOOKING_FORM_OPEN', 'STUDIO_DIALOG_OPENED')
-    and created_at between p_start_date and p_end_date;
+    and created_at between v_start and v_end;
 
   select count(*)
   into v_submitted
   from public.studio_booking_requests
-  where created_at between p_start_date and p_end_date;
+  where created_at between v_start and v_end;
 
   select count(*)
   into v_approved
   from public.studio_bookings
-  where status = 'CONFIRMED' and created_at between p_start_date and p_end_date;
+  where status = 'CONFIRMED' and created_at between v_start and v_end;
 
   select count(*)
   into v_completed
   from public.studio_bookings
-  where status = 'COMPLETED' and created_at between p_start_date and p_end_date;
+  where status = 'COMPLETED' and created_at between v_start and v_end;
 
   select count(*)
   into v_rejected
   from public.studio_booking_requests
-  where status = 'REJECTED' and created_at between p_start_date and p_end_date;
+  where status = 'REJECTED' and created_at between v_start and v_end;
 
   select count(*)
   into v_cancelled
   from public.studio_bookings
-  where status = 'CANCELLED' and created_at between p_start_date and p_end_date;
+  where status = 'CANCELLED' and created_at between v_start and v_end;
 
-  -- Most requested studio / facility
+  -- Most requested studio facility / language session
   select coalesce(jsonb_agg(st), '[]'::jsonb)
   into v_studios
   from (
     select
-      coalesce(studio_facility, 'Main Broadcast Studio (Studio A)') as studio_facility,
+      case
+        when language is not null then 'Studio A (' || language::text || ')'
+        else 'Main Broadcast Studio (Studio A)'
+      end as studio_facility,
       count(*) as total_bookings
     from public.studio_bookings
-    where created_at between p_start_date and p_end_date
+    where created_at between v_start and v_end
     group by 1
     order by 2 desc
   ) st;
@@ -841,7 +878,7 @@ begin
       count(*) as requests,
       count(*) filter (where status = 'CONFIRMED') as confirmed
     from public.studio_bookings
-    where created_at between p_start_date and p_end_date
+    where created_at between v_start and v_end
     group by 1
     order by 1
   ) tl;
@@ -874,8 +911,8 @@ $$;
 
 -- Traffic and Audience Analytics RPC
 create or replace function public.get_traffic_audience_analytics(
-  p_start_date timestamptz,
-  p_end_date timestamptz
+  p_start_date timestamptz default now() - interval '30 days',
+  p_end_date timestamptz default now()
 )
 returns jsonb
 language plpgsql
@@ -883,6 +920,8 @@ security definer
 set search_path = public, pg_temp
 as $$
 declare
+  v_start timestamptz := coalesce(p_start_date, now() - interval '30 days');
+  v_end   timestamptz := coalesce(p_end_date, now());
   v_devices jsonb;
   v_sources jsonb;
   v_pages jsonb;
@@ -890,6 +929,15 @@ declare
 begin
   if not app.is_admin() then
     raise exception 'Unauthorized: Only administrators can view traffic and audience analytics' using errcode = '42501';
+  end if;
+
+  if v_start > v_end then
+    declare
+      v_tmp timestamptz := v_start;
+    begin
+      v_start := v_end;
+      v_end := v_tmp;
+    end;
   end if;
 
   -- Device breakdown
@@ -901,7 +949,7 @@ begin
       count(*) as sessions,
       count(distinct anonymous_session_id) as visitors
     from public.visitor_sessions
-    where started_at between p_start_date and p_end_date
+    where started_at between v_start and v_end
     group by 1
     order by 2 desc
   ) d;
@@ -915,7 +963,7 @@ begin
       count(*) as sessions,
       count(distinct anonymous_session_id) as visitors
     from public.visitor_sessions
-    where started_at between p_start_date and p_end_date
+    where started_at between v_start and v_end
     group by 1
     order by 2 desc
   ) s;
@@ -930,7 +978,7 @@ begin
       count(distinct anonymous_session_id) as unique_visitors
     from public.user_activity_logs
     where event_name = 'PAGE_VIEW'
-      and created_at between p_start_date and p_end_date
+      and created_at between v_start and v_end
     group by 1
     order by 2 desc
     limit 10
@@ -942,20 +990,20 @@ begin
       where not exists (
         select 1 from public.visitor_sessions prev
         where prev.anonymous_session_id = s.anonymous_session_id
-          and prev.started_at < p_start_date
+          and prev.started_at < v_start
       )
     ),
     'returning_visitors', count(distinct s.anonymous_session_id) filter (
       where exists (
         select 1 from public.visitor_sessions prev
         where prev.anonymous_session_id = s.anonymous_session_id
-          and prev.started_at < p_start_date
+          and prev.started_at < v_start
       )
     )
   )
   into v_new_vs_ret
   from public.visitor_sessions s
-  where s.started_at between p_start_date and p_end_date;
+  where s.started_at between v_start and v_end;
 
   return jsonb_build_object(
     'devices', v_devices,
@@ -970,12 +1018,12 @@ $$;
 create or replace function app.cleanup_stale_analytics_sessions() returns void language sql as $$ select public.cleanup_stale_analytics_sessions(); $$;
 create or replace function app.record_heartbeat(p_anonymous_session_id text, p_current_path text default '/', p_current_activity text default 'Viewing Website', p_device_category text default 'Desktop', p_is_listening boolean default false, p_traffic_source text default 'Direct', p_metadata jsonb default '{}'::jsonb) returns uuid language sql as $$ select public.record_heartbeat(p_anonymous_session_id, p_current_path, p_current_activity, p_device_category, p_is_listening, p_traffic_source, p_metadata); $$;
 create or replace function app.record_user_activity(p_event_name text, p_page_path text default '/', p_activity_description text default '', p_anonymous_session_id text default null, p_metadata jsonb default '{}'::jsonb, p_idempotency_key text default null) returns uuid language sql as $$ select public.record_user_activity(p_event_name, p_page_path, p_activity_description, p_anonymous_session_id, p_metadata, p_idempotency_key); $$;
-create or replace function app.audio_heartbeat(p_session_id uuid, p_anonymous_session_id text, p_audio_source_id text, p_source_type text, p_seconds_increment integer, p_status text, p_device_category text default 'Desktop') returns uuid language sql as $$ select public.audio_heartbeat(p_session_id, p_anonymous_session_id, p_audio_source_id, p_source_type, p_seconds_increment, p_status, p_device_category); $$;
-create or replace function app.get_analytics_overview(p_start_date timestamptz, p_end_date timestamptz) returns jsonb language sql as $$ select public.get_analytics_overview(p_start_date, p_end_date); $$;
+create or replace function app.audio_heartbeat(p_session_id uuid default null, p_anonymous_session_id text default '', p_audio_source_id text default 'live_radio_90.8', p_source_type text default 'live', p_seconds_increment integer default 15, p_status text default 'active', p_device_category text default 'Desktop') returns uuid language sql as $$ select public.audio_heartbeat(p_session_id, p_anonymous_session_id, p_audio_source_id, p_source_type, p_seconds_increment, p_status, p_device_category); $$;
+create or replace function app.get_analytics_overview(p_start_date timestamptz default now() - interval '30 days', p_end_date timestamptz default now()) returns jsonb language sql as $$ select public.get_analytics_overview(p_start_date, p_end_date); $$;
 create or replace function app.get_live_visitors() returns jsonb language sql as $$ select public.get_live_visitors(); $$;
-create or replace function app.get_audio_analytics(p_start_date timestamptz, p_end_date timestamptz) returns jsonb language sql as $$ select public.get_audio_analytics(p_start_date, p_end_date); $$;
-create or replace function app.get_booking_analytics(p_start_date timestamptz, p_end_date timestamptz) returns jsonb language sql as $$ select public.get_booking_analytics(p_start_date, p_end_date); $$;
-create or replace function app.get_traffic_audience_analytics(p_start_date timestamptz, p_end_date timestamptz) returns jsonb language sql as $$ select public.get_traffic_audience_analytics(p_start_date, p_end_date); $$;
+create or replace function app.get_audio_analytics(p_start_date timestamptz default now() - interval '30 days', p_end_date timestamptz default now()) returns jsonb language sql as $$ select public.get_audio_analytics(p_start_date, p_end_date); $$;
+create or replace function app.get_booking_analytics(p_start_date timestamptz default now() - interval '30 days', p_end_date timestamptz default now()) returns jsonb language sql as $$ select public.get_booking_analytics(p_start_date, p_end_date); $$;
+create or replace function app.get_traffic_audience_analytics(p_start_date timestamptz default now() - interval '30 days', p_end_date timestamptz default now()) returns jsonb language sql as $$ select public.get_traffic_audience_analytics(p_start_date, p_end_date); $$;
 
 -- Revoke & Grant function permissions
 revoke execute on function public.cleanup_stale_analytics_sessions() from public;
@@ -1010,3 +1058,7 @@ grant  execute on function public.get_booking_analytics(timestamptz, timestamptz
 revoke execute on function public.get_traffic_audience_analytics(timestamptz, timestamptz) from public;
 revoke execute on function public.get_traffic_audience_analytics(timestamptz, timestamptz) from anon;
 grant  execute on function public.get_traffic_audience_analytics(timestamptz, timestamptz) to authenticated;
+
+-- Notify PostgREST to reload schema cache immediately
+notify pgrst, 'reload schema';
+

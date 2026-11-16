@@ -1,20 +1,38 @@
 import type { BookingAnalyticsData } from '@/services/analyticsService';
 import { FunnyLoading } from '@/components/ui';
+import { AnalyticsErrorCard } from './AnalyticsErrorCard';
 
 interface BookingAnalyticsTabProps {
   data: BookingAnalyticsData | null;
   loading: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export function BookingAnalyticsTab({ data, loading }: BookingAnalyticsTabProps) {
+export function BookingAnalyticsTab({ data, loading, error, onRetry }: BookingAnalyticsTabProps) {
   if (loading && !data) {
     return <FunnyLoading label="Compiling studio booking funnel & conversion metrics..." />;
   }
 
+  if (error && !data) {
+    return (
+      <AnalyticsErrorCard
+        title="Studio Booking Analytics Unavailable"
+        error={error}
+        onRetry={onRetry}
+      />
+    );
+  }
+
   if (!data) {
     return (
-      <div className="analytics-section">
+      <div className="analytics-section" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
         <p className="muted small">No booking analytics data available for this range.</p>
+        {onRetry && (
+          <button type="button" className="btn btn-outline small" onClick={onRetry} style={{ marginTop: '0.75rem' }}>
+            Reload Booking Metrics
+          </button>
+        )}
       </div>
     );
   }

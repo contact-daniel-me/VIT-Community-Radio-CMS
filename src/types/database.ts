@@ -1232,8 +1232,8 @@ export type Database = {
       };
       get_analytics_overview: {
         Args: {
-          p_start_date: string;
-          p_end_date: string;
+          p_start_date?: string;
+          p_end_date?: string;
         };
         Returns: Json;
       };
@@ -1243,22 +1243,22 @@ export type Database = {
       };
       get_audio_analytics: {
         Args: {
-          p_start_date: string;
-          p_end_date: string;
+          p_start_date?: string;
+          p_end_date?: string;
         };
         Returns: Json;
       };
       get_booking_analytics: {
         Args: {
-          p_start_date: string;
-          p_end_date: string;
+          p_start_date?: string;
+          p_end_date?: string;
         };
         Returns: Json;
       };
       get_traffic_audience_analytics: {
         Args: {
-          p_start_date: string;
-          p_end_date: string;
+          p_start_date?: string;
+          p_end_date?: string;
         };
         Returns: Json;
       };

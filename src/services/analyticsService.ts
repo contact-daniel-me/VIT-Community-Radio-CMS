@@ -350,12 +350,12 @@ export const analyticsService = {
   // Admin Analytics Queries
   // ---------------------------------------------------------------------------
 
-  async getOverview(startDate: string, endDate: string): Promise<AnalyticsOverviewData> {
+  async getOverview(startDate?: string, endDate?: string): Promise<AnalyticsOverviewData> {
+    const params: { p_start_date?: string; p_end_date?: string } = {};
+    if (startDate) params.p_start_date = startDate;
+    if (endDate) params.p_end_date = endDate;
     const data = await unwrap(
-      supabase.rpc('get_analytics_overview', {
-        p_start_date: startDate,
-        p_end_date: endDate,
-      }),
+      supabase.rpc('get_analytics_overview', params),
     );
     return data as unknown as AnalyticsOverviewData;
   },
@@ -365,32 +365,32 @@ export const analyticsService = {
     return data as unknown as LiveVisitorsResponse;
   },
 
-  async getAudioAnalytics(startDate: string, endDate: string): Promise<AudioAnalyticsData> {
+  async getAudioAnalytics(startDate?: string, endDate?: string): Promise<AudioAnalyticsData> {
+    const params: { p_start_date?: string; p_end_date?: string } = {};
+    if (startDate) params.p_start_date = startDate;
+    if (endDate) params.p_end_date = endDate;
     const data = await unwrap(
-      supabase.rpc('get_audio_analytics', {
-        p_start_date: startDate,
-        p_end_date: endDate,
-      }),
+      supabase.rpc('get_audio_analytics', params),
     );
     return data as unknown as AudioAnalyticsData;
   },
 
-  async getBookingAnalytics(startDate: string, endDate: string): Promise<BookingAnalyticsData> {
+  async getBookingAnalytics(startDate?: string, endDate?: string): Promise<BookingAnalyticsData> {
+    const params: { p_start_date?: string; p_end_date?: string } = {};
+    if (startDate) params.p_start_date = startDate;
+    if (endDate) params.p_end_date = endDate;
     const data = await unwrap(
-      supabase.rpc('get_booking_analytics', {
-        p_start_date: startDate,
-        p_end_date: endDate,
-      }),
+      supabase.rpc('get_booking_analytics', params),
     );
     return data as unknown as BookingAnalyticsData;
   },
 
-  async getTrafficAudience(startDate: string, endDate: string): Promise<TrafficAudienceData> {
+  async getTrafficAudience(startDate?: string, endDate?: string): Promise<TrafficAudienceData> {
+    const params: { p_start_date?: string; p_end_date?: string } = {};
+    if (startDate) params.p_start_date = startDate;
+    if (endDate) params.p_end_date = endDate;
     const data = await unwrap(
-      supabase.rpc('get_traffic_audience_analytics', {
-        p_start_date: startDate,
-        p_end_date: endDate,
-      }),
+      supabase.rpc('get_traffic_audience_analytics', params),
     );
     return data as unknown as TrafficAudienceData;
   },

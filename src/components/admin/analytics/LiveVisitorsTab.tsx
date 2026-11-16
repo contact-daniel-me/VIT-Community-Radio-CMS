@@ -1,16 +1,28 @@
 import type { LiveVisitorsResponse, LiveRegisteredVisitor } from '@/services/analyticsService';
 import { FunnyLoading } from '@/components/ui';
+import { AnalyticsErrorCard } from './AnalyticsErrorCard';
 
 interface LiveVisitorsTabProps {
   data: LiveVisitorsResponse | null;
   loading: boolean;
+  error?: string | null;
   onRefresh: () => void;
   onSelectUser: (userId: string, userName: string) => void;
 }
 
-export function LiveVisitorsTab({ data, loading, onRefresh, onSelectUser }: LiveVisitorsTabProps) {
+export function LiveVisitorsTab({ data, loading, error, onRefresh, onSelectUser }: LiveVisitorsTabProps) {
   if (loading && !data) {
     return <FunnyLoading label="Connecting to live listener and visitor presence stream..." />;
+  }
+
+  if (error && !data) {
+    return (
+      <AnalyticsErrorCard
+        title="Live Visitors Presence Unavailable"
+        error={error}
+        onRetry={onRefresh}
+      />
+    );
   }
 
   const registered = data?.registered_users ?? [];

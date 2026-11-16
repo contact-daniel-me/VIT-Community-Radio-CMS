@@ -1,20 +1,38 @@
 import type { TrafficAudienceData } from '@/services/analyticsService';
 import { FunnyLoading } from '@/components/ui';
+import { AnalyticsErrorCard } from './AnalyticsErrorCard';
 
 interface TrafficAudienceTabProps {
   data: TrafficAudienceData | null;
   loading: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export function TrafficAudienceTab({ data, loading }: TrafficAudienceTabProps) {
+export function TrafficAudienceTab({ data, loading, error, onRetry }: TrafficAudienceTabProps) {
   if (loading && !data) {
     return <FunnyLoading label="Aggregating audience acquisition channels & device data..." />;
   }
 
+  if (error && !data) {
+    return (
+      <AnalyticsErrorCard
+        title="Traffic & Audience Analytics Unavailable"
+        error={error}
+        onRetry={onRetry}
+      />
+    );
+  }
+
   if (!data) {
     return (
-      <div className="analytics-section">
+      <div className="analytics-section" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
         <p className="muted small">No audience data available for this range.</p>
+        {onRetry && (
+          <button type="button" className="btn btn-outline small" onClick={onRetry} style={{ marginTop: '0.75rem' }}>
+            Reload Traffic Metrics
+          </button>
+        )}
       </div>
     );
   }

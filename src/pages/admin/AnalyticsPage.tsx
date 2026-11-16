@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { PageHeader, Banner } from '@/components/ui';
+import { PageHeader } from '@/components/ui';
 import {
   analyticsService,
   type AnalyticsOverviewData,
@@ -32,8 +32,14 @@ export type DateRangePreset = 'today' | 'yesterday' | '7d' | '30d' | '90d' | 'cu
 export function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState<AnalyticsTab>('overview');
   const [preset, setPreset] = useState<DateRangePreset>('30d');
-  const [customStart, setCustomStart] = useState<string>('');
-  const [customEnd, setCustomEnd] = useState<string>('');
+  const [customStart, setCustomStart] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [customEnd, setCustomEnd] = useState<string>(() => {
+    return new Date().toISOString().slice(0, 10);
+  });
 
   // Timeline modal
   const [selectedUser, setSelectedUser] = useState<{ id: string; name: string } | null>(null);
@@ -72,9 +78,16 @@ export function AnalyticsPage() {
     } else if (preset === '90d') {
       start.setDate(now.getDate() - 90);
       start.setHours(0, 0, 0, 0);
-    } else if (preset === 'custom' && customStart && customEnd) {
-      start = new Date(`${customStart}T00:00:00`);
-      end = new Date(`${customEnd}T23:59:59`);
+    } else if (preset === 'custom') {
+      const s = customStart ? new Date(`${customStart}T00:00:00`) : new Date(Date.now() - 7 * 86400000);
+      const e = customEnd ? new Date(`${customEnd}T23:59:59.999`) : new Date();
+      if (s.getTime() <= e.getTime()) {
+        start = s;
+        end = e;
+      } else {
+        start = e;
+        end = s;
+      }
     }
 
     return {
@@ -148,9 +161,23 @@ export function AnalyticsPage() {
       />
 
       {error && (
-        <Banner kind="error">
-          {error}
-        </Banner>
+        <div className="analytics-error-banner" role="alert">
+          <div className="analytics-error-content">
+            <span className="analytics-error-banner-icon" aria-hidden="true">⚠️</span>
+            <div className="analytics-error-text">
+              <strong>Analytics Engine Notice</strong>
+              <p>{error}</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="analytics-banner-retry"
+            onClick={() => void fetchData()}
+            disabled={loading}
+          >
+            {loading ? 'Retrying...' : 'Retry'}
+          </button>
+        </div>
       )}
 
       {/* Global Date & Range Controls */}
@@ -287,13 +314,19 @@ export function AnalyticsPage() {
 
       {/* Tab Panels */}
       {activeTab === 'overview' && (
-        <OverviewTab data={overviewData} loading={loading} />
+        <OverviewTab
+          data={overviewData}
+          loading={loading}
+          error={error}
+          onRetry={fetchData}
+        />
       )}
 
       {activeTab === 'live' && (
         <LiveVisitorsTab
           data={liveData}
           loading={loading}
+          error={error}
           onRefresh={fetchData}
           onSelectUser={(id, name) => setSelectedUser({ id, name })}
         />
@@ -306,15 +339,30 @@ export function AnalyticsPage() {
       )}
 
       {activeTab === 'audio' && (
-        <AudioAnalyticsTab data={audioData} loading={loading} />
+        <AudioAnalyticsTab
+          data={audioData}
+          loading={loading}
+          error={error}
+          onRetry={fetchData}
+        />
       )}
 
       {activeTab === 'booking' && (
-        <BookingAnalyticsTab data={bookingData} loading={loading} />
+        <BookingAnalyticsTab
+          data={bookingData}
+          loading={loading}
+          error={error}
+          onRetry={fetchData}
+        />
       )}
 
       {activeTab === 'traffic' && (
-        <TrafficAudienceTab data={trafficData} loading={loading} />
+        <TrafficAudienceTab
+          data={trafficData}
+          loading={loading}
+          error={error}
+          onRetry={fetchData}
+        />
       )}
 
       {activeTab === 'reports' && (

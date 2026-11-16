@@ -1,20 +1,38 @@
 import type { AudioAnalyticsData } from '@/services/analyticsService';
 import { FunnyLoading } from '@/components/ui';
+import { AnalyticsErrorCard } from './AnalyticsErrorCard';
 
 interface AudioAnalyticsTabProps {
   data: AudioAnalyticsData | null;
   loading: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export function AudioAnalyticsTab({ data, loading }: AudioAnalyticsTabProps) {
+export function AudioAnalyticsTab({ data, loading, error, onRetry }: AudioAnalyticsTabProps) {
   if (loading && !data) {
     return <FunnyLoading label="Analyzing radio broadcast stream telemetry..." />;
   }
 
+  if (error && !data) {
+    return (
+      <AnalyticsErrorCard
+        title="Audio Analytics Unavailable"
+        error={error}
+        onRetry={onRetry}
+      />
+    );
+  }
+
   if (!data) {
     return (
-      <div className="analytics-section">
+      <div className="analytics-section" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
         <p className="muted small">No audio analytics data available for this range.</p>
+        {onRetry && (
+          <button type="button" className="btn btn-outline small" onClick={onRetry} style={{ marginTop: '0.75rem' }}>
+            Reload Audio Metrics
+          </button>
+        )}
       </div>
     );
   }

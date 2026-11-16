@@ -1,12 +1,15 @@
 import type { AnalyticsOverviewData } from '@/services/analyticsService';
+import { AnalyticsErrorCard } from './AnalyticsErrorCard';
 
 interface OverviewTabProps {
   data: AnalyticsOverviewData | null;
   loading: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export function OverviewTab({ data, loading }: OverviewTabProps) {
-  if (loading || !data) {
+export function OverviewTab({ data, loading, error, onRetry }: OverviewTabProps) {
+  if (loading && !data) {
     return (
       <div className="analytics-kpi-grid">
         {Array.from({ length: 8 }).map((_, i) => (
@@ -16,6 +19,29 @@ export function OverviewTab({ data, loading }: OverviewTabProps) {
             <div className="analytics-kpi-sub">Updating statistics</div>
           </div>
         ))}
+      </div>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <AnalyticsErrorCard
+        title="Analytics Overview Unavailable"
+        error={error}
+        onRetry={onRetry}
+      />
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="analytics-section" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+        <p className="muted small">No analytics overview data available for this range.</p>
+        {onRetry && (
+          <button type="button" className="btn btn-outline small" onClick={onRetry} style={{ marginTop: '0.75rem' }}>
+            Reload Overview
+          </button>
+        )}
       </div>
     );
   }

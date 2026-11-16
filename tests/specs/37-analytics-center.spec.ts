@@ -230,4 +230,54 @@ describe('Analytics Center & Telemetry Engine (Phase 13)', () => {
       expect(Array.isArray(live.get_live_visitors.anonymous_visitors)).toBe(true);
     });
   });
+
+  describe('6. Parameter Flexibility, Defaults & Resilience', () => {
+    it('executes get_analytics_overview with default parameters (zero arguments)', async () => {
+      const [res] = await db.asUser<{ get_analytics_overview: { website: unknown; live: { active_audio_listeners: number; active_listeners: number } } }>(
+        adminId,
+        `select public.get_analytics_overview()`,
+      );
+      expect(res.get_analytics_overview).toBeDefined();
+      expect(res.get_analytics_overview.website).toBeDefined();
+      expect(res.get_analytics_overview.live.active_audio_listeners).toBeDefined();
+      expect(res.get_analytics_overview.live.active_listeners).toBeDefined();
+    });
+
+    it('handles inverted date bounds gracefully by auto-normalizing', async () => {
+      // Pass start > end
+      const [res] = await db.asUser<{ get_analytics_overview: { website: unknown } }>(
+        adminId,
+        `select public.get_analytics_overview(now(), now() - interval '7 days')`,
+      );
+      expect(res.get_analytics_overview).toBeDefined();
+      expect(res.get_analytics_overview.website).toBeDefined();
+    });
+
+    it('executes get_audio_analytics with default parameters', async () => {
+      const [res] = await db.asUser<{ get_audio_analytics: { summary: unknown } }>(
+        adminId,
+        `select public.get_audio_analytics()`,
+      );
+      expect(res.get_audio_analytics).toBeDefined();
+      expect(res.get_audio_analytics.summary).toBeDefined();
+    });
+
+    it('executes get_booking_analytics with default parameters', async () => {
+      const [res] = await db.asUser<{ get_booking_analytics: { funnel: unknown } }>(
+        adminId,
+        `select public.get_booking_analytics()`,
+      );
+      expect(res.get_booking_analytics).toBeDefined();
+      expect(res.get_booking_analytics.funnel).toBeDefined();
+    });
+
+    it('executes get_traffic_audience_analytics with default parameters', async () => {
+      const [res] = await db.asUser<{ get_traffic_audience_analytics: { devices: unknown } }>(
+        adminId,
+        `select public.get_traffic_audience_analytics()`,
+      );
+      expect(res.get_traffic_audience_analytics).toBeDefined();
+      expect(res.get_traffic_audience_analytics.devices).toBeDefined();
+    });
+  });
 });

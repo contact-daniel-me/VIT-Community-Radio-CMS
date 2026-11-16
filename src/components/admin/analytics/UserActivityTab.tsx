@@ -1,6 +1,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { analyticsService, type UserActivityWithProfile } from '@/services/analyticsService';
 import { FunnyLoading } from '@/components/ui';
+import { AnalyticsErrorCard } from './AnalyticsErrorCard';
 
 interface UserActivityTabProps {
   onSelectUser: (userId: string, userName: string) => void;
@@ -21,6 +22,7 @@ export function UserActivityTab({ onSelectUser }: UserActivityTabProps) {
   const [logs, setLogs] = useState<UserActivityWithProfile[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedEvent, setSelectedEvent] = useState('ALL');
   const [page, setPage] = useState(0);
@@ -30,6 +32,7 @@ export function UserActivityTab({ onSelectUser }: UserActivityTabProps) {
   const loadLogs = async (p = page, q = search, evt = selectedEvent) => {
     try {
       setLoading(true);
+      setError(null);
       const res = await analyticsService.getUserActivityLogs({
         limit: pageSize,
         offset: p * pageSize,
@@ -40,6 +43,7 @@ export function UserActivityTab({ onSelectUser }: UserActivityTabProps) {
       setTotal(res.total);
     } catch (err) {
       console.error('Failed to load activity logs:', err);
+      setError((err as Error).message || 'Failed to load user activity trail');
     } finally {
       setLoading(false);
     }
@@ -115,7 +119,15 @@ export function UserActivityTab({ onSelectUser }: UserActivityTabProps) {
 
         {loading && <FunnyLoading label="Filtering user activity audit log..." />}
 
-        {!loading && logs.length === 0 && (
+        {!loading && error && logs.length === 0 && (
+          <AnalyticsErrorCard
+            title="User Activity Stream Unavailable"
+            error={error}
+            onRetry={() => void loadLogs(0, search, selectedEvent)}
+          />
+        )}
+
+        {!loading && !error && logs.length === 0 && (
           <p className="muted small text-center" style={{ padding: '2rem 0' }}>
             No user activity records match the selected criteria.
           </p>

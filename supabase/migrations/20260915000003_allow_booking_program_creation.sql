@@ -8,7 +8,7 @@ drop policy if exists "programs_insert_producers" on public.programs;
 
 create policy "programs_insert_authenticated"
   on public.programs for insert to authenticated
-  with check (created_by = auth.uid());
+  with check (app.current_role() is not null and created_by = auth.uid());
 
 -- 2. Ensure fallback programs exist for "Other Show" and "Special Link"
 insert into public.programs (name, description, category, default_duration_minutes, requires_audio, active)

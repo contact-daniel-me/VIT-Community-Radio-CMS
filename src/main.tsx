@@ -7,6 +7,7 @@ import { ThemeProvider } from './hooks/ThemeProvider';
 import './styles/tokens.css';
 import './styles/app.css';
 import './styles/site.css';
+import './styles/auth.css';
 import './styles/studio.css';
 import './styles/episodes.css';
 import './styles/badges.css';

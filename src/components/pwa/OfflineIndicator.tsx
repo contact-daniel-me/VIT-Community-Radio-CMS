@@ -1,95 +1,34 @@
 import { useEffect, useState } from 'react';
 import { usePwa } from '@/hooks/usePwa';
-import { getNetworkStatus } from '@/lib/dataCache';
 
+/**
+ * Offline indicator:
+ * Remains completely invisible during normal operation and low-bandwidth modes
+ * (all data-saving and caching happens silently in the background).
+ * Only surfaces an alert if internet connectivity is completely lost.
+ */
 export function OfflineIndicator() {
   const { isOffline } = usePwa();
-  const [networkInfo, setNetworkInfo] = useState(getNetworkStatus());
-  const [syncing, setSyncing] = useState(false);
   const [showRestored, setShowRestored] = useState(false);
   const [hasBeenOffline, setHasBeenOffline] = useState(false);
-
-  useEffect(() => {
-    const updateNetwork = () => {
-      setNetworkInfo(getNetworkStatus());
-    };
-
-    window.addEventListener('online', updateNetwork);
-    window.addEventListener('offline', updateNetwork);
-
-    // Listen to Network Information API changes if available
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const navConn = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
-    if (navConn?.addEventListener) {
-      navConn.addEventListener('change', updateNetwork);
-    }
-
-    return () => {
-      window.removeEventListener('online', updateNetwork);
-      window.removeEventListener('offline', updateNetwork);
-      if (navConn?.removeEventListener) {
-        navConn.removeEventListener('change', updateNetwork);
-      }
-    };
-  }, []);
 
   useEffect(() => {
     if (isOffline) {
       setHasBeenOffline(true);
       setShowRestored(false);
-      setSyncing(false);
     } else if (hasBeenOffline) {
-      // Reconnected! Enter syncing phase briefly, then restored notification
-      setSyncing(true);
-      const syncTimer = setTimeout(() => {
-        setSyncing(false);
-        setShowRestored(true);
-        const restoreTimer = setTimeout(() => {
-          setShowRestored(false);
-          setHasBeenOffline(false);
-        }, 3000);
-        return () => clearTimeout(restoreTimer);
-      }, 1200);
-      return () => clearTimeout(syncTimer);
+      setShowRestored(true);
+      const timer = setTimeout(() => {
+        setShowRestored(false);
+        setHasBeenOffline(false);
+      }, 3500);
+      return () => clearTimeout(timer);
     }
   }, [isOffline, hasBeenOffline]);
 
-  // If fully online and normal speed, render nothing to avoid visual noise
-  if (!isOffline && !syncing && !showRestored && !networkInfo.isSlow) {
+  // Absolutely nothing is displayed while online -- all bandwidth saving runs silently
+  if (!isOffline && !showRestored) {
     return null;
-  }
-
-  // Determine pill status theme and message
-  let statusBg = 'var(--ok-wash, #eaf6ee)';
-  let statusColor = 'var(--ok, #17703a)';
-  let statusBorder = 'var(--ok, #17703a)';
-  let icon = '✓';
-  let message = 'Online · Station data synchronized.';
-
-  if (isOffline) {
-    statusBg = 'var(--warn-wash, #fdf3e3)';
-    statusColor = 'var(--warn, #8a5300)';
-    statusBorder = 'var(--warn, #b45309)';
-    icon = '⚠';
-    message = 'Offline · Read-only access active. Audio uploads and modifications paused.';
-  } else if (syncing) {
-    statusBg = 'rgba(235, 245, 255, 0.95)';
-    statusColor = '#0284c7';
-    statusBorder = '#0284c7';
-    icon = '↻';
-    message = 'Syncing · Reconnecting to station and updating status...';
-  } else if (showRestored) {
-    statusBg = 'var(--ok-wash, #eaf6ee)';
-    statusColor = 'var(--ok, #17703a)';
-    statusBorder = 'var(--ok, #17703a)';
-    icon = '✓';
-    message = 'Connection restored · Reconnected to VIT Community Radio.';
-  } else if (networkInfo.isSlow) {
-    statusBg = 'rgba(254, 249, 195, 0.95)';
-    statusColor = '#854d0e';
-    statusBorder = '#ca8a04';
-    icon = '📶';
-    message = 'Low Bandwidth Mode · Conserving data; background polling throttled.';
   }
 
   return (
@@ -105,24 +44,26 @@ export function OfflineIndicator() {
         zIndex: 9998,
         display: 'flex',
         alignItems: 'center',
-        gap: '0.65rem',
-        padding: '0.55rem 1.15rem',
-        borderRadius: '9999px',
-        fontSize: '0.84rem',
-        fontWeight: 600,
-        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)',
-        background: statusBg,
-        color: statusColor,
-        border: `1px solid ${statusBorder}`,
+        gap: '0.6rem',
+        padding: '0.6rem 1.1rem',
+        borderRadius: 'var(--r-md, 8px)',
+        fontSize: '0.85rem',
+        fontWeight: 500,
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+        background: isOffline ? 'var(--warn-wash, #fdf3e3)' : 'var(--ok-wash, #eaf6ee)',
+        color: isOffline ? 'var(--warn, #8a5300)' : 'var(--ok, #17703a)',
+        border: `1px solid ${isOffline ? 'var(--warn, #b45309)' : 'var(--ok, #17703a)'}`,
         maxWidth: '92vw',
-        backdropFilter: 'blur(8px)',
-        transition: 'all 0.25s ease',
       }}
     >
-      <span aria-hidden="true" style={{ fontSize: '0.95rem' }}>
-        {icon}
+      <span aria-hidden="true" style={{ fontSize: '1rem' }}>
+        {isOffline ? '⚠' : '✓'}
       </span>
-      <span>{message}</span>
+      <span>
+        {isOffline
+          ? 'You are currently offline. Station playback and audio uploads require an active connection.'
+          : 'Internet connection restored.'}
+      </span>
     </div>
   );
 }

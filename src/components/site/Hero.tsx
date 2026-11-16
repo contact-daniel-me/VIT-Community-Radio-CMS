@@ -46,9 +46,8 @@ function RotatingHeroHeadline() {
         className={`hero-title hero-title--${headline.id} hero-title--${animState}`}
         lang={headline.lang}
       >
-        <span className="hero-title-line1">{headline.line1}</span>
-        <br />
-        <span className="hero-title-accent">{headline.line2}</span>
+        <span className="hero-title-line hero-title-line--1">{headline.line1}</span>
+        <span className="hero-title-line hero-title-line--2 hero-title-accent">{headline.line2}</span>
       </h1>
     </div>
   );

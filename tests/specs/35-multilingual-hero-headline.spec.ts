@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import * as fs from 'fs';
+import * as path from 'path';
 import { HERO_HEADLINES } from '@/constants/heroHeadlines';
 
 describe('Multilingual Rotating Hero Headline', () => {
@@ -67,5 +69,55 @@ describe('Multilingual Rotating Hero Headline', () => {
     for (let i = 1; i < history.length; i++) {
       expect(history[i]).not.toBe(history[i - 1]);
     }
+  });
+
+  it('verifies all required language transition combinations in the cycle', () => {
+    const requiredTransitions = [
+      ['en', 'ta'],
+      ['ta', 'hi'],
+      ['hi', 'te'],
+      ['te', 'ml'],
+      ['ml', 'en'],
+    ];
+
+    const cyclePairs: [string, string][] = [];
+    for (let i = 0; i < HERO_HEADLINES.length; i++) {
+      const from = HERO_HEADLINES[i].id;
+      const to = HERO_HEADLINES[(i + 1) % HERO_HEADLINES.length].id;
+      cyclePairs.push([from, to]);
+    }
+
+    for (const [from, to] of requiredTransitions) {
+      const found = cyclePairs.some(([f, t]) => f === from && t === to);
+      expect(found).toBe(true);
+    }
+  });
+
+  it('enforces one shared responsive typography scale across all five languages in site.css', () => {
+    const cssPath = path.resolve(__dirname, '../../src/styles/site.css');
+    const css = fs.readFileSync(cssPath, 'utf-8');
+
+    // Shared custom property defined
+    expect(css).toContain('--hero-heading-size:');
+    expect(css).toContain('--hero-heading-lh:');
+
+    // Hero title uses the shared responsive font-size
+    expect(css).toMatch(/\.hero-title\s*\{[^}]*font-size:\s*var\(--hero-heading-size/);
+
+    // No independent font-size scaling per language in multilingual section
+    const multilingualSection = css.substring(css.indexOf('Multilingual Rotating Hero Headline'));
+    expect(multilingualSection).not.toMatch(/\.hero-title--ta\s*\{[^}]*font-size:/);
+    expect(multilingualSection).not.toMatch(/\.hero-title--hi\s*\{[^}]*font-size:/);
+    expect(multilingualSection).not.toMatch(/\.hero-title--te\s*\{[^}]*font-size:/);
+    expect(multilingualSection).not.toMatch(/\.hero-title--ml\s*\{[^}]*font-size:/);
+
+    // Reserved min-height container for layout stability
+    expect(multilingualSection).toContain('min-height: calc(26px + 0.75rem + (2 * var(--hero-heading-lh) * var(--hero-heading-size)))');
+
+    // Font stack includes all necessary fallbacks for Tamil, Devanagari, Telugu, Malayalam
+    expect(multilingualSection).toContain('Noto Sans Tamil');
+    expect(multilingualSection).toContain('Noto Sans Devanagari');
+    expect(multilingualSection).toContain('Noto Sans Telugu');
+    expect(multilingualSection).toContain('Noto Sans Malayalam');
   });
 });

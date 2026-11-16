@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { PublicNowPlayingRow } from '@/types/database';
 import { useSpotifyEmbed } from '@/hooks/useSpotifyEmbed';
 import { useGlobalAudio } from '@/hooks/GlobalAudioContext';
+import { useAudioAnalytics } from '@/hooks/useAudioAnalytics';
 import { SPOTIFY_SHOW_URL } from '@/lib/spotify';
 import { Logo } from './Logo';
 import { Waveform } from './Waveform';
@@ -58,6 +59,24 @@ export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
   const spotifyPlaying = spotifyDrives && spotify.playing;
   
   const active = playing || spotifyPlaying || trackPlaying;
+
+  const audioSourceId = trackDrives
+    ? (globalAudio.currentTrack?.title ?? 'Recorded Episode')
+    : live
+      ? 'live_radio_90.8'
+      : (spotify.meta?.title ?? 'VIT Radio Spotify Show');
+
+  const sourceType = trackDrives
+    ? ('episode' as const)
+    : live
+      ? ('live' as const)
+      : ('podcast' as const);
+
+  const { handleEnded, handleError } = useAudioAnalytics({
+    isPlaying: active,
+    audioSourceId,
+    sourceType,
+  });
   
   let progress = 0;
   if (trackDrives && globalAudio.duration > 0) {
@@ -156,7 +175,15 @@ export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
 
   return (
     <div className={`player ${active ? 'is-playing' : ''}`}>
-      {configured && <audio ref={audioRef} src={STREAM_URL} preload="none" />}
+      {configured && (
+        <audio
+          ref={audioRef}
+          src={STREAM_URL}
+          preload="none"
+          onEnded={handleEnded}
+          onError={() => handleError('Live stream interrupted')}
+        />
+      )}
 
       {/*
         The embed, offstage.

@@ -11,6 +11,7 @@ import { errorMessage } from '@/lib/errors';
 import { can } from '@/lib/permissions';
 import type { ProfileRow, ScriptApproval, ShowLanguage, StudioBookingRow } from '@/types/database';
 import { holidayService, parseHolidaySlots } from '@/services/holidayService';
+import { analyticsService } from '@/services/analyticsService';
 import {
   formatBookingDate,
   formatSlotTime,
@@ -108,6 +109,15 @@ export function BookingDialog({
 
   const [showOverrideConfirm, setShowOverrideConfirm] = useState(false);
   const [overrideConfirmed, setOverrideConfirmed] = useState(false);
+
+  useEffect(() => {
+    void analyticsService.logActivity(
+      'BOOKING_FORM_OPEN',
+      window.location.pathname,
+      `Opened studio booking form for ${slot.date} at ${slot.start}`,
+      { date: slot.date, start_time: slot.start },
+    );
+  }, [slot.date, slot.start]);
 
   const usersList = useAsync(
     () => (isAdmin ? userService.getUsers() : Promise.resolve([] as ProfileRow[])),
@@ -442,6 +452,12 @@ export function BookingDialog({
           },
           profile.id,
         );
+        void analyticsService.logActivity(
+          'BOOKING_SUBMITTED',
+          window.location.pathname,
+          `Submitted studio booking request for ${slotDate} at ${slotStart}`,
+          { date: slotDate, start_time: slotStart, program_id: finalProgramId },
+        );
         setStep('requested');
         notifySave({
           title: 'Booking request sent',
@@ -464,6 +480,12 @@ export function BookingDialog({
           },
           effectiveRjId,
           profile.id,
+        );
+        void analyticsService.logActivity(
+          'BOOKING_SUBMITTED',
+          window.location.pathname,
+          `Created studio booking for ${slotDate} at ${slotStart}`,
+          { date: slotDate, start_time: slotStart, program_id: finalProgramId },
         );
         const bookedShowName =
           customShowTitle.trim() ||

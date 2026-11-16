@@ -22,8 +22,10 @@ describe('schema and constraints', () => {
     );
     expect(rows.map((r) => r.table_name)).toEqual([
       'activity_logs',
+      'analytics_events',
       'announcements',
       'audio_files',
+      'audio_listening_sessions',
       'broadcast_state',
       'episodes',
       'feedback_admin_notes',
@@ -41,8 +43,10 @@ describe('schema and constraints', () => {
       'studio_booking_requests',
       'studio_bookings',
       'studio_holidays',
+      'user_activity_logs',
       'user_badges',
       'user_gamification_adjustments',
+      'visitor_sessions',
     ]);
   });
 

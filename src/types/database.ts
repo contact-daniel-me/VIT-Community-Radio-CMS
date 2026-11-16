@@ -555,6 +555,61 @@ export type PublicEpisodeRow = {
   aired_at: string;
 };
 
+export type DeviceCategory = 'Desktop' | 'Mobile' | 'Tablet';
+
+export type VisitorSessionRow = {
+  id: string;
+  anonymous_session_id: string;
+  user_id: string | null;
+  started_at: string;
+  last_seen_at: string;
+  ended_at: string | null;
+  current_path: string;
+  current_activity: string;
+  device_category: DeviceCategory;
+  traffic_source: string;
+  is_active: boolean;
+  is_listening: boolean;
+  metadata: Record<string, unknown>;
+};
+
+export type UserActivityLogRow = {
+  id: string;
+  user_id: string | null;
+  anonymous_session_id: string | null;
+  event_name: string;
+  page_path: string;
+  activity_description: string;
+  event_metadata: Record<string, unknown>;
+  created_at: string;
+};
+
+export type ListeningStatus = 'active' | 'paused' | 'completed' | 'stopped' | 'error' | 'expired';
+
+export type AudioListeningSessionRow = {
+  id: string;
+  user_id: string | null;
+  anonymous_session_id: string;
+  audio_source_id: string;
+  source_type: 'live' | 'episode' | 'podcast';
+  started_at: string;
+  last_heartbeat_at: string;
+  ended_at: string | null;
+  total_listening_seconds: number;
+  listening_status: ListeningStatus;
+  device_category: string;
+};
+
+export type AnalyticsEventRow = {
+  id: string;
+  session_id: string;
+  user_id: string | null;
+  event_name: string;
+  event_timestamp: string;
+  event_metadata: Record<string, unknown>;
+  idempotency_key: string | null;
+};
+
 /** Columns the database fills in itself are optional on insert. */
 type Insertable<Row, Required extends keyof Row> = Pick<Row, Required> &
   Partial<Omit<Row, Required>>;
@@ -565,6 +620,62 @@ type NoWrites = Record<string, never>;
 export type Database = {
   public: {
     Tables: {
+      visitor_sessions: {
+        Row: VisitorSessionRow;
+        Insert: Insertable<VisitorSessionRow, 'anonymous_session_id'>;
+        Update: Partial<VisitorSessionRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'visitor_sessions_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      user_activity_logs: {
+        Row: UserActivityLogRow;
+        Insert: Insertable<UserActivityLogRow, 'event_name'>;
+        Update: Partial<UserActivityLogRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'user_activity_logs_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      audio_listening_sessions: {
+        Row: AudioListeningSessionRow;
+        Insert: Insertable<AudioListeningSessionRow, 'anonymous_session_id' | 'audio_source_id'>;
+        Update: Partial<AudioListeningSessionRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'audio_listening_sessions_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      analytics_events: {
+        Row: AnalyticsEventRow;
+        Insert: Insertable<AnalyticsEventRow, 'session_id' | 'event_name'>;
+        Update: Partial<AnalyticsEventRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'analytics_events_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
       profiles: {
         Row: ProfileRow;
         Insert: Insertable<ProfileRow, 'id' | 'full_name' | 'email'>;
@@ -1079,6 +1190,77 @@ export type Database = {
           synced: number;
           total: number;
         };
+      };
+      cleanup_stale_analytics_sessions: {
+        Args: Record<PropertyKey, never>;
+        Returns: void;
+      };
+      record_heartbeat: {
+        Args: {
+          p_anonymous_session_id: string;
+          p_current_path?: string;
+          p_current_activity?: string;
+          p_device_category?: string;
+          p_is_listening?: boolean;
+          p_traffic_source?: string;
+          p_metadata?: Json;
+        };
+        Returns: string;
+      };
+      record_user_activity: {
+        Args: {
+          p_event_name: string;
+          p_page_path?: string;
+          p_activity_description?: string;
+          p_anonymous_session_id?: string | null;
+          p_metadata?: Json;
+          p_idempotency_key?: string | null;
+        };
+        Returns: string;
+      };
+      audio_heartbeat: {
+        Args: {
+          p_session_id: string | null;
+          p_anonymous_session_id: string;
+          p_audio_source_id: string;
+          p_source_type: string;
+          p_seconds_increment: number;
+          p_status: string;
+          p_device_category?: string;
+        };
+        Returns: string;
+      };
+      get_analytics_overview: {
+        Args: {
+          p_start_date: string;
+          p_end_date: string;
+        };
+        Returns: Json;
+      };
+      get_live_visitors: {
+        Args: Record<PropertyKey, never>;
+        Returns: Json;
+      };
+      get_audio_analytics: {
+        Args: {
+          p_start_date: string;
+          p_end_date: string;
+        };
+        Returns: Json;
+      };
+      get_booking_analytics: {
+        Args: {
+          p_start_date: string;
+          p_end_date: string;
+        };
+        Returns: Json;
+      };
+      get_traffic_audience_analytics: {
+        Args: {
+          p_start_date: string;
+          p_end_date: string;
+        };
+        Returns: Json;
       };
     };
     Enums: {

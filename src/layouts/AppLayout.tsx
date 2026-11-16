@@ -10,6 +10,7 @@ interface NavItem {
   to: string;
   label: string;
   visible: (role: UserRole) => boolean;
+  hasIcon?: boolean;
 }
 
 /**
@@ -18,6 +19,7 @@ interface NavItem {
  */
 const NAV: NavItem[] = [
   { to: '/dashboard', label: 'Dashboard', visible: () => true },
+  { to: '/admin/analytics', label: 'Analytics', visible: (role) => can.viewAnalytics(role), hasIcon: true },
   { to: '/studio/book', label: 'Studio', visible: () => true },
   { to: '/bookings', label: 'Bookings', visible: () => true },
   { to: '/admin/episodes', label: 'Episodes', visible: () => true },
@@ -71,6 +73,24 @@ export function AppLayout() {
         <div className="app-nav-inner">
           {NAV.filter((item) => item.visible(profile.role)).map((item) => (
             <NavLink key={item.to} to={item.to} end>
+              {item.hasIcon && (
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ marginRight: '5px', verticalAlign: '-1px' }}
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="20" x2="18" y2="10" />
+                  <line x1="12" y1="20" x2="12" y2="4" />
+                  <line x1="6" y1="20" x2="6" y2="14" />
+                </svg>
+              )}
               {item.label}
             </NavLink>
           ))}

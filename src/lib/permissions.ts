@@ -72,6 +72,8 @@ export const can = {
   manageFeedback: (role: UserRole): boolean => role === 'ADMIN',
 
   viewStorage: (role: UserRole): boolean => role === 'ADMIN',
+
+  viewAnalytics: (role: UserRole): boolean => role === 'ADMIN',
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {

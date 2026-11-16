@@ -35,11 +35,13 @@ const HolidaysPage = lazy(() => import('@/pages/HolidaysPage').then(m => ({ defa
 const FeedbackPage = lazy(() => import('@/pages/FeedbackPage').then(m => ({ default: m.FeedbackPage })));
 const AdminFeedbackPage = lazy(() => import('@/pages/AdminFeedbackPage').then(m => ({ default: m.AdminFeedbackPage })));
 const StoragePage = lazy(() => import('@/pages/StoragePage').then(m => ({ default: m.StoragePage })));
+const AnalyticsPage = lazy(() => import('@/pages/admin/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })));
 
 import { GlobalAudioProvider } from '@/hooks/GlobalAudioContext';
 import { PwaProvider } from '@/context/PwaProvider';
 import { SuccessFeedbackProvider } from '@/context/SuccessFeedbackProvider';
 import { PwaUpdateToast, OfflineIndicator } from '@/components/pwa';
+import { AnalyticsTracker } from '@/components/analytics/AnalyticsTracker';
 
 function RequireAuth({ children }: { children: React.ReactElement }) {
   const { session, profile, loading } = useAuth();
@@ -114,6 +116,7 @@ export default function App() {
       <AuthProvider>
         <PwaProvider>
           <BrowserRouter>
+            <AnalyticsTracker />
             <SuccessFeedbackProvider>
               <Suspense fallback={<Loading label="Loading..." />}>
                 <Routes>
@@ -208,6 +211,14 @@ export default function App() {
                   element={
                     <RequireRole allow={can.viewStorage}>
                       <StoragePage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="admin/analytics"
+                  element={
+                    <RequireRole allow={can.viewAnalytics}>
+                      <AnalyticsPage />
                     </RequireRole>
                   }
                 />

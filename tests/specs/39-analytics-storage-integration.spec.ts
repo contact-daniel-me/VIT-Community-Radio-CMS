@@ -24,6 +24,19 @@ describe('CMS Navigation Restructuring: Storage & Feedback Integrated into Analy
       expect(appLayoutContent).toMatch(/to:\s*['"]\/admin\/analytics['"]/);
       expect(appLayoutContent).toMatch(/label:\s*['"]Analytics['"]/);
     });
+
+    it('positions Analytics after Holidays at the end of the NAV list', () => {
+      const appLayoutContent = fs.readFileSync(
+        path.join(rootDir, 'src/layouts/AppLayout.tsx'),
+        'utf-8',
+      );
+
+      const holidaysIdx = appLayoutContent.indexOf("to: '/admin/holidays'");
+      const analyticsIdx = appLayoutContent.indexOf("to: '/admin/analytics'");
+
+      expect(holidaysIdx).toBeGreaterThan(0);
+      expect(analyticsIdx).toBeGreaterThan(holidaysIdx);
+    });
   });
 
   describe('2. Analytics Center Tabs Structure & Order', () => {

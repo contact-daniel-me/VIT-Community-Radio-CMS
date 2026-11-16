@@ -1601,7 +1601,8 @@
 }
 
 .auth-card form {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1.25rem;
 }
 
@@ -1613,7 +1614,7 @@
   margin-bottom: 0.4rem;
 }
 
-.auth-card input {
+.auth-card input:not(.auth-input) {
   width: 100%;
   padding: 0.85rem 1rem;
   border: 1px solid var(--line-strong);
@@ -1624,10 +1625,10 @@
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.auth-card input:focus {
+.auth-card input:not(.auth-input):focus {
   outline: none;
-  border-color: var(--brand-red);
-  box-shadow: 0 0 0 3px var(--accent-wash);
+  border-color: var(--brand-navy, #2e3192);
+  box-shadow: 0 0 0 3px rgba(46, 49, 146, 0.15);
 }
 
 .auth-card .password-wrap {

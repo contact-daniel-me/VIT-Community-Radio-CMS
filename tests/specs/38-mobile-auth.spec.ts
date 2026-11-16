@@ -65,15 +65,31 @@ describe('Mobile Sign In & Sign Up Responsive UI & Zero Overflow', () => {
     expect(desktopSection).toMatch(/\.auth-aside-title\s*\{[^}]*font-size:\s*3\.5rem/);
   });
 
-  it('provides an accessible theme switcher for both mobile top bar and desktop main card', () => {
-    // Mobile theme switcher in aside top bar
-    expect(authCss).toMatch(/\.auth-theme-mobile\s*\{[^}]*display:\s*flex/);
-    expect(authShell).toContain('auth-theme-mobile');
+  it('provides an accessible theme switcher completely visible within the viewport', () => {
+    // Theme switcher is anchored in auth-card-topbar inside the bounded card
+    expect(authShell).toContain('auth-card-topbar');
+    expect(authShell).toContain('auth-theme-wrap');
+    expect(authCss).toMatch(/\.auth-card-topbar\s*\{[^}]*display:\s*flex/);
+    expect(authCss).toMatch(/\.auth-card-topbar\s*\{[^}]*justify-content:\s*space-between/);
+    expect(authCss).toMatch(/\.auth-theme-wrap\s*\{[^}]*display:\s*flex/);
+  });
 
-    // Desktop theme switcher in main container
-    const desktopSection = authCss.substring(authCss.indexOf('@media (min-width: 960px)'));
-    expect(desktopSection).toMatch(/\.auth-theme-desktop\s*\{[^}]*display:\s*flex\s*!important/);
-    expect(desktopSection).toMatch(/\.auth-theme-mobile\s*\{[^}]*display:\s*none\s*!important/);
+  it('prevents input icon and placeholder overlap with generous left padding', () => {
+    // Left padding must be at least 2.75rem / 44px to clear the 18px icon at left: 0.95rem
+    expect(authCss).toMatch(/\.auth-input\s*\{[^}]*padding:[^;]*2\.85rem/);
+    expect(authCss).toMatch(/\.auth-input-icon\s*\{[^}]*position:\s*absolute/);
+  });
+
+  it('applies red border only when genuine validation error exists, using neutral navy focus normally', () => {
+    // Normal focus must NOT use red border
+    const focusMatch = authCss.match(/\.auth-input:focus\s*\{[^}]*border-color:\s*([^;]+);/);
+    expect(focusMatch).toBeTruthy();
+    expect(focusMatch![1]).not.toContain('red');
+    expect(focusMatch![1]).toContain('--brand-navy');
+
+    // Validation error must apply red border
+    expect(authCss).toMatch(/\.auth-input\.has-error[^{]*\{[^}]*border-color:\s*var\(--brand-red/);
+    expect(authCss).toMatch(/\.auth-input\[aria-invalid="true"\][^{]*\{[^}]*border-color:\s*var\(--brand-red/);
   });
 
   it('ensures authentication form uses full available width with comfortable touch inputs', () => {
@@ -103,15 +119,15 @@ describe('Mobile Sign In & Sign Up Responsive UI & Zero Overflow', () => {
   });
 
   it('applies the consistent responsive layout to both LoginPage and RegisterPage', () => {
-    // LoginPage uses AuthShell and new responsive form classes
+    // LoginPage uses AuthShell and responsive form classes
     expect(loginPage).toContain('<AuthShell');
-    expect(loginPage).toContain('className="auth-input"');
+    expect(loginPage).toContain('auth-input');
     expect(loginPage).toContain('className="auth-submit-btn');
     expect(loginPage).toContain('className="auth-password-toggle');
 
-    // RegisterPage uses AuthShell and new responsive form classes
+    // RegisterPage uses AuthShell and responsive form classes
     expect(registerPage).toContain('<AuthShell');
-    expect(registerPage).toContain('className="auth-input"');
+    expect(registerPage).toContain('auth-input');
     expect(registerPage).toContain('className="auth-submit-btn');
     expect(registerPage).toContain('className="auth-password-toggle');
   });

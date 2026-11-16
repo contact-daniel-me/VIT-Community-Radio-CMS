@@ -13,6 +13,9 @@ export function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const activeError = error ?? authError;
+  const hasError = Boolean(activeError);
+
   if (loading) return <Loading label="Checking your session..." />;
   if (session && profile) return <Navigate to="/dashboard" replace />;
 
@@ -70,10 +73,14 @@ export function LoginPage() {
               type="email"
               autoComplete="username"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (error) setError(null);
+              }}
               placeholder="vitcr@vit.ac.in"
               required
-              className="auth-input"
+              aria-invalid={hasError && !email.trim()}
+              className={`auth-input ${hasError && !email.trim() ? 'has-error' : ''}`}
             />
           </div>
         </div>
@@ -94,10 +101,14 @@ export function LoginPage() {
               type={showPassword ? 'text' : 'password'}
               autoComplete="current-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error) setError(null);
+              }}
               placeholder="••••••••••••"
               required
-              className="auth-input auth-input-password"
+              aria-invalid={hasError}
+              className={`auth-input auth-input-password ${hasError ? 'has-error' : ''}`}
             />
             <button
               type="button"

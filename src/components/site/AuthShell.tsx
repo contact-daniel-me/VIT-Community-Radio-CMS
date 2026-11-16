@@ -51,14 +51,11 @@ export function AuthShell({
   return (
     <div className="auth-wrap">
       <aside className="auth-aside">
-        {/* Top bar with Logo and Mobile Theme Toggle */}
+        {/* Top bar with Logo */}
         <div className="auth-aside-topbar">
           <Link to="/" aria-label="VIT Community Radio, home" className="auth-logo-link">
             <Logo size={40} />
           </Link>
-          <div className="auth-theme-mobile">
-            <ThemeToggle theme={theme} setTheme={setTheme} />
-          </div>
         </div>
 
         {/* Branding Body */}
@@ -102,15 +99,15 @@ export function AuthShell({
       </aside>
 
       <main className="auth-main">
-        {/* Working Light / Dark theme toggle — top right on desktop */}
-        <div className="auth-theme-desktop">
-          <ThemeToggle theme={theme} setTheme={setTheme} />
-        </div>
-
         <div className="auth-card">
-          <Link to="/" className="auth-back">
-            &larr; Back to the station
-          </Link>
+          <div className="auth-card-topbar">
+            <Link to="/" className="auth-back">
+              &larr; Back to the station
+            </Link>
+            <div className="auth-theme-wrap">
+              <ThemeToggle theme={theme} setTheme={setTheme} />
+            </div>
+          </div>
           <h1 className="auth-title">{title}</h1>
           <p className="auth-sub">{subtitle}</p>
           {children}

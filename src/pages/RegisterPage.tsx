@@ -141,10 +141,14 @@ export function RegisterPage() {
               id="r-name"
               autoComplete="name"
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onChange={(e) => {
+                setFullName(e.target.value);
+                if (error) setError(null);
+              }}
               placeholder="Your name"
               required
-              className="auth-input"
+              aria-invalid={Boolean(error && fullName.trim().length < 2)}
+              className={`auth-input ${error && fullName.trim().length < 2 ? 'has-error' : ''}`}
             />
           </div>
         </div>
@@ -165,10 +169,14 @@ export function RegisterPage() {
               type="email"
               autoComplete="username"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (error) setError(null);
+              }}
               placeholder="your@email.com"
               required
-              className="auth-input"
+              aria-invalid={Boolean(error && !email.includes('@'))}
+              className={`auth-input ${error && !email.includes('@') ? 'has-error' : ''}`}
             />
           </div>
         </div>
@@ -189,10 +197,14 @@ export function RegisterPage() {
               type={showPassword ? 'text' : 'password'}
               autoComplete="new-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error) setError(null);
+              }}
               placeholder={`At least ${MIN_PASSWORD} characters`}
               required
-              className="auth-input auth-input-password"
+              aria-invalid={Boolean(error && password.length < MIN_PASSWORD)}
+              className={`auth-input auth-input-password ${error && password.length < MIN_PASSWORD ? 'has-error' : ''}`}
             />
             <button
               type="button"

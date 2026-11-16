@@ -13,6 +13,7 @@
   min-height: 100vh;
   background: var(--bg);
   color: var(--ink);
+  overflow-x: hidden;
   /* Room for the fixed player, which measures 85-87px with the transport and
      the meter stacked. Kept ahead of that so the footer never sits under it. */
   padding-bottom: 104px;
@@ -5999,12 +6000,25 @@
   /* Unified responsive font scale sized for the longest translation across all viewports */
   --hero-heading-size: clamp(2.15rem, 4.2vw, 3.45rem);
   --hero-heading-lh: 1.16;
+  /* Positional adjustments for hero radio box (moved 28px right, 12px downward) */
+  --hero-radio-shift-x: 28px;
+  --hero-radio-shift-y: 12px;
+}
+
+@media (max-width: 1200px) {
+  :root {
+    --hero-radio-shift-x: clamp(14px, 2vw, 24px);
+    --hero-radio-shift-y: 12px;
+  }
 }
 
 @media (max-width: 1040px) {
   :root {
     --hero-heading-size: clamp(2.1rem, 5.2vw, 3.2rem);
     --hero-heading-lh: 1.16;
+    /* In single-column tablet/mobile view, center horizontally without overflow */
+    --hero-radio-shift-x: 0px;
+    --hero-radio-shift-y: 12px;
   }
 }
 
@@ -6147,5 +6161,11 @@
     transition: opacity 0.3s ease !important;
     transform: none !important;
   }
+}
+
+/* Precise positional adjustment for hero radio box (moved 28px right and 12px downward) */
+.hero-live .retro-radio-wrapper {
+  transform: translate(var(--hero-radio-shift-x, 28px), var(--hero-radio-shift-y, 12px));
+  transition: transform 0.25s ease;
 }
 

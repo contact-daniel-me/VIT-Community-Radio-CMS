@@ -120,4 +120,22 @@ describe('Multilingual Rotating Hero Headline', () => {
     expect(multilingualSection).toContain('Noto Sans Telugu');
     expect(multilingualSection).toContain('Noto Sans Malayalam');
   });
+
+  it('adjusts hero radio box position 25-30px right and 10-15px downward with responsive stability', () => {
+    const cssPath = path.resolve(__dirname, '../../src/styles/site.css');
+    const css = fs.readFileSync(cssPath, 'utf-8');
+
+    // Radio box shift variables defined
+    expect(css).toContain('--hero-radio-shift-x: 28px');
+    expect(css).toContain('--hero-radio-shift-y: 12px');
+
+    // Rule applied to .hero-live .retro-radio-wrapper
+    expect(css).toMatch(/\.hero-live\s+\.retro-radio-wrapper\s*\{[^}]*transform:\s*translate\(var\(--hero-radio-shift-x/);
+
+    // Responsive adaptation: resets horizontal shift to 0px on tablets/mobile (<= 1040px)
+    expect(css).toMatch(/@media\s*\(max-width:\s*1040px\)\s*\{[^}]*--hero-radio-shift-x:\s*0px/);
+
+    // .site has overflow-x: hidden to prevent horizontal scrollbar on any viewport
+    expect(css).toMatch(/\.site\s*\{[^}]*overflow-x:\s*hidden/);
+  });
 });

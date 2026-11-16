@@ -84,9 +84,7 @@ export function AnalyticsPage() {
   const [trafficData, setTrafficData] = useState<TrafficAudienceData | null>(null);
 
   const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   // Calculate actual ISO date bounds based on preset
   const getDateBounds = useCallback(() => {
@@ -157,14 +155,11 @@ export function AnalyticsPage() {
   const fetchData = useCallback(
     async (silent = false) => {
       if (activeTab === 'storage' || activeTab === 'feedback' || activeTab === 'activity') {
-        setLastUpdated(new Date());
         return;
       }
 
       const hasData = hasDataForCurrentTab();
-      if (silent || hasData) {
-        setIsRefreshing(true);
-      } else {
+      if (!silent && !hasData) {
         setLoading(true);
       }
 
@@ -194,7 +189,6 @@ export function AnalyticsPage() {
         }
 
         setError(null);
-        setLastUpdated(new Date());
       } catch (err) {
         console.error('Analytics load error:', err);
         if (!hasData) {
@@ -202,7 +196,6 @@ export function AnalyticsPage() {
         }
       } finally {
         setLoading(false);
-        setIsRefreshing(false);
       }
     },
     [activeTab, getDateBounds, hasDataForCurrentTab, overviewData]
@@ -318,37 +311,6 @@ export function AnalyticsPage() {
             />
           </div>
         )}
-
-        <div className="analytics-refresh-row" aria-live="polite">
-          <span className="analytics-last-updated">
-            Updated: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-          </span>
-          <button
-            type="button"
-            className={`analytics-refresh-btn ${isRefreshing ? 'is-refreshing' : ''}`}
-            onClick={() => void fetchData(true)}
-            disabled={isRefreshing}
-            title={isRefreshing ? 'Updating metrics in background…' : 'Refresh analytics data'}
-            aria-label="Refresh analytics data"
-          >
-            <svg
-              className={`analytics-refresh-icon ${isRefreshing ? 'is-spinning' : ''}`}
-              viewBox="0 0 24 24"
-              width="13"
-              height="13"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-            </svg>
-            <span>Refresh</span>
-            {isRefreshing && <span className="analytics-refresh-dot" aria-hidden="true" />}
-          </button>
-        </div>
       </div>
 
       {/* 9 Sub-Tabs Navigation */}

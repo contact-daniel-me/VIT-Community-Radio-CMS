@@ -121,8 +121,8 @@ describe('CMS Navigation Restructuring: Storage & Feedback Integrated into Analy
     });
   });
 
-  describe('3. Subtle Non-Blocking Refresh UX', () => {
-    it('uses a non-blocking background refresh mechanism without disruptive Refreshing... text button', () => {
+  describe('3. Silent Background Refresh UX', () => {
+    it('uses a completely silent background polling mechanism without intrusive on-screen refresh buttons or timestamps', () => {
       const analyticsPageContent = fs.readFileSync(
         path.join(rootDir, 'src/pages/admin/AnalyticsPage.tsx'),
         'utf-8',
@@ -131,14 +131,13 @@ describe('CMS Navigation Restructuring: Storage & Feedback Integrated into Analy
       // Verify no "Refreshing..." text button
       expect(analyticsPageContent).not.toMatch(/['"]Refreshing\.\.\.['"]/);
 
-      // Verify isRefreshing state is present for subtle animation
-      expect(analyticsPageContent).toContain('isRefreshing');
+      // Verify no visible refresh row or button distracting users
+      expect(analyticsPageContent).not.toContain('analytics-refresh-row');
+      expect(analyticsPageContent).not.toContain('analytics-refresh-btn');
 
-      // Verify subtle refresh icon and last-updated timestamp
-      expect(analyticsPageContent).toContain('analytics-refresh-row');
-      expect(analyticsPageContent).toContain('analytics-last-updated');
-      expect(analyticsPageContent).toContain('analytics-refresh-btn');
-      expect(analyticsPageContent).toContain('is-spinning');
+      // Verify background interval continues to refresh silently
+      expect(analyticsPageContent).toContain('window.setInterval');
+      expect(analyticsPageContent).toContain('fetchData(true)');
     });
   });
 

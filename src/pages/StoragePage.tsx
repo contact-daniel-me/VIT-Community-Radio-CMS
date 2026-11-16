@@ -1,14 +1,10 @@
-import { PageHeader } from '@/components/ui';
-import { StorageHealthCard } from '@/components/admin/StorageHealthCard';
+import { Navigate } from 'react-router-dom';
 
+/**
+ * Storage section is now integrated into the Analytics Center under the "Storage" tab.
+ * Preserves legacy route compatibility by redirecting seamlessly.
+ */
 export function StoragePage() {
-  return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-      <PageHeader
-        title="Storage & Infrastructure"
-        description="Live observability, reconciliation, and health monitoring for the Supabase + Cloudflare R2 hybrid storage architecture."
-      />
-      <StorageHealthCard />
-    </div>
-  );
+  return <Navigate to="/admin/analytics?tab=storage" replace />;
 }
+

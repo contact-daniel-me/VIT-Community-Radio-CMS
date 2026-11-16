@@ -34,7 +34,6 @@ const LeaderboardPage = lazy(() => import('@/pages/LeaderboardPage').then(m => (
 const HolidaysPage = lazy(() => import('@/pages/HolidaysPage').then(m => ({ default: m.HolidaysPage })));
 const FeedbackPage = lazy(() => import('@/pages/FeedbackPage').then(m => ({ default: m.FeedbackPage })));
 const AdminFeedbackPage = lazy(() => import('@/pages/AdminFeedbackPage').then(m => ({ default: m.AdminFeedbackPage })));
-const StoragePage = lazy(() => import('@/pages/StoragePage').then(m => ({ default: m.StoragePage })));
 const AnalyticsPage = lazy(() => import('@/pages/admin/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })));
 
 import { GlobalAudioProvider } from '@/hooks/GlobalAudioContext';
@@ -210,7 +209,7 @@ export default function App() {
                   path="admin/storage"
                   element={
                     <RequireRole allow={can.viewStorage}>
-                      <StoragePage />
+                      <Navigate to="/admin/analytics?tab=storage" replace />
                     </RequireRole>
                   }
                 />

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/ui';
 import {
   analyticsService,
@@ -14,6 +15,7 @@ import { UserActivityTab } from '@/components/admin/analytics/UserActivityTab';
 import { AudioAnalyticsTab } from '@/components/admin/analytics/AudioAnalyticsTab';
 import { BookingAnalyticsTab } from '@/components/admin/analytics/BookingAnalyticsTab';
 import { TrafficAudienceTab } from '@/components/admin/analytics/TrafficAudienceTab';
+import { StorageTab } from '@/components/admin/analytics/StorageTab';
 import { ReportsTab } from '@/components/admin/analytics/ReportsTab';
 import { UserTimelineModal } from '@/components/admin/analytics/UserTimelineModal';
 import '@/styles/analytics.css';
@@ -25,12 +27,39 @@ export type AnalyticsTab =
   | 'audio'
   | 'booking'
   | 'traffic'
+  | 'storage'
   | 'reports';
 
 export type DateRangePreset = 'today' | 'yesterday' | '7d' | '30d' | '90d' | 'custom';
 
+const VALID_TABS: AnalyticsTab[] = [
+  'overview',
+  'live',
+  'activity',
+  'audio',
+  'booking',
+  'traffic',
+  'storage',
+  'reports',
+];
+
 export function AnalyticsPage() {
-  const [activeTab, setActiveTab] = useState<AnalyticsTab>('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') as AnalyticsTab | null;
+  const activeTab: AnalyticsTab = tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'overview';
+
+  const handleTabChange = useCallback((newTab: AnalyticsTab) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (newTab === 'overview') {
+        next.delete('tab');
+      } else {
+        next.set('tab', newTab);
+      }
+      return next;
+    });
+  }, [setSearchParams]);
+
   const [preset, setPreset] = useState<DateRangePreset>('30d');
   const [customStart, setCustomStart] = useState<string>(() => {
     const d = new Date();
@@ -258,19 +287,19 @@ export function AnalyticsPage() {
         </div>
       </div>
 
-      {/* 7 Sub-Tabs Navigation */}
+      {/* 8 Sub-Tabs Navigation */}
       <nav className="analytics-tabs" aria-label="Analytics sub-tabs">
         <button
           type="button"
           className={`analytics-tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
-          onClick={() => setActiveTab('overview')}
+          onClick={() => handleTabChange('overview')}
         >
           Overview
         </button>
         <button
           type="button"
           className={`analytics-tab-btn ${activeTab === 'live' ? 'active' : ''}`}
-          onClick={() => setActiveTab('live')}
+          onClick={() => handleTabChange('live')}
         >
           <span className="live-pulse-dot" style={{ width: '7px', height: '7px' }} />
           Live Visitors
@@ -278,35 +307,42 @@ export function AnalyticsPage() {
         <button
           type="button"
           className={`analytics-tab-btn ${activeTab === 'activity' ? 'active' : ''}`}
-          onClick={() => setActiveTab('activity')}
+          onClick={() => handleTabChange('activity')}
         >
           User Activity
         </button>
         <button
           type="button"
           className={`analytics-tab-btn ${activeTab === 'audio' ? 'active' : ''}`}
-          onClick={() => setActiveTab('audio')}
+          onClick={() => handleTabChange('audio')}
         >
           Audio Analytics
         </button>
         <button
           type="button"
           className={`analytics-tab-btn ${activeTab === 'booking' ? 'active' : ''}`}
-          onClick={() => setActiveTab('booking')}
+          onClick={() => handleTabChange('booking')}
         >
           Booking Analytics
         </button>
         <button
           type="button"
           className={`analytics-tab-btn ${activeTab === 'traffic' ? 'active' : ''}`}
-          onClick={() => setActiveTab('traffic')}
+          onClick={() => handleTabChange('traffic')}
         >
           Traffic & Audience
         </button>
         <button
           type="button"
+          className={`analytics-tab-btn ${activeTab === 'storage' ? 'active' : ''}`}
+          onClick={() => handleTabChange('storage')}
+        >
+          Storage
+        </button>
+        <button
+          type="button"
           className={`analytics-tab-btn ${activeTab === 'reports' ? 'active' : ''}`}
-          onClick={() => setActiveTab('reports')}
+          onClick={() => handleTabChange('reports')}
         >
           Reports
         </button>
@@ -363,6 +399,10 @@ export function AnalyticsPage() {
           error={error}
           onRetry={fetchData}
         />
+      )}
+
+      {activeTab === 'storage' && (
+        <StorageTab />
       )}
 
       {activeTab === 'reports' && (

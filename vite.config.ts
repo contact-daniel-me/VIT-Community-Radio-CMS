@@ -82,6 +82,27 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     },
+    build: {
+      target: 'es2020',
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+                return 'vendor-react';
+              }
+              if (id.includes('@supabase') || id.includes('postgrest-js')) {
+                return 'vendor-supabase';
+              }
+              if (id.includes('canvas-confetti') || id.includes('idb')) {
+                return 'vendor-utils';
+              }
+            }
+          },
+        },
+      },
+      chunkSizeWarningLimit: 600,
+    },
     server: { host: true, port: 5173 },
     test: {
       include: ['tests/specs/**/*.spec.ts'],

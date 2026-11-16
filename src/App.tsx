@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/AuthProvider';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,30 +10,33 @@ import type { UserRole } from '@/types/database';
 
 import { HomePage } from '@/pages/HomePage';
 import { LoginPage } from '@/pages/LoginPage';
-import { RegisterPage } from '@/pages/RegisterPage';
-import { DashboardPage } from '@/pages/DashboardPage';
-import { ProgramsPage } from '@/pages/ProgramsPage';
-import { EpisodesPage } from '@/pages/EpisodesPage';
-import { EpisodeDetailPage } from '@/pages/EpisodeDetailPage';
-import { QcPage } from '@/pages/QcPage';
-import { SchedulePage } from '@/pages/SchedulePage';
-import { AudioLibraryPage } from '@/pages/AudioLibraryPage';
-import { UsersPage } from '@/pages/UsersPage';
-import { SettingsPage } from '@/pages/SettingsPage';
-import { StudioPublicPage } from '@/pages/StudioPublicPage';
-import { SchedulePublicPage } from '@/pages/SchedulePublicPage';
-import { AboutPublicPage } from '@/pages/AboutPublicPage';
-import { EpisodesPublicPage } from '@/pages/EpisodesPublicPage';
-import { StudioPage } from '@/pages/StudioPage';
-import { MyBookingsPage } from '@/pages/MyBookingsPage';
-import { AnnouncementsPage } from '@/pages/AnnouncementsPage';
+
+// Route-level code splitting: secondary & admin pages loaded dynamically
+const RegisterPage = lazy(() => import('@/pages/RegisterPage').then(m => ({ default: m.RegisterPage })));
+const DashboardPage = lazy(() => import('@/pages/DashboardPage').then(m => ({ default: m.DashboardPage })));
+const ProgramsPage = lazy(() => import('@/pages/ProgramsPage').then(m => ({ default: m.ProgramsPage })));
+const EpisodesPage = lazy(() => import('@/pages/EpisodesPage').then(m => ({ default: m.EpisodesPage })));
+const EpisodeDetailPage = lazy(() => import('@/pages/EpisodeDetailPage').then(m => ({ default: m.EpisodeDetailPage })));
+const QcPage = lazy(() => import('@/pages/QcPage').then(m => ({ default: m.QcPage })));
+const SchedulePage = lazy(() => import('@/pages/SchedulePage').then(m => ({ default: m.SchedulePage })));
+const AudioLibraryPage = lazy(() => import('@/pages/AudioLibraryPage').then(m => ({ default: m.AudioLibraryPage })));
+const UsersPage = lazy(() => import('@/pages/UsersPage').then(m => ({ default: m.UsersPage })));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const StudioPublicPage = lazy(() => import('@/pages/StudioPublicPage').then(m => ({ default: m.StudioPublicPage })));
+const SchedulePublicPage = lazy(() => import('@/pages/SchedulePublicPage').then(m => ({ default: m.SchedulePublicPage })));
+const AboutPublicPage = lazy(() => import('@/pages/AboutPublicPage').then(m => ({ default: m.AboutPublicPage })));
+const EpisodesPublicPage = lazy(() => import('@/pages/EpisodesPublicPage').then(m => ({ default: m.EpisodesPublicPage })));
+const StudioPage = lazy(() => import('@/pages/StudioPage').then(m => ({ default: m.StudioPage })));
+const MyBookingsPage = lazy(() => import('@/pages/MyBookingsPage').then(m => ({ default: m.MyBookingsPage })));
+const AnnouncementsPage = lazy(() => import('@/pages/AnnouncementsPage').then(m => ({ default: m.AnnouncementsPage })));
+const BadgesPage = lazy(() => import('@/pages/BadgesPage').then(m => ({ default: m.BadgesPage })));
+const LeaderboardPage = lazy(() => import('@/pages/LeaderboardPage').then(m => ({ default: m.LeaderboardPage })));
+const HolidaysPage = lazy(() => import('@/pages/HolidaysPage').then(m => ({ default: m.HolidaysPage })));
+const FeedbackPage = lazy(() => import('@/pages/FeedbackPage').then(m => ({ default: m.FeedbackPage })));
+const AdminFeedbackPage = lazy(() => import('@/pages/AdminFeedbackPage').then(m => ({ default: m.AdminFeedbackPage })));
+const StoragePage = lazy(() => import('@/pages/StoragePage').then(m => ({ default: m.StoragePage })));
+
 import { GlobalAudioProvider } from '@/hooks/GlobalAudioContext';
-import { BadgesPage } from '@/pages/BadgesPage';
-import { LeaderboardPage } from '@/pages/LeaderboardPage';
-import { HolidaysPage } from '@/pages/HolidaysPage';
-import { FeedbackPage } from '@/pages/FeedbackPage';
-import { AdminFeedbackPage } from '@/pages/AdminFeedbackPage';
-import { StoragePage } from '@/pages/StoragePage';
 import { PwaProvider } from '@/context/PwaProvider';
 import { SuccessFeedbackProvider } from '@/context/SuccessFeedbackProvider';
 import { PwaUpdateToast, OfflineIndicator } from '@/components/pwa';
@@ -111,104 +115,106 @@ export default function App() {
         <PwaProvider>
           <BrowserRouter>
             <SuccessFeedbackProvider>
-              <Routes>
-              {/* Public: anyone can reach these, signed in or not. */}
-            <Route path="/" element={<HomePage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            {/* Public: anyone can see studio availability. Booking inside it still
-                requires a session, and the database still decides. */}
-            <Route path="/studio" element={<StudioPublicPage />} />
-            <Route path="/schedule" element={<SchedulePublicPage />} />
-            <Route path="/about" element={<AboutPublicPage />} />
-            <Route path="/episodes" element={<EpisodesPublicPage />} />
-            <Route path="/leaderboard" element={<LeaderboardPage />} />
+              <Suspense fallback={<Loading label="Loading..." />}>
+                <Routes>
+                {/* Public: anyone can reach these, signed in or not. */}
+              <Route path="/" element={<HomePage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              {/* Public: anyone can see studio availability. Booking inside it still
+                  requires a session, and the database still decides. */}
+              <Route path="/studio" element={<StudioPublicPage />} />
+              <Route path="/schedule" element={<SchedulePublicPage />} />
+              <Route path="/about" element={<AboutPublicPage />} />
+              <Route path="/episodes" element={<EpisodesPublicPage />} />
+              <Route path="/leaderboard" element={<LeaderboardPage />} />
 
-            {/* Everything below requires a session AND an active profile. */}
-            <Route
-              element={
-                <RequireAuth>
-                  <AppLayout />
-                </RequireAuth>
-              }
-            >
-              <Route path="dashboard" element={<DashboardPage />} />
+              {/* Everything below requires a session AND an active profile. */}
               <Route
-                path="programs"
                 element={
-                  <RequireRole allow={can.manageProgram}>
-                    <ProgramsPage />
-                  </RequireRole>
+                  <RequireAuth>
+                    <AppLayout />
+                  </RequireAuth>
                 }
-              />
-              <Route path="admin/episodes" element={<EpisodesPage />} />
-              <Route path="admin/episodes/:episodeId" element={<EpisodeDetailPage />} />
-              <Route path="qc" element={<QcPage />} />
-              <Route
-                path="schedule/edit"
-                element={
-                  <RequireRole allow={can.schedule}>
-                    <SchedulePage />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="audio"
-                element={
-                  <RequireRole allow={can.viewAudioLibrary}>
-                    <AudioLibraryPage />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="users"
-                element={
-                  <RequireRole allow={can.manageUsers}>
-                    <UsersPage />
-                  </RequireRole>
-                }
-              />
+              >
+                <Route path="dashboard" element={<DashboardPage />} />
+                <Route
+                  path="programs"
+                  element={
+                    <RequireRole allow={can.manageProgram}>
+                      <ProgramsPage />
+                    </RequireRole>
+                  }
+                />
+                <Route path="admin/episodes" element={<EpisodesPage />} />
+                <Route path="admin/episodes/:episodeId" element={<EpisodeDetailPage />} />
+                <Route path="qc" element={<QcPage />} />
+                <Route
+                  path="schedule/edit"
+                  element={
+                    <RequireRole allow={can.schedule}>
+                      <SchedulePage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="audio"
+                  element={
+                    <RequireRole allow={can.viewAudioLibrary}>
+                      <AudioLibraryPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="users"
+                  element={
+                    <RequireRole allow={can.manageUsers}>
+                      <UsersPage />
+                    </RequireRole>
+                  }
+                />
 
-              <Route path="studio/book" element={<StudioPage />} />
-              <Route path="bookings" element={<MyBookingsPage />} />
-              <Route
-                path="admin/holidays"
-                element={
-                  <RequireRole allow={can.manageHolidays}>
-                    <HolidaysPage />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="announcements"
-                element={
-                  <RequireRole allow={can.manageAnnouncements}>
-                    <AnnouncementsPage />
-                  </RequireRole>
-                }
-              />
-              <Route path="settings" element={<SettingsPage />} />
-              <Route path="badges" element={<BadgesPage />} />
-              <Route path="feedback" element={<FeedbackPage />} />
-              <Route
-                path="admin/feedback"
-                element={
-                  <RequireRole allow={can.manageFeedback}>
-                    <AdminFeedbackPage />
-                  </RequireRole>
-                }
-              />
-              <Route
-                path="admin/storage"
-                element={
-                  <RequireRole allow={can.viewStorage}>
-                    <StoragePage />
-                  </RequireRole>
-                }
-              />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Route>
-          </Routes>
+                <Route path="studio/book" element={<StudioPage />} />
+                <Route path="bookings" element={<MyBookingsPage />} />
+                <Route
+                  path="admin/holidays"
+                  element={
+                    <RequireRole allow={can.manageHolidays}>
+                      <HolidaysPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="announcements"
+                  element={
+                    <RequireRole allow={can.manageAnnouncements}>
+                      <AnnouncementsPage />
+                    </RequireRole>
+                  }
+                />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="badges" element={<BadgesPage />} />
+                <Route path="feedback" element={<FeedbackPage />} />
+                <Route
+                  path="admin/feedback"
+                  element={
+                    <RequireRole allow={can.manageFeedback}>
+                      <AdminFeedbackPage />
+                    </RequireRole>
+                  }
+                />
+                <Route
+                  path="admin/storage"
+                  element={
+                    <RequireRole allow={can.viewStorage}>
+                      <StoragePage />
+                    </RequireRole>
+                  }
+                />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Route>
+            </Routes>
+          </Suspense>
           <PwaUpdateToast />
           <OfflineIndicator />
             </SuccessFeedbackProvider>

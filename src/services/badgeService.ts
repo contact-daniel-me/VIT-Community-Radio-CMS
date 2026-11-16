@@ -302,13 +302,34 @@ export const badgeService = {
   },
 
   async awardFirstSignIn(userId: string): Promise<void> {
+    if (!userId) return;
+    const sessionKey = `badge_awarded_first_signal_${userId}`;
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage?.getItem(sessionKey)) {
+        return;
+      }
+    } catch {
+      // sessionStorage restricted or unavailable
+    }
+
     const { error } = await supabase
       .from('user_badges')
-      .insert({ user_id: userId, badge_key: 'first-signal' });
+      .upsert(
+        { user_id: userId, badge_key: 'first-signal' },
+        { onConflict: 'user_id,badge_key', ignoreDuplicates: true },
+      );
     
     // Ignore conflict errors since it just means they already have it
     if (error && error.code !== '23505') {
       console.error('Failed to award first sign-in badge:', error);
+    } else {
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage?.setItem(sessionKey, '1');
+        }
+      } catch {
+        // no-op
+      }
     }
   },
 };

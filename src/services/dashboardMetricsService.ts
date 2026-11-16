@@ -19,37 +19,78 @@ export interface ExpiringRawAudio {
   days_remaining: number;
 }
 
+interface CachedEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+let metricsCache: CachedEntry<DashboardMetrics> | null = null;
+const rjMetricsCache = new Map<string, CachedEntry<DashboardMetrics>>();
+const METRICS_CACHE_TTL_MS = 20_000; // 20s cache
+
 export const dashboardMetricsService = {
-  async getMetrics(): Promise<DashboardMetrics> {
-    return unwrap(
+  async getMetrics(forceRefresh = false): Promise<DashboardMetrics> {
+    const now = Date.now();
+    if (!forceRefresh && metricsCache && now - metricsCache.timestamp < METRICS_CACHE_TTL_MS) {
+      return metricsCache.data;
+    }
+
+    const data = await unwrap(
       supabase.rpc('get_dashboard_metrics').returns<DashboardMetrics>()
     );
+
+    metricsCache = { data, timestamp: now };
+    return data;
   },
 
-  async getRJMetrics(userId: string): Promise<DashboardMetrics> {
-    // 1. QC Done
-    const qcDone = await supabase.from('episodes').select('id', { count: 'exact', head: true }).eq('created_by', userId).eq('status', 'APPROVED');
-    
-    // 2. Final Upload (has final audio but not approved)
-    const finalUpload = await supabase.from('episodes').select('id', { count: 'exact', head: true }).eq('created_by', userId).not('final_audio_file_id', 'is', null).neq('status', 'APPROVED');
-    
-    // 3. Audio Upload (has audio but no final audio, not approved)
-    const audioUpload = await supabase.from('episodes').select('id', { count: 'exact', head: true }).eq('created_by', userId).not('audio_file_id', 'is', null).is('final_audio_file_id', null).neq('status', 'APPROVED');
-    
-    // 4. Booked (confirmed/completed studio bookings by this RJ)
-    const booked = await supabase.from('studio_bookings').select('id', { count: 'exact', head: true }).eq('rj_id', userId).in('status', ['CONFIRMED', 'COMPLETED']);
+  async getRJMetrics(userId: string, forceRefresh = false): Promise<DashboardMetrics> {
+    const now = Date.now();
+    const cached = rjMetricsCache.get(userId);
+    if (!forceRefresh && cached && now - cached.timestamp < METRICS_CACHE_TTL_MS) {
+      return cached.data;
+    }
 
-    return {
+    // Run independent metric count queries in parallel rather than sequential waterfalls
+    const [qcDone, finalUpload, audioUpload, booked] = await Promise.all([
+      supabase
+        .from('episodes')
+        .select('id', { count: 'exact', head: true })
+        .eq('created_by', userId)
+        .eq('status', 'APPROVED'),
+      supabase
+        .from('episodes')
+        .select('id', { count: 'exact', head: true })
+        .eq('created_by', userId)
+        .not('final_audio_file_id', 'is', null)
+        .neq('status', 'APPROVED'),
+      supabase
+        .from('episodes')
+        .select('id', { count: 'exact', head: true })
+        .eq('created_by', userId)
+        .not('audio_file_id', 'is', null)
+        .is('final_audio_file_id', null)
+        .neq('status', 'APPROVED'),
+      supabase
+        .from('studio_bookings')
+        .select('id', { count: 'exact', head: true })
+        .eq('rj_id', userId)
+        .in('status', ['CONFIRMED', 'COMPLETED']),
+    ]);
+
+    const data: DashboardMetrics = {
       pipeline: {
         booked: booked.count || 0,
-        approved: 0, // Not heavily used for RJ in isolation this way
+        approved: 0,
         audio_upload: audioUpload.count || 0,
         final_upload: finalUpload.count || 0,
         qc_done: qcDone.count || 0,
       },
-      todays_slots: 0, // RJs don't manage the global schedule
-      pending_qc: 0, // RJs do not review pending QC
+      todays_slots: 0,
+      pending_qc: 0,
     };
+
+    rjMetricsCache.set(userId, { data, timestamp: now });
+    return data;
   },
 
   async getExpiringRawAudio(): Promise<ExpiringRawAudio[]> {

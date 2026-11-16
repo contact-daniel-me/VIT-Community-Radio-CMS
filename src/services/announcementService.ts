@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type { AnnouncementRow, AnnouncementStatus } from '@/types/database';
 import { AppError } from '@/lib/errors';
+import { broadcastService } from '@/services/broadcastService';
 
 export type AnnouncementWithAuthor = AnnouncementRow & {
   author: {
@@ -44,11 +45,11 @@ export function computeAnnouncementLifecycleStatus(
 export const announcementService = {
   /**
    * Run atomic server-side lifecycle transitions for announcements & episodes.
-   * Graceful no-op when offline or called without an authenticated session.
+   * Uses throttled circuit breaker to avoid 404 spam when RPC is not in remote schema cache.
    */
   async syncLifecycle(): Promise<void> {
     try {
-      await supabase.rpc('sync_content_lifecycle');
+      await broadcastService.syncContentLifecycle();
     } catch {
       // Non-fatal: UI still computes accurate fallback state from persisted timestamps
     }

@@ -3,6 +3,7 @@ import { AppError, assertWritten, toAppError } from '@/lib/errors';
 import { unwrap } from '@/lib/query';
 import type { AudioFileRow, EpisodeRow, EpisodeStatus, ScheduleRow } from '@/types/database';
 import { r2Service } from '@/services/r2Service';
+import { broadcastService } from '@/services/broadcastService';
 
 /** An episode with the joined bits every list and detail screen needs. */
 export interface EpisodeWithRelations extends EpisodeRow {
@@ -38,6 +39,7 @@ export interface EpisodeFilters {
   mineOnly?: string;
   search?: string;
   limit?: number;
+  offset?: number;
 }
 
 export type EpisodeStatusCounts = Record<EpisodeStatus | 'ALL' | 'RAW_AUDIO', number>;
@@ -67,7 +69,11 @@ export const episodeService = {
       const term = filters.search.trim();
       query = query.or(`title.ilike.%${term}%,episode_id.ilike.%${term}%`);
     }
-    if (filters.limit) query = query.limit(filters.limit);
+    if (typeof filters.offset === 'number' && filters.offset >= 0 && filters.limit) {
+      query = query.range(filters.offset, filters.offset + filters.limit - 1);
+    } else if (filters.limit) {
+      query = query.limit(filters.limit);
+    }
 
     return unwrap(query.returns<EpisodeWithRelations[]>());
   },
@@ -306,8 +312,8 @@ export const episodeService = {
   /** Synchronize due scheduled releases, overdue broadcasts, and expired content on the backend. */
   async syncContentLifecycle(): Promise<void> {
     await Promise.allSettled([
-      supabase.rpc('sync_content_lifecycle', {}),
-      supabase.rpc('sync_broadcast_state'),
+      broadcastService.syncContentLifecycle(),
+      broadcastService.syncBroadcastState(),
     ]);
   },
 

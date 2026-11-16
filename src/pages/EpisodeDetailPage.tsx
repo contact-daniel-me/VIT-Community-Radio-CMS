@@ -8,6 +8,7 @@ import {
   Banner,
   ConfirmButton,
   Empty,
+  FunnyLoading,
   Loading,
   PageHeader,
   PublishStatusBadge,
@@ -453,15 +454,13 @@ export function EpisodeDetailPage() {
                           </div>
                         )}
                         {uploading && rawFile && (
-                          <div style={{ marginTop: '0.5rem', width: '100%', maxWidth: '360px' }}>
-                            <div className="row align-center justify-between" style={{ fontSize: '0.82rem', marginBottom: '0.25rem' }}>
-                              <span className="small muted">Uploading raw audio...</span>
-                              <span className="small font-mono">{uploadProgress !== null ? `${uploadProgress}%` : 'Processing...'}</span>
-                            </div>
-                            <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--surface-sunken, #e5e5e5)', borderRadius: '3px', overflow: 'hidden' }}>
-                              <div style={{ width: `${uploadProgress ?? 0}%`, height: '100%', backgroundColor: 'var(--brand-red, #D32F2F)', transition: 'width 0.2s ease' }} />
-                            </div>
-                          </div>
+                          <FunnyLoading
+                            variant="upload"
+                            label="Uploading raw audio..."
+                            progress={uploadProgress}
+                            isProcessing={uploadProgress === 100}
+                            style={{ width: '100%', maxWidth: '380px' }}
+                          />
                         )}
                       </div>
                     )}
@@ -572,15 +571,13 @@ export function EpisodeDetailPage() {
                           </div>
                         )}
                         {uploading && finalFile && (
-                          <div style={{ marginTop: '0.5rem', width: '100%', maxWidth: '360px' }}>
-                            <div className="row align-center justify-between" style={{ fontSize: '0.82rem', marginBottom: '0.25rem' }}>
-                              <span className="small muted">Uploading final audio...</span>
-                              <span className="small font-mono">{uploadProgress !== null ? `${uploadProgress}%` : 'Processing...'}</span>
-                            </div>
-                            <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--surface-sunken, #e5e5e5)', borderRadius: '3px', overflow: 'hidden' }}>
-                              <div style={{ width: `${uploadProgress ?? 0}%`, height: '100%', backgroundColor: 'var(--brand-red, #D32F2F)', transition: 'width 0.2s ease' }} />
-                            </div>
-                          </div>
+                          <FunnyLoading
+                            variant="upload"
+                            label="Uploading final broadcast audio..."
+                            progress={uploadProgress}
+                            isProcessing={uploadProgress === 100}
+                            style={{ width: '100%', maxWidth: '380px' }}
+                          />
                         )}
                       </div>
                     )}

@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { StudioCalendar, StudioDayList } from '@/components/studio/StudioCalendar';
 import { BookingDialog } from '@/components/studio/BookingDialog';
 import { BookingNotesDialog } from '@/components/studio/BookingNotesDialog';
-import { UnifiedStatusBadge } from '@/components/ui';
+import { FunnyLoading, UnifiedStatusBadge } from '@/components/ui';
 import { bookingService, type BookingWithPeople } from '@/services/bookingService';
 import { can } from '@/lib/permissions';
 import type { CalendarSlot } from '@/utils/studio';
@@ -274,7 +274,7 @@ export function StudioAvailability({ showHeading = true }: { showHeading?: boole
                 ))}
               </div>
             ))}
-            <p className="loading">Loading studio availability&hellip;</p>
+            <FunnyLoading variant="inline" label="Loading studio availability..." category="radio" />
           </div>
         ) : week.error ? (
           <p className="section-empty" style={{ padding: '1.6rem 1.1rem' }}>

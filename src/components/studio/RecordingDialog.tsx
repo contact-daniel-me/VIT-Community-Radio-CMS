@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Banner } from '@/components/ui';
+import { Banner, FunnyLoading } from '@/components/ui';
 import { useAsync } from '@/hooks/useAsync';
 import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import { bookingService, type BookingWithPeople } from '@/services/bookingService';
@@ -258,14 +258,15 @@ export function RecordingDialog({
                     {file.name} &middot; {formatFileSize(file.size)}
                   </p>
                 )}
-                <p className="small muted">MP3 only. Maximum file size: 50 MB.</p>
+                <p className="small muted">MP3 only. Maximum file size: 100 MB.</p>
               </div>
 
               {stage === 'working' && (
-                <p className="upload-progress" role="status">
-                  <span className="upload-spinner" aria-hidden="true" />
-                  {progress}
-                </p>
+                <FunnyLoading
+                  variant="upload"
+                  label={progress || 'Uploading studio recording…'}
+                  category="upload"
+                />
               )}
 
               <div className="dialog-actions">

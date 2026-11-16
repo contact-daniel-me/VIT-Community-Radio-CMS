@@ -4,6 +4,9 @@ import type {
   EpisodeStatus,
   ScheduleStatus,
 } from '@/types/database';
+import { FunnyLoading, type FunnyLoadingProps } from './ui/FunnyLoading';
+
+export { FunnyLoading, type FunnyLoadingProps };
 
 export function Banner({
   kind = 'error',
@@ -20,12 +23,8 @@ export function Banner({
   );
 }
 
-export function Loading({ label = 'Loading...' }: { label?: string }) {
-  return (
-    <p className="loading" role="status">
-      {label}
-    </p>
-  );
+export function Loading(props: FunnyLoadingProps) {
+  return <FunnyLoading {...props} />;
 }
 
 export function Empty({ children }: { children: ReactNode }) {

@@ -37,6 +37,7 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
       audioRef.current = new Audio();
       try {
         audioRef.current.crossOrigin = 'anonymous';
+        audioRef.current.preload = 'none';
       } catch {
         // no-op if browser restricts crossOrigin attribute assignment
       }
@@ -130,6 +131,7 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
     try {
       const url = await audioService.getPlaybackUrl(track.storage_path);
       if (audioRef.current) {
+        audioRef.current.preload = 'metadata';
         audioRef.current.src = url;
       }
     } catch (e) {

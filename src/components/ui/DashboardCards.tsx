@@ -1,6 +1,58 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
+export function MetricCardSkeleton() {
+  return (
+    <div
+      className="card fade-in"
+      style={{
+        padding: '1.25rem',
+        flex: 1,
+        minWidth: '160px',
+        display: 'flex',
+        gap: '1rem',
+        alignItems: 'center',
+        background: 'var(--color-bg-subtle, #f8f9fa)',
+      }}
+      aria-hidden="true"
+    >
+      <div
+        style={{
+          width: '40px',
+          height: '40px',
+          borderRadius: '8px',
+          background: 'var(--line, #e2e8f0)',
+          opacity: 0.6,
+        }}
+        className="episode-skeleton-line"
+      />
+      <div style={{ flex: 1 }}>
+        <div
+          style={{
+            height: '24px',
+            width: '50px',
+            background: 'var(--line, #e2e8f0)',
+            borderRadius: '4px',
+            marginBottom: '6px',
+            opacity: 0.6,
+          }}
+          className="episode-skeleton-line"
+        />
+        <div
+          style={{
+            height: '12px',
+            width: '90px',
+            background: 'var(--line, #e2e8f0)',
+            borderRadius: '4px',
+            opacity: 0.5,
+          }}
+          className="episode-skeleton-line"
+        />
+      </div>
+    </div>
+  );
+}
+
 export function MetricCard({ title, value, status, icon, to }: { title: string; value: number | string; status?: 'booked' | 'approved' | 'audio' | 'final' | 'qc' | 'total'; icon?: React.ReactNode; to?: string }) {
   let statusClass = 'metric-blue';
   if (status === 'booked') statusClass = 'metric-blue'; // Today's slots

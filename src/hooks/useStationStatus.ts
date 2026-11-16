@@ -4,6 +4,7 @@ import { broadcastService } from '@/services/broadcastService';
 import { scheduleService } from '@/services/scheduleService';
 import { bookingService } from '@/services/bookingService';
 import { stationDay, stationDayRange } from '@/utils/datetime';
+import { dataCache, getNetworkStatus } from '@/lib/dataCache';
 import {
   buildLineup,
   deriveOnAir,
@@ -51,31 +52,42 @@ export interface StationStatus {
  */
 export function useStationStatus(): StationStatus {
   const lineup = useAsync(async () => {
-    // Close any slot whose end time has passed and advance scheduled/expired content
-    // transitions cleanly in a single backend pass before reading state.
-    await Promise.all([
-      broadcastService.syncBroadcastState().catch(() => undefined),
-      broadcastService.syncContentLifecycle().catch(() => undefined),
-    ]);
-
     const day = stationDay();
-    const [schedules, bookings, current] = await Promise.all([
-      scheduleService.getStationDay(day),
-      // A role that cannot read bookings still gets the schedule; the lineup is
-      // simply missing the jockey's name for it.
-      bookingService.getBookingsForDay(day).catch(() => []),
-      broadcastService.getCurrentBroadcast().catch(() => null),
-    ]);
 
-    return { day, slots: buildLineup(schedules, bookings), current };
+    return dataCache.fetch(
+      `station:lineup:${day}`,
+      async () => {
+        // Close any slot whose end time has passed and advance scheduled/expired content
+        // transitions cleanly in a single backend pass before reading state.
+        await Promise.allSettled([
+          broadcastService.syncBroadcastState(),
+          broadcastService.syncContentLifecycle(),
+        ]);
+
+        const [schedules, bookings, current] = await Promise.all([
+          scheduleService.getStationDay(day),
+          // A role that cannot read bookings still gets the schedule; the lineup is
+          // simply missing the jockey's name for it.
+          bookingService.getBookingsForDay(day).catch(() => []),
+          broadcastService.getCurrentBroadcast().catch(() => null),
+        ]);
+
+        return { day, slots: buildLineup(schedules, bookings), current };
+      },
+      { ttlMs: 20_000, staleWhileRevalidate: true },
+    );
   }, []);
 
   const [now, setNow] = useState(() => Date.now());
   const { reload } = lineup;
 
   useEffect(() => {
+    const net = getNetworkStatus();
+    // On slow 2G/3G connections, double the background refresh interval to conserve mobile data
+    const refreshIntervalMs = net.isSlow ? REFRESH_MS * 2 : REFRESH_MS;
+
     const tick = setInterval(() => setNow(Date.now()), TICK_MS);
-    const refresh = setInterval(() => void reload(), REFRESH_MS);
+    const refresh = setInterval(() => void reload(), refreshIntervalMs);
 
     // Coming back to a tab that has been in the background for an hour should
     // show the station as it is now, not as it was when the tab was hidden.

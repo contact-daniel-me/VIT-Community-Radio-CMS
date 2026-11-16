@@ -4,21 +4,20 @@ import { useAsync } from '@/hooks/useAsync';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { useScheduledTransitionRefresh } from '@/hooks/useScheduledTransitionRefresh';
 import { useStationStatus } from '@/hooks/useStationStatus';
-import { Banner, Loading, PublishStatusBadge, UnifiedStatusBadge } from '@/components/ui';
+import { Banner, FunnyLoading, PublishStatusBadge, UnifiedStatusBadge } from '@/components/ui';
 import { AnnouncementsCard } from '@/components/studio/AnnouncementsCard';
 import { qcService, resolveEpisodePublishStatus } from '@/services/qcService';
 import { announcementService, computeAnnouncementLifecycleStatus } from '@/services/announcementService';
-import { episodeService } from '@/services/episodeService';
-import { activityService } from '@/services/activityService';
-import { bookingService } from '@/services/bookingService';
+import { episodeService, type EpisodeWithRelations } from '@/services/episodeService';
+import { bookingService, type BookingWithPeople } from '@/services/bookingService';
 import { scheduleService } from '@/services/scheduleService';
-import { dashboardMetricsService } from '@/services/dashboardMetricsService';
+import { dashboardMetricsService, type DashboardMetrics } from '@/services/dashboardMetricsService';
 import { isStudioTourBooking, slotStartsAt } from '@/utils/studio';
 import { can } from '@/lib/permissions';
 import { formatTime, formatDate, formatDateTime, stationDay } from '@/utils/datetime';
-import { MetricCard, CompactEmptyState, QuickAction, PipelineVisual } from '@/components/ui/DashboardCards';
+import { MetricCard, MetricCardSkeleton, CompactEmptyState, QuickAction, PipelineVisual } from '@/components/ui/DashboardCards';
 import { supabase } from '@/lib/supabase';
-import type { ContentLifecycleBucket } from '@/types/database';
+import type { ContentLifecycleBucket, PublicScheduleRow, AnnouncementRow, ScheduleRow } from '@/types/database';
 
 const CalendarIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>);
 const ClockIcon = () => (<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>);
@@ -37,6 +36,22 @@ function getShowTitle(programName?: string | null, notes?: string | null, episod
   return programName ?? 'Studio Session';
 }
 
+function SectionLoadingSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="stack" style={{ gap: '0.75rem', padding: '0.5rem 0' }} aria-hidden="true">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="row spread align-center" style={{ gap: '1rem' }}>
+          <div style={{ flex: 1 }}>
+            <div className="episode-skeleton-line" style={{ height: '14px', width: '60%', marginBottom: '6px' }} />
+            <div className="episode-skeleton-line" style={{ height: '10px', width: '35%' }} />
+          </div>
+          <div className="episode-skeleton-line" style={{ height: '24px', width: '64px', borderRadius: '4px' }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function DashboardPage() {
   const profile = useCurrentUser();
   const station = useStationStatus();
@@ -45,13 +60,13 @@ export function DashboardPage() {
   >('PUBLISHED');
   const [lifecycleSearch, setLifecycleSearch] = useState('');
 
-  const dashboard = useAsync(async () => {
+  // 1. PRIMARY METRICS & CRITICAL CONTENT (FAST, NON-BLOCKING)
+  const primaryDashboard = useAsync(async () => {
     const today = stationDay();
-    await episodeService.syncContentLifecycle();
+
     const [
       pendingQc,
       recentEpisodes,
-      , // Ignore the activity result
       myBookings,
       metrics,
       expiringAudio,
@@ -59,54 +74,92 @@ export function DashboardPage() {
       todaysSchedule,
       totalEpisodesResult,
       pendingRequests,
-      lifecycleEpisodes,
-      lifecycleAnnouncements,
-      episodeSchedules,
     ] = await Promise.all([
-      can.reviewQC(profile.role) ? qcService.getPendingQC() : Promise.resolve([]),
-      episodeService.getEpisodes({
-        limit: 5,
-        ...(profile.role === 'RJ' ? { mineOnly: profile.id } : {}),
-      }),
-      can.viewFullActivity(profile.role) ? activityService.getRecentActivity(8) : Promise.resolve([]),
+      can.reviewQC(profile.role) ? qcService.getPendingQC().catch(() => []) : Promise.resolve([]),
+      episodeService
+        .getEpisodes({
+          limit: 5,
+          ...(profile.role === 'RJ' ? { mineOnly: profile.id } : {}),
+        })
+        .catch(() => []),
       bookingService.getMyBookings(profile.id).catch(() => []),
-      profile.role === 'RJ' ? dashboardMetricsService.getRJMetrics(profile.id) : dashboardMetricsService.getMetrics(),
-      dashboardMetricsService.getExpiringRawAudio(),
-      bookingService.getUpcomingBookings(5, profile.role === 'RJ' ? profile.id : undefined),
-      can.schedule(profile.role) ? scheduleService.getTodaySchedule(today) : Promise.resolve([]),
-      profile.role === 'RJ' 
-        ? supabase.from('episodes').select('*', { count: 'exact', head: true }).eq('created_by', profile.id)
-        : supabase.from('episodes').select('*', { count: 'exact', head: true }),
-      can.manageProgram(profile.role) ? bookingService.getPendingRequests() : Promise.resolve([]),
-      episodeService.getEpisodes(profile.role === 'RJ' ? { mineOnly: profile.id } : {}),
-      announcementService.getAllAnnouncements().catch(() => []),
-      episodeService.getEpisodeScheduleSummaries(),
+      profile.role === 'RJ'
+        ? dashboardMetricsService.getRJMetrics(profile.id).catch(() => ({
+            pipeline: { booked: 0, approved: 0, audio_upload: 0, final_upload: 0, qc_done: 0 },
+            todays_slots: 0,
+            pending_qc: 0,
+          }))
+        : dashboardMetricsService.getMetrics().catch(() => ({
+            pipeline: { booked: 0, approved: 0, audio_upload: 0, final_upload: 0, qc_done: 0 },
+            todays_slots: 0,
+            pending_qc: 0,
+          })),
+      dashboardMetricsService.getExpiringRawAudio().catch(() => []),
+      bookingService
+        .getUpcomingBookings(5, profile.role === 'RJ' ? profile.id : undefined)
+        .catch(() => []),
+      can.schedule(profile.role)
+        ? scheduleService.getTodaySchedule(today).catch(() => [])
+        : Promise.resolve([]),
+      profile.role === 'RJ'
+        ? supabase
+            .from('episodes')
+            .select('id', { count: 'exact', head: true })
+            .eq('created_by', profile.id)
+            .then((r) => ({ count: r.count || 0 }), () => ({ count: 0 }))
+        : supabase
+            .from('episodes')
+            .select('id', { count: 'exact', head: true })
+            .then((r) => ({ count: r.count || 0 }), () => ({ count: 0 })),
+      can.manageProgram(profile.role) ? bookingService.getPendingRequests().catch(() => []) : Promise.resolve([]),
     ]);
 
     const awaitingUpload = myBookings.filter(
-      (b) => b.status !== 'CANCELLED' && !b.episode_id && !isStudioTourBooking(b) && slotStartsAt(b.booking_date, b.start_time.slice(0, 5)).getTime() <= Date.now()
+      (b: BookingWithPeople) =>
+        b.status !== 'CANCELLED' &&
+        !b.episode_id &&
+        !isStudioTourBooking(b) &&
+        slotStartsAt(b.booking_date, b.start_time.slice(0, 5)).getTime() <= Date.now(),
     );
 
-    const activeUpcoming = upcomingBookings.filter((b) => b.status !== 'CANCELLED');
+    const activeUpcoming = upcomingBookings.filter((b: BookingWithPeople) => b.status !== 'CANCELLED');
 
-    return { 
-      pendingQc, 
-      recentEpisodes, 
-      awaitingUpload, 
-      metrics, 
-      expiringAudio, 
-      upcomingBookings: activeUpcoming, 
+    return {
+      pendingQc,
+      recentEpisodes,
+      awaitingUpload,
+      metrics,
+      expiringAudio,
+      upcomingBookings: activeUpcoming,
       todaysSchedule,
       totalEpisodes: totalEpisodesResult.count || 0,
       pendingRequests,
-      lifecycleEpisodes,
-      lifecycleAnnouncements,
-      episodeSchedules,
     };
   }, [profile.id, profile.role]);
 
+  // 2. CONTENT LIFECYCLE DATA (BOUNDED, LAZILY LOADED & INDEPENDENT)
+  const lifecycleData = useAsync(async () => {
+    // Bounded fetch: max 25 episodes and 20 announcements (instead of unbounded database dump)
+    const [lifecycleEpisodes, lifecycleAnnouncements] = await Promise.all([
+      episodeService
+        .getEpisodes({
+          limit: 25,
+          ...(profile.role === 'RJ' ? { mineOnly: profile.id } : {}),
+        })
+        .catch(() => [] as EpisodeWithRelations[]),
+      announcementService.getAllAnnouncements().catch(() => [] as AnnouncementRow[]),
+    ]);
+
+    const episodeIds = lifecycleEpisodes.map((e) => e.id);
+    const episodeSchedules = await episodeService
+      .getEpisodeScheduleSummaries(episodeIds.length > 0 ? episodeIds : undefined)
+      .catch(() => new Map());
+
+    return { lifecycleEpisodes, lifecycleAnnouncements, episodeSchedules };
+  }, [profile.id, profile.role]);
+
   const lifecycleItems = useMemo(() => {
-    const data = dashboard.data;
+    const data = lifecycleData.data;
     if (!data) return [];
     const now = new Date();
     const items: {
@@ -123,7 +176,8 @@ export function DashboardPage() {
 
     for (const ep of data.lifecycleEpisodes) {
       if (ep.status === 'ARCHIVED') continue;
-      const epSchedules = data.episodeSchedules.get(ep.id) ?? [];
+      const epSchedules: Pick<ScheduleRow, 'id' | 'episode_id' | 'status' | 'start_time' | 'end_time'>[] =
+        data.episodeSchedules.get(ep.id) ?? [];
       const status = resolveEpisodePublishStatus(ep, now, epSchedules);
       if (status === 'ARCHIVED') continue;
       const completedBroadcast = epSchedules.find((s) => s.status === 'COMPLETED');
@@ -162,7 +216,7 @@ export function DashboardPage() {
     }
 
     return items;
-  }, [dashboard.data]);
+  }, [lifecycleData.data]);
 
   const lifecycleCounts = useMemo(() => {
     let draft = 0;
@@ -189,112 +243,244 @@ export function DashboardPage() {
       .filter((item) => !q || item.title.toLowerCase().includes(q) || item.kind.toLowerCase().includes(q));
   }, [lifecycleItems, lifecycleTab, lifecycleSearch]);
 
-
-
   const boundaryTimestamps = useMemo(
     () => lifecycleItems.flatMap((i) => [i.scheduledAt, i.expiresAt]),
     [lifecycleItems],
   );
   useScheduledTransitionRefresh(boundaryTimestamps, () => {
-    void dashboard.reload();
+    void lifecycleData.reload();
   });
 
-  if (dashboard.loading) return <Loading />;
-  if (dashboard.error) return <Banner>{dashboard.error}</Banner>;
-  if (!dashboard.data) return null;
+  const todayStr = new Intl.DateTimeFormat('en-IN', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date());
 
-  const { pendingQc, recentEpisodes, awaitingUpload, metrics, expiringAudio, upcomingBookings, todaysSchedule, totalEpisodes, pendingRequests } = dashboard.data;
-
-  const todayStr = new Intl.DateTimeFormat('en-IN', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }).format(new Date());
+  const isPrimaryLoading = primaryDashboard.loading && !primaryDashboard.data;
+  const metrics: DashboardMetrics = primaryDashboard.data?.metrics ?? {
+    pipeline: { booked: 0, approved: 0, audio_upload: 0, final_upload: 0, qc_done: 0 },
+    todays_slots: 0,
+    pending_qc: 0,
+  };
+  const awaitingUpload = primaryDashboard.data?.awaitingUpload ?? [];
+  const upcomingBookings = primaryDashboard.data?.upcomingBookings ?? [];
+  const todaysSchedule = primaryDashboard.data?.todaysSchedule ?? [];
+  const pendingRequests = primaryDashboard.data?.pendingRequests ?? [];
+  const recentEpisodes = primaryDashboard.data?.recentEpisodes ?? [];
+  const pendingQc = primaryDashboard.data?.pendingQc ?? [];
+  const expiringAudio = primaryDashboard.data?.expiringAudio ?? [];
+  const totalEpisodes = primaryDashboard.data?.totalEpisodes ?? 0;
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+      {/* HEADER: Renders synchronously with 0ms delay */}
       <div className="row spread align-center wrap" style={{ gap: '1.5rem', marginBottom: '2rem' }}>
         <div>
-          <h1 style={{ margin: '0 0 0.25rem', fontSize: '2rem', fontWeight: 800 }}>Good day, {profile.full_name.split(' ')[0]}</h1>
-          <p className="muted" style={{ margin: 0, fontSize: '1.05rem' }}>Here's what's happening at VIT Community Radio today.</p>
+          <h1 style={{ margin: '0 0 0.25rem', fontSize: '2rem', fontWeight: 800 }}>
+            Good day, {profile.full_name.split(' ')[0]}
+          </h1>
+          <p className="muted" style={{ margin: 0, fontSize: '1.05rem' }}>
+            Here's what's happening at VIT Community Radio today.
+          </p>
         </div>
         <div className="row align-center wrap" style={{ gap: '2rem' }}>
           <div className="row align-center" style={{ gap: '0.75rem', color: 'var(--ink-muted)' }}>
-            <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.8 }}>
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>
+            <svg
+              width="46"
+              height="46"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ opacity: 0.8 }}
+            >
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
             </svg>
             <div style={{ textAlign: 'left' }}>
               <div style={{ fontWeight: 600, fontSize: '1.05rem', color: 'var(--ink)' }}>{todayStr}</div>
               <div className="small">{formatTime(new Date().toISOString())} (IST)</div>
             </div>
           </div>
-          <div style={{ fontStyle: 'italic', color: 'var(--ink-muted)', fontSize: '1.05rem', borderLeft: '2px solid var(--line)', paddingLeft: '1.5rem', textAlign: 'left' }}>
-            "Radio connects hearts"<br/>
+          <div
+            style={{
+              fontStyle: 'italic',
+              color: 'var(--ink-muted)',
+              fontSize: '1.05rem',
+              borderLeft: '2px solid var(--line)',
+              paddingLeft: '1.5rem',
+              textAlign: 'left',
+            }}
+          >
+            "Radio connects hearts"
+            <br />
             <span style={{ fontSize: '0.85rem' }}>– VIT Community Radio</span>
           </div>
         </div>
       </div>
 
-      <Banner>{station.error}</Banner>
+      {station.error && <Banner>{station.error}</Banner>}
+      {primaryDashboard.error && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <Banner>
+            Some dashboard metrics could not be loaded. Showing cached status.{' '}
+            <button
+              type="button"
+              onClick={() => void primaryDashboard.reload()}
+              style={{ textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              Retry
+            </button>
+          </Banner>
+        </div>
+      )}
 
+      {/* UPLOAD NUDGE */}
       {awaitingUpload.length > 0 && (
-        <section className="card upload-nudge metric-pink" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <section
+          className="card upload-nudge metric-pink"
+          style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        >
           <div>
-            <h2 style={{ margin: 0, marginBottom: '0.25rem' }}>{awaitingUpload.length === 1 ? 'One session is waiting for its recording' : `${awaitingUpload.length} sessions are waiting for their recordings`}</h2>
+            <h2 style={{ margin: 0, marginBottom: '0.25rem' }}>
+              {awaitingUpload.length === 1
+                ? 'One session is waiting for its recording'
+                : `${awaitingUpload.length} sessions are waiting for their recordings`}
+            </h2>
             <p className="small" style={{ opacity: 0.9, margin: 0 }}>
-              {awaitingUpload.slice(0, 3).map((b) => `${getShowTitle(b.program?.name, b.notes)} (${b.reference})`).join(', ')}
+              {awaitingUpload
+                .slice(0, 3)
+                .map((b: BookingWithPeople) => `${getShowTitle(b.program?.name, b.notes)} (${b.reference})`)
+                .join(', ')}
               {awaitingUpload.length > 3 ? ' and more' : ''}
             </p>
           </div>
-          <Link to="/bookings" className="button primary">Upload audio</Link>
+          <Link to="/bookings" className="button primary">
+            Upload audio
+          </Link>
         </section>
       )}
 
-      {/* 1. METRICS ROW */}
+      {/* 1. METRICS ROW: Progressive Skeletons -> Data */}
       <section className="row wrap spread" style={{ gap: '1rem', marginBottom: '2rem' }}>
-        <MetricCard title="Today's Slots" value={metrics.todays_slots} status="booked" icon={<CalendarIcon />} to="/bookings" />
-        {can.manageProgram(profile.role) && (
-          <MetricCard title="Pending Requests" value={pendingRequests.length} status="qc" icon={<ClockIcon />} to="/bookings" />
+        {isPrimaryLoading ? (
+          <>
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+            <MetricCardSkeleton />
+          </>
+        ) : (
+          <>
+            <MetricCard
+              title="Today's Slots"
+              value={metrics.todays_slots}
+              status="booked"
+              icon={<CalendarIcon />}
+              to="/bookings"
+            />
+            {can.manageProgram(profile.role) && (
+              <MetricCard
+                title="Pending Requests"
+                value={pendingRequests.length}
+                status="qc"
+                icon={<ClockIcon />}
+                to="/bookings"
+              />
+            )}
+            <MetricCard
+              title="Pending QC"
+              value={metrics.pending_qc}
+              status="approved"
+              icon={<ClockIcon />}
+              to={can.reviewQC(profile.role) ? '/qc' : '/admin/episodes'}
+            />
+            <MetricCard
+              title="Final Uploaded"
+              value={metrics.pipeline.final_upload}
+              status="final"
+              icon={<CloudUploadIcon />}
+              to="/admin/episodes"
+            />
+            <MetricCard
+              title="QC Done"
+              value={metrics.pipeline.qc_done}
+              status="qc"
+              icon={<CheckCircleIcon />}
+              to="/admin/episodes"
+            />
+            <MetricCard
+              title="Total Episodes"
+              value={totalEpisodes}
+              status="total"
+              icon={<PodcastIcon />}
+              to="/admin/episodes"
+            />
+          </>
         )}
-        <MetricCard title="Pending QC" value={metrics.pending_qc} status="approved" icon={<ClockIcon />} to={can.reviewQC(profile.role) ? "/qc" : "/admin/episodes"} />
-        <MetricCard title="Final Uploaded" value={metrics.pipeline.final_upload} status="final" icon={<CloudUploadIcon />} to="/admin/episodes" />
-        <MetricCard title="QC Done" value={metrics.pipeline.qc_done} status="qc" icon={<CheckCircleIcon />} to="/admin/episodes" />
-        <MetricCard title="Total Episodes" value={totalEpisodes} status="total" icon={<PodcastIcon />} to="/admin/episodes" />
       </section>
 
-      {/* 2. MIDDLE GRID — three independent columns, each card sizes to its own content */}
+      {/* 2. MIDDLE GRID — Announcements & Pipeline */}
       <div className="dash-cols" style={{ marginBottom: '2rem' }}>
-
-        {/* LEFT COLUMN */}
         <div className="dash-col">
           <AnnouncementsCard />
-         </div>
-
-        {/* CENTER COLUMN */}
-        <div className="dash-col dash-col--wide">
-          <PipelineVisual metrics={metrics.pipeline} />
         </div>
-
+        <div className="dash-col dash-col--wide">
+          {isPrimaryLoading ? (
+            <div className="card" style={{ padding: '1.5rem', minHeight: '140px' }}>
+              <div className="episode-skeleton-line" style={{ height: '20px', width: '35%', marginBottom: '1.5rem' }} />
+              <SectionLoadingSkeleton rows={2} />
+            </div>
+          ) : (
+            <PipelineVisual metrics={metrics.pipeline} />
+          )}
+        </div>
       </div>
 
       {/* 3. BOTTOM GRID (Schedule | Bookings | QC & Episodes) */}
       <div className="grid grid-dashboard-bottom" style={{ gap: '1.5rem', marginBottom: '2rem' }}>
-        
-        {/* COLUMN 1 */}
+        {/* COLUMN 1: Schedule & Quick Actions */}
         <div className="stack" style={{ gap: '1.5rem' }}>
-          {/* TODAY'S SCHEDULE - ADMIN ONLY */}
           {can.schedule(profile.role) && (
             <section className="card fade-in" style={{ flex: 1 }}>
               <div className="row spread align-center" style={{ marginBottom: '1rem' }}>
                 <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Today's Schedule</h2>
-                <Link to="/schedule" className="muted small" style={{ fontWeight: 600, textDecoration: 'none' }}>View full schedule →</Link>
+                <Link to="/schedule" className="muted small" style={{ fontWeight: 600, textDecoration: 'none' }}>
+                  View full schedule →
+                </Link>
               </div>
-              {todaysSchedule.length === 0 ? (
+              {isPrimaryLoading ? (
+                <SectionLoadingSkeleton rows={3} />
+              ) : todaysSchedule.length === 0 ? (
                 <CompactEmptyState message="Nothing scheduled today." actionText="Book a studio slot" actionLink="/bookings" />
               ) : (
                 <div className="stack" style={{ gap: '0.25rem' }}>
-                  {todaysSchedule.slice(0, 5).map(slot => (
-                    <div key={slot.id} className="row spread align-center list-item small" style={{ padding: '0.75rem 0' }}>
+                  {todaysSchedule.slice(0, 5).map((slot: PublicScheduleRow) => (
+                    <div
+                      key={slot.id}
+                      className="row spread align-center list-item small"
+                      style={{ padding: '0.75rem 0' }}
+                    >
                       <div style={{ flex: 1 }}>
-                        <div className="muted small" style={{ marginBottom: '0.2rem' }}>{formatTime(slot.start_time)} – {formatTime(slot.end_time)}</div>
-                        <strong style={{ display: 'block', fontSize: '0.95rem' }}>{slot.program_name ?? 'Live Broadcast'}</strong>
-                        {slot.episode_title && <div className="muted small" style={{ marginTop: '0.2rem' }}>{slot.episode_title}</div>}
+                        <div className="muted small" style={{ marginBottom: '0.2rem' }}>
+                          {formatTime(slot.start_time)} – {formatTime(slot.end_time)}
+                        </div>
+                        <strong style={{ display: 'block', fontSize: '0.95rem' }}>
+                          {slot.program_name ?? 'Live Broadcast'}
+                        </strong>
+                        {slot.episode_title && (
+                          <div className="muted small" style={{ marginTop: '0.2rem' }}>
+                            {slot.episode_title}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -310,30 +496,45 @@ export function DashboardPage() {
               <QuickAction to="/bookings" label="Book Studio" icon={<CalendarIcon />} colorClass="metric-red" />
               <QuickAction to="/bookings" label="Upload Audio" icon={<CloudUploadIcon />} colorClass="metric-pink" />
               <QuickAction to="/admin/episodes" label="Final Uploaded" icon={<FolderIcon />} colorClass="metric-pink" />
-              {can.reviewQC(profile.role) && <QuickAction to="/admin/qc" label="Review QC" icon={<CheckCircleIcon />} colorClass="metric-green" /> }
-              <QuickAction to="/admin/episodes" label="Audio Library" icon={<FolderIcon />} colorClass="metric-blue" />
+              {can.reviewQC(profile.role) && (
+                <QuickAction to="/qc" label="Review QC" icon={<CheckCircleIcon />} colorClass="metric-green" />
+              )}
+              <QuickAction to="/audio" label="Audio Library" icon={<FolderIcon />} colorClass="metric-blue" />
               <QuickAction to="/admin/episodes" label="Manage Episodes" icon={<MusicIcon />} colorClass="metric-purple" />
             </div>
           </section>
         </div>
 
-        {/* COLUMN 2 */}
+        {/* COLUMN 2: Upcoming Bookings */}
         <div className="stack" style={{ gap: '1.5rem' }}>
-          {/* UPCOMING BOOKINGS */}
           <section className="card fade-in" style={{ flex: 1 }}>
             <div className="row spread align-center" style={{ marginBottom: '1rem' }}>
               <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Upcoming Bookings</h2>
-              <Link to="/bookings" className="muted small" style={{ fontWeight: 600, textDecoration: 'none' }}>View all →</Link>
+              <Link to="/bookings" className="muted small" style={{ fontWeight: 600, textDecoration: 'none' }}>
+                View all →
+              </Link>
             </div>
-            {upcomingBookings.length === 0 ? (
+            {isPrimaryLoading ? (
+              <SectionLoadingSkeleton rows={4} />
+            ) : upcomingBookings.length === 0 ? (
               <CompactEmptyState message="No upcoming bookings." />
             ) : (
               <div className="stack" style={{ gap: '0.25rem' }}>
-                {upcomingBookings.map(b => (
-                  <div key={b.id} className="row spread align-center list-item small" style={{ padding: '0.75rem 0' }}>
+                {upcomingBookings.map((b: BookingWithPeople) => (
+                  <div
+                    key={b.id}
+                    className="row spread align-center list-item small"
+                    style={{ padding: '0.75rem 0' }}
+                  >
                     <div style={{ flex: 1, minWidth: 0, paddingRight: '0.75rem' }}>
-                      <div className="muted small" style={{ marginBottom: '0.2rem' }}>{formatDate(b.booking_date)} &middot; {formatTime(b.booking_date + 'T' + b.start_time)} – {formatTime(b.booking_date + 'T' + b.end_time)}</div>
-                      <strong style={{ display: 'block', fontSize: '0.95rem' }}>{getShowTitle(b.program?.name, b.notes, b.episode?.title)}</strong>
+                      <div className="muted small" style={{ marginBottom: '0.2rem' }}>
+                        {formatDate(b.booking_date)} &middot;{' '}
+                        {formatTime(b.booking_date + 'T' + b.start_time)} –{' '}
+                        {formatTime(b.booking_date + 'T' + b.end_time)}
+                      </div>
+                      <strong style={{ display: 'block', fontSize: '0.95rem' }}>
+                        {getShowTitle(b.program?.name, b.notes, b.episode?.title)}
+                      </strong>
                       {b.episode && <div className="muted small" style={{ marginTop: '0.2rem' }}>{b.episode.status}</div>}
                     </div>
                     <div className="row align-center" style={{ gap: '0.5rem', flexShrink: 0 }}>
@@ -341,7 +542,12 @@ export function DashboardPage() {
                       <Link
                         to="/bookings"
                         className="btn btn-outline small"
-                        style={{ padding: '0.2rem 0.55rem', fontSize: '0.8rem', textDecoration: 'none', display: 'inline-block' }}
+                        style={{
+                          padding: '0.2rem 0.55rem',
+                          fontSize: '0.8rem',
+                          textDecoration: 'none',
+                          display: 'inline-block',
+                        }}
                       >
                         Manage
                       </Link>
@@ -353,27 +559,53 @@ export function DashboardPage() {
           </section>
         </div>
 
-        {/* COLUMN 3 */}
+        {/* COLUMN 3: QC & Recent Episodes & Retention */}
         <div className="stack" style={{ gap: '1.5rem' }}>
-          {/* PENDING QC */}
           {can.reviewQC(profile.role) && (
             <section className="card fade-in">
               <div className="row spread align-center" style={{ marginBottom: '1rem' }}>
                 <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Pending QC</h2>
-                <Link to="/admin/qc" className="muted small" style={{ fontWeight: 600, textDecoration: 'none' }}>Review all →</Link>
+                <Link to="/qc" className="muted small" style={{ fontWeight: 600, textDecoration: 'none' }}>
+                  Review all →
+                </Link>
               </div>
-              
-              {pendingQc.length === 0 ? (
+
+              {isPrimaryLoading ? (
+                <SectionLoadingSkeleton rows={3} />
+              ) : pendingQc.length === 0 ? (
                 <CompactEmptyState message="QC Done is clear" />
               ) : (
                 <div className="stack" style={{ gap: '0.5rem' }}>
-                  {pendingQc.slice(0, 3).map(ep => (
-                    <div key={ep.id} className="list-item small row spread align-center" style={{ padding: '0.5rem 0' }}>
+                  {pendingQc.slice(0, 3).map((ep: EpisodeWithRelations) => (
+                    <div
+                      key={ep.id}
+                      className="list-item small row spread align-center"
+                      style={{ padding: '0.5rem 0' }}
+                    >
                       <div className="row align-center" style={{ gap: '0.75rem', flex: 1, minWidth: 0 }}>
-                        <div className="icon-box" style={{ width: '32px', height: '32px', background: 'var(--bg-sunk)', boxShadow: 'none' }}><MusicIcon /></div>
+                        <div
+                          className="icon-box"
+                          style={{ width: '32px', height: '32px', background: 'var(--bg-sunk)', boxShadow: 'none' }}
+                        >
+                          <MusicIcon />
+                        </div>
                         <div style={{ overflow: 'hidden' }}>
-                          <strong style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ep.title}</strong>
-                          <div className="muted" style={{ fontSize: '0.75rem' }}>{formatDate(ep.created_at)} &middot; {ep.duration_seconds ? new Date(ep.duration_seconds * 1000).toISOString().substr(11, 8) : '--:--:--'}</div>
+                          <strong
+                            style={{
+                              display: 'block',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                          >
+                            {ep.title}
+                          </strong>
+                          <div className="muted" style={{ fontSize: '0.75rem' }}>
+                            {formatDate(ep.created_at)} &middot;{' '}
+                            {ep.duration_seconds
+                              ? new Date(ep.duration_seconds * 1000).toISOString().substr(11, 8)
+                              : '--:--:--'}
+                          </div>
                         </div>
                       </div>
                       <UnifiedStatusBadge episode={ep} />
@@ -388,26 +620,55 @@ export function DashboardPage() {
           <section className="card fade-in">
             <div className="row spread align-center" style={{ marginBottom: '1rem' }}>
               <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Recent Episodes</h2>
-              <Link to="/admin/episodes" className="muted small" style={{ fontWeight: 600, textDecoration: 'none' }}>View all →</Link>
+              <Link to="/admin/episodes" className="muted small" style={{ fontWeight: 600, textDecoration: 'none' }}>
+                View all →
+              </Link>
             </div>
-            {recentEpisodes.length === 0 ? (
+            {isPrimaryLoading ? (
+              <SectionLoadingSkeleton rows={3} />
+            ) : recentEpisodes.length === 0 ? (
               <CompactEmptyState message="No recent episodes." />
             ) : (
               <div className="stack" style={{ gap: '0.5rem' }}>
-                {recentEpisodes.map(ep => (
-                  <div key={ep.id} className="list-item small row spread align-center" style={{ padding: '0.5rem 0' }}>
+                {recentEpisodes.map((ep: EpisodeWithRelations) => (
+                  <div
+                    key={ep.id}
+                    className="list-item small row spread align-center"
+                    style={{ padding: '0.5rem 0' }}
+                  >
                     <div style={{ flex: 1, minWidth: 0, paddingRight: '0.75rem' }}>
-                      <Link to={`/admin/episodes/${ep.id}`} style={{ display: 'block', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none', color: 'var(--text)' }}>
+                      <Link
+                        to={`/admin/episodes/${ep.id}`}
+                        style={{
+                          display: 'block',
+                          fontWeight: 600,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          textDecoration: 'none',
+                          color: 'var(--text)',
+                        }}
+                      >
                         {ep.title}
                       </Link>
-                      <span className="muted" style={{ fontSize: '0.75rem' }}>{formatDate(ep.created_at)} &middot; {ep.duration_seconds ? new Date(ep.duration_seconds * 1000).toISOString().substr(11, 8) : '--:--:--'}</span>
+                      <span className="muted" style={{ fontSize: '0.75rem' }}>
+                        {formatDate(ep.created_at)} &middot;{' '}
+                        {ep.duration_seconds
+                          ? new Date(ep.duration_seconds * 1000).toISOString().substr(11, 8)
+                          : '--:--:--'}
+                      </span>
                     </div>
                     <div className="row align-center" style={{ gap: '0.5rem', flexShrink: 0 }}>
                       <UnifiedStatusBadge episode={ep} />
                       <Link
                         to={`/admin/episodes/${ep.id}`}
                         className="btn btn-outline small"
-                        style={{ padding: '0.2rem 0.55rem', fontSize: '0.8rem', textDecoration: 'none', display: 'inline-block' }}
+                        style={{
+                          padding: '0.2rem 0.55rem',
+                          fontSize: '0.8rem',
+                          textDecoration: 'none',
+                          display: 'inline-block',
+                        }}
                       >
                         Manage
                       </Link>
@@ -421,34 +682,60 @@ export function DashboardPage() {
           {/* RAW AUDIO RETENTION */}
           {expiringAudio.length > 0 ? (
             <section className="card fade-in" style={{ borderLeft: '4px solid var(--warn)' }}>
-              <h2 style={{ margin: '0 0 0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem' }}>
+              <h2
+                style={{
+                  margin: '0 0 0.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '1.1rem',
+                }}
+              >
                 Storage & Retention
               </h2>
               <div className="small" style={{ color: 'var(--warn)', fontWeight: 600, marginBottom: '0.25rem' }}>
                 ⚠ {expiringAudio.length} raw audio files expire within 7 days
               </div>
-              <p className="muted small" style={{ margin: '0 0 1rem' }}>Raw files are automatically deleted after 30 days.</p>
-              <Link to="/admin/episodes" className="button small secondary" style={{ display: 'block', textAlign: 'center' }}>View Audio Library →</Link>
+              <p className="muted small" style={{ margin: '0 0 1rem' }}>
+                Raw files are automatically deleted after 30 days.
+              </p>
+              <Link
+                to="/admin/episodes"
+                className="button small secondary"
+                style={{ display: 'block', textAlign: 'center' }}
+              >
+                View Audio Library →
+              </Link>
             </section>
           ) : (
             <section className="card fade-in">
-              <h2 style={{ margin: '0 0 0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem' }}>
+              <h2
+                style={{
+                  margin: '0 0 0.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '1.1rem',
+                }}
+              >
                 Storage & Retention
               </h2>
-              <p className="muted small" style={{ margin: '0' }}>All raw audio files are within their 30-day retention period.</p>
+              <p className="muted small" style={{ margin: '0' }}>
+                All raw audio files are within their 30-day retention period.
+              </p>
             </section>
           )}
-
         </div>
       </div>
 
-      {/* CONTENT PUBLISHING LIFECYCLE */}
+      {/* 4. CONTENT PUBLISHING LIFECYCLE (DEFERRED & LAZY) */}
       <section className="card fade-in" style={{ marginTop: '1.5rem' }}>
         <div className="row spread wrap align-center" style={{ gap: '0.75rem', marginBottom: '1rem' }}>
           <div>
             <h2 style={{ margin: '0 0 0.2rem', fontSize: '1.15rem' }}>Content Publishing Lifecycle</h2>
             <p className="small muted" style={{ margin: 0 }}>
-              Draft &rarr; Not Scheduled &rarr; Scheduled &rarr; Published &rarr; Expired tracking across episodes and announcements.
+              Draft &rarr; Not Scheduled &rarr; Scheduled &rarr; Published &rarr; Expired tracking across episodes and
+              announcements.
             </p>
           </div>
           <input
@@ -495,7 +782,9 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {visibleLifecycleItems.length === 0 ? (
+        {lifecycleData.loading && !lifecycleData.data ? (
+          <FunnyLoading label="Loading publishing lifecycle records..." category="radio" />
+        ) : visibleLifecycleItems.length === 0 ? (
           <CompactEmptyState message="No content items in this lifecycle stage." />
         ) : (
           <div className="table-wrap">
@@ -570,7 +859,6 @@ export function DashboardPage() {
           </div>
         )}
       </section>
-
     </div>
   );
 }

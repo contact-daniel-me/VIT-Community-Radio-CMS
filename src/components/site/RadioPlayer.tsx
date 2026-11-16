@@ -195,19 +195,19 @@ export function RadioPlayer({ now }: { now: PublicNowPlayingRow | null }) {
             <span className="player-station" title={title}>
               {title}
             </span>
-            <span className="player-sub">
+            <span className="player-sub" title={subtitle}>
               {live ? (
                 <>
                   <span className="player-live-dot" aria-hidden="true" />
-                  {subtitle}
+                  <span className="player-sub-text">{subtitle}</span>
                 </>
               ) : spotifyPlaying ? (
                 <>
                   <span className="player-source-dot" aria-hidden="true" />
-                  {subtitle}
+                  <span className="player-sub-text">{subtitle}</span>
                 </>
               ) : (
-                subtitle
+                <span className="player-sub-text">{subtitle}</span>
               )}
             </span>
             <a

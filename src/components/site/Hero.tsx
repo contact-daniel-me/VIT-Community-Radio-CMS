@@ -1,6 +1,58 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { PublicNowPlayingRow } from '@/types/database';
+import { HERO_HEADLINES } from '@/constants/heroHeadlines';
 import { RetroRadio } from './RetroRadio/RetroRadio';
+
+/**
+ * Continuously rotating multilingual headline supporting 5 languages:
+ * English, Tamil, Hindi, Telugu, and Malayalam.
+ */
+function RotatingHeroHeadline() {
+  const [index, setIndex] = useState(0);
+  const [animState, setAnimState] = useState<'visible' | 'exiting' | 'entering'>('visible');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAnimState('exiting');
+
+      const exitTimer = setTimeout(() => {
+        setIndex((prev) => (prev + 1) % HERO_HEADLINES.length);
+        setAnimState('entering');
+
+        const enterTimer = setTimeout(() => {
+          setAnimState('visible');
+        }, 40);
+
+        return () => clearTimeout(enterTimer);
+      }, 240);
+
+      return () => clearTimeout(exitTimer);
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const headline = HERO_HEADLINES[index];
+
+  return (
+    <div className="hero-multilingual-wrap" aria-live="polite">
+      <div className="hero-lang-badge" aria-label={`Language: ${headline.label}`}>
+        <span className="hero-lang-dot" aria-hidden="true" />
+        <span className="hero-lang-text">{headline.label}</span>
+      </div>
+
+      <h1
+        className={`hero-title hero-title--${headline.id} hero-title--${animState}`}
+        lang={headline.lang}
+      >
+        <span className="hero-title-line1">{headline.line1}</span>
+        <br />
+        <span className="hero-title-accent">{headline.line2}</span>
+      </h1>
+    </div>
+  );
+}
 
 /**
  * The hero.
@@ -24,11 +76,7 @@ export function Hero({ now }: { now: PublicNowPlayingRow | null }) {
             <span>Community radio</span>
           </p>
 
-          <h1 className="hero-title">
-            Your voice.
-            <br />
-            <span className="hero-title-accent">Your radio.</span>
-          </h1>
+          <RotatingHeroHeadline />
 
           <p className="hero-copy">
             Community Voice, student voices, music and conversation &mdash; made by

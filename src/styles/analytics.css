@@ -58,9 +58,90 @@
 .analytics-refresh-row {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.65rem;
   font-size: 0.8rem;
-  color: var(--color-text-muted, #64748b);
+  color: var(--ink-muted, #5a6068);
+}
+
+.analytics-last-updated {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: var(--ink-muted, #5a6068);
+  white-space: nowrap;
+}
+
+.analytics-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--ink, #14161c);
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2dfda);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+  user-select: none;
+}
+
+.analytics-refresh-btn:hover:not(:disabled) {
+  background: var(--bg-sunk, #efedea);
+  border-color: var(--line-strong, #cdc8c1);
+  color: var(--accent, #d21e28);
+}
+
+.analytics-refresh-btn:disabled {
+  opacity: 0.85;
+  cursor: default;
+}
+
+.analytics-refresh-icon {
+  flex-shrink: 0;
+  display: block;
+}
+
+.analytics-refresh-icon.is-spinning {
+  animation: analytics-spin 0.85s linear infinite;
+  color: var(--accent, #d21e28);
+}
+
+@keyframes analytics-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.analytics-refresh-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent, #d21e28);
+  animation: analytics-pulse 1.2s ease-in-out infinite;
+  display: inline-block;
+  margin-left: 2px;
+}
+
+@keyframes analytics-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.analytics-feedback-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 /* Navigation Tabs */

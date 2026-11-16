@@ -51,7 +51,11 @@ const CATEGORIES: { key: 'ALL' | FeedbackCategory; label: string }[] = [
   { key: 'OTHER', label: 'Other' },
 ];
 
-export function AdminFeedbackPage() {
+export interface AdminFeedbackPageProps {
+  showHeader?: boolean;
+}
+
+export function AdminFeedbackPage({ showHeader = true }: AdminFeedbackPageProps = {}) {
   const [activeTab, setActiveTab] = useState<TabKey>('ALL');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | FeedbackCategory>('ALL');
@@ -266,10 +270,44 @@ export function AdminFeedbackPage() {
 
   return (
     <>
-      <PageHeader
-        title="Feedback & Ideas Management"
-        description="Review suggestions, bug reports, and experience ratings submitted by the radio community."
-        actions={
+      {showHeader ? (
+        <PageHeader
+          title="Feedback & Ideas Management"
+          description="Review suggestions, bug reports, and experience ratings submitted by the radio community."
+          actions={
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <Link to="/feedback" className="btn btn-outline small">
+                Submit Feedback
+              </Link>
+              <button
+                type="button"
+                className="btn btn-outline small"
+                onClick={() => setShowAnalytics((prev) => !prev)}
+              >
+                <BarChartIcon size={15} style={{ marginRight: '6px' }} />
+                {showAnalytics ? 'Hide Analytics' : 'Feedback Analytics'}
+              </button>
+            </div>
+          }
+        />
+      ) : (
+        <div
+          className="analytics-section-header"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1.25rem',
+            flexWrap: 'wrap',
+            gap: '1rem',
+          }}
+        >
+          <div>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 600, margin: 0 }}>Community Feedback & Ideas</h2>
+            <p className="small muted" style={{ margin: '0.2rem 0 0' }}>
+              Review suggestions, bug reports, and experience ratings submitted by the radio community.
+            </p>
+          </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <Link to="/feedback" className="btn btn-outline small">
               Submit Feedback
@@ -283,8 +321,8 @@ export function AdminFeedbackPage() {
               {showAnalytics ? 'Hide Analytics' : 'Feedback Analytics'}
             </button>
           </div>
-        }
-      />
+        </div>
+      )}
 
       <Banner>{error}</Banner>
       {notice && <Banner kind="success">{notice}</Banner>}

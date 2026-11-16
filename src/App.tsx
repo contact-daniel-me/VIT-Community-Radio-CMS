@@ -33,7 +33,6 @@ const BadgesPage = lazy(() => import('@/pages/BadgesPage').then(m => ({ default:
 const LeaderboardPage = lazy(() => import('@/pages/LeaderboardPage').then(m => ({ default: m.LeaderboardPage })));
 const HolidaysPage = lazy(() => import('@/pages/HolidaysPage').then(m => ({ default: m.HolidaysPage })));
 const FeedbackPage = lazy(() => import('@/pages/FeedbackPage').then(m => ({ default: m.FeedbackPage })));
-const AdminFeedbackPage = lazy(() => import('@/pages/AdminFeedbackPage').then(m => ({ default: m.AdminFeedbackPage })));
 const AnalyticsPage = lazy(() => import('@/pages/admin/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })));
 
 import { GlobalAudioProvider } from '@/hooks/GlobalAudioContext';
@@ -201,7 +200,7 @@ export default function App() {
                   path="admin/feedback"
                   element={
                     <RequireRole allow={can.manageFeedback}>
-                      <AdminFeedbackPage />
+                      <Navigate to="/admin/analytics?tab=feedback" replace />
                     </RequireRole>
                   }
                 />

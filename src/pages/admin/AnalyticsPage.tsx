@@ -16,6 +16,7 @@ import { AudioAnalyticsTab } from '@/components/admin/analytics/AudioAnalyticsTa
 import { BookingAnalyticsTab } from '@/components/admin/analytics/BookingAnalyticsTab';
 import { TrafficAudienceTab } from '@/components/admin/analytics/TrafficAudienceTab';
 import { StorageTab } from '@/components/admin/analytics/StorageTab';
+import { FeedbackTab } from '@/components/admin/analytics/FeedbackTab';
 import { ReportsTab } from '@/components/admin/analytics/ReportsTab';
 import { UserTimelineModal } from '@/components/admin/analytics/UserTimelineModal';
 import '@/styles/analytics.css';
@@ -28,6 +29,7 @@ export type AnalyticsTab =
   | 'booking'
   | 'traffic'
   | 'storage'
+  | 'feedback'
   | 'reports';
 
 export type DateRangePreset = 'today' | 'yesterday' | '7d' | '30d' | '90d' | 'custom';
@@ -40,6 +42,7 @@ const VALID_TABS: AnalyticsTab[] = [
   'booking',
   'traffic',
   'storage',
+  'feedback',
   'reports',
 ];
 
@@ -81,6 +84,7 @@ export function AnalyticsPage() {
   const [trafficData, setTrafficData] = useState<TrafficAudienceData | null>(null);
 
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
@@ -125,43 +129,84 @@ export function AnalyticsPage() {
     };
   }, [preset, customStart, customEnd]);
 
-  // Fetch data for the active tab
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const { startDate, endDate } = getDateBounds();
+  // Check whether current active tab already has loaded data
+  const hasDataForCurrentTab = useCallback((): boolean => {
+    switch (activeTab) {
+      case 'overview':
+        return overviewData !== null;
+      case 'live':
+        return liveData !== null;
+      case 'audio':
+        return audioData !== null;
+      case 'booking':
+        return bookingData !== null;
+      case 'traffic':
+        return trafficData !== null;
+      case 'reports':
+        return overviewData !== null;
+      case 'storage':
+      case 'feedback':
+      case 'activity':
+        return true;
+      default:
+        return false;
+    }
+  }, [activeTab, overviewData, liveData, audioData, bookingData, trafficData]);
 
-      if (activeTab === 'overview') {
-        const data = await analyticsService.getOverview(startDate, endDate);
-        setOverviewData(data);
-      } else if (activeTab === 'live') {
-        const live = await analyticsService.getLiveVisitors();
-        setLiveData(live);
-      } else if (activeTab === 'audio') {
-        const audio = await analyticsService.getAudioAnalytics(startDate, endDate);
-        setAudioData(audio);
-      } else if (activeTab === 'booking') {
-        const booking = await analyticsService.getBookingAnalytics(startDate, endDate);
-        setBookingData(booking);
-      } else if (activeTab === 'traffic') {
-        const traffic = await analyticsService.getTrafficAudience(startDate, endDate);
-        setTrafficData(traffic);
-      } else if (activeTab === 'reports') {
-        if (!overviewData) {
-          const data = await analyticsService.getOverview(startDate, endDate);
-          setOverviewData(data);
-        }
+  // Fetch data for the active tab (silent = true keeps existing UI interactive and non-blocking)
+  const fetchData = useCallback(
+    async (silent = false) => {
+      if (activeTab === 'storage' || activeTab === 'feedback' || activeTab === 'activity') {
+        setLastUpdated(new Date());
+        return;
       }
 
-      setLastUpdated(new Date());
-    } catch (err) {
-      console.error('Analytics load error:', err);
-      setError((err as Error).message || 'Failed to load analytics records');
-    } finally {
-      setLoading(false);
-    }
-  }, [activeTab, getDateBounds, overviewData]);
+      const hasData = hasDataForCurrentTab();
+      if (silent || hasData) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      try {
+        const { startDate, endDate } = getDateBounds();
+
+        if (activeTab === 'overview') {
+          const data = await analyticsService.getOverview(startDate, endDate);
+          setOverviewData(data);
+        } else if (activeTab === 'live') {
+          const live = await analyticsService.getLiveVisitors();
+          setLiveData(live);
+        } else if (activeTab === 'audio') {
+          const audio = await analyticsService.getAudioAnalytics(startDate, endDate);
+          setAudioData(audio);
+        } else if (activeTab === 'booking') {
+          const booking = await analyticsService.getBookingAnalytics(startDate, endDate);
+          setBookingData(booking);
+        } else if (activeTab === 'traffic') {
+          const traffic = await analyticsService.getTrafficAudience(startDate, endDate);
+          setTrafficData(traffic);
+        } else if (activeTab === 'reports') {
+          if (!overviewData) {
+            const data = await analyticsService.getOverview(startDate, endDate);
+            setOverviewData(data);
+          }
+        }
+
+        setError(null);
+        setLastUpdated(new Date());
+      } catch (err) {
+        console.error('Analytics load error:', err);
+        if (!hasData) {
+          setError((err as Error).message || 'Failed to load analytics records');
+        }
+      } finally {
+        setLoading(false);
+        setIsRefreshing(false);
+      }
+    },
+    [activeTab, getDateBounds, hasDataForCurrentTab, overviewData]
+  );
 
   useEffect(() => {
     void fetchData();
@@ -173,7 +218,7 @@ export function AnalyticsPage() {
 
     const interval = window.setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        void fetchData();
+        void fetchData(true);
       }
     }, 15000);
 
@@ -274,20 +319,39 @@ export function AnalyticsPage() {
           </div>
         )}
 
-        <div className="analytics-refresh-row">
-          <span>Updated: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+        <div className="analytics-refresh-row" aria-live="polite">
+          <span className="analytics-last-updated">
+            Updated: {lastUpdated.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </span>
           <button
             type="button"
-            className="btn btn-outline small"
-            onClick={() => void fetchData()}
-            disabled={loading}
+            className={`analytics-refresh-btn ${isRefreshing ? 'is-refreshing' : ''}`}
+            onClick={() => void fetchData(true)}
+            disabled={isRefreshing}
+            title={isRefreshing ? 'Updating metrics in background…' : 'Refresh analytics data'}
+            aria-label="Refresh analytics data"
           >
-            {loading ? 'Refreshing...' : 'Refresh'}
+            <svg
+              className={`analytics-refresh-icon ${isRefreshing ? 'is-spinning' : ''}`}
+              viewBox="0 0 24 24"
+              width="13"
+              height="13"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+            </svg>
+            <span>Refresh</span>
+            {isRefreshing && <span className="analytics-refresh-dot" aria-hidden="true" />}
           </button>
         </div>
       </div>
 
-      {/* 8 Sub-Tabs Navigation */}
+      {/* 9 Sub-Tabs Navigation */}
       <nav className="analytics-tabs" aria-label="Analytics sub-tabs">
         <button
           type="button"
@@ -338,6 +402,13 @@ export function AnalyticsPage() {
           onClick={() => handleTabChange('storage')}
         >
           Storage
+        </button>
+        <button
+          type="button"
+          className={`analytics-tab-btn ${activeTab === 'feedback' ? 'active' : ''}`}
+          onClick={() => handleTabChange('feedback')}
+        >
+          Feedback
         </button>
         <button
           type="button"
@@ -403,6 +474,10 @@ export function AnalyticsPage() {
 
       {activeTab === 'storage' && (
         <StorageTab />
+      )}
+
+      {activeTab === 'feedback' && (
+        <FeedbackTab />
       )}
 
       {activeTab === 'reports' && (

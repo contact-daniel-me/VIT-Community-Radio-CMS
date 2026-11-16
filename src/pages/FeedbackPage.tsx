@@ -115,7 +115,7 @@ export function FeedbackPage() {
         description="Share your ideas, suggestions, and feedback to help build a better community radio."
         actions={
           isAdmin ? (
-            <Link to="/admin/feedback" className="btn btn-outline small">
+            <Link to="/admin/analytics?tab=feedback" className="btn btn-outline small">
               Feedback Management
             </Link>
           ) : undefined

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
@@ -5,6 +6,8 @@ import { Logo } from '@/components/site/Logo';
 import { InstallAppButton } from '@/components/pwa';
 import { can, ROLE_LABELS } from '@/lib/permissions';
 import type { UserRole } from '@/types/database';
+import { YoyoToast } from '@/components/dashboard/YoyoToast';
+import { yoyoNotificationService } from '@/services/yoyoNotificationService';
 
 interface NavItem {
   to: string;
@@ -37,6 +40,13 @@ const NAV: NavItem[] = [
 export function AppLayout() {
   const { profile, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
+
+  useEffect(() => {
+    if (!profile) return;
+    const cleanup = yoyoNotificationService.initActivityWatcher(profile);
+    return cleanup;
+  }, [profile]);
+
   if (!profile) return null;
 
   return (
@@ -98,6 +108,14 @@ export function AppLayout() {
       <main className="app-main">
         <Outlet />
       </main>
+
+      <YoyoToast
+        key={profile.id}
+        userId={profile.id}
+        fullName={profile.full_name}
+        role={profile.role}
+        profileCreatedAt={profile.created_at}
+      />
     </>
   );
 }

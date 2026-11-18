@@ -4,6 +4,7 @@ import { useAuth, useCurrentUser } from '@/hooks/useAuth';
 import { useSuccessFeedback } from '@/hooks/useSuccessFeedback';
 import { Banner, PageHeader } from '@/components/ui';
 import { authService } from '@/services/authService';
+import { yoyoNotificationService } from '@/services/yoyoNotificationService';
 import { ROLE_LABELS, ROLE_SUMMARY } from '@/lib/permissions';
 import { errorMessage } from '@/lib/errors';
 import { STATION_TIMEZONE } from '@/utils/datetime';
@@ -28,6 +29,53 @@ export function SettingsPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // YOYO Native Browser Notifications state
+  const [notifSupport, setNotifSupport] = useState(() => yoyoNotificationService.getSupport());
+  const [notifEnabled, setNotifEnabled] = useState(() => yoyoNotificationService.isEnabled(profile.id));
+  const [busyNotif, setBusyNotif] = useState(false);
+  const [notifFeedback, setNotifFeedback] = useState<string | null>(null);
+
+  const handleEnableNotifications = async () => {
+    setBusyNotif(true);
+    setNotifFeedback(null);
+    try {
+      const res = await yoyoNotificationService.requestPermission(profile.id);
+      setNotifSupport(yoyoNotificationService.getSupport());
+      if (res.granted) {
+        setNotifEnabled(true);
+        setNotifFeedback('YOYO native browser notifications enabled! Sent test notification.');
+        void yoyoNotificationService.sendTestNotification(profile.id, profile.full_name);
+      } else if (res.permission === 'denied') {
+        setNotifEnabled(false);
+        setNotifFeedback('Notification permission was blocked in your browser settings.');
+      } else {
+        setNotifEnabled(false);
+      }
+    } catch {
+      setNotifFeedback('Could not enable notifications.');
+    } finally {
+      setBusyNotif(false);
+    }
+  };
+
+  const handleDisableNotifications = () => {
+    yoyoNotificationService.disable(profile.id);
+    setNotifEnabled(false);
+    setNotifFeedback('YOYO native notifications disabled.');
+  };
+
+  const handleSendTestNotification = async () => {
+    setBusyNotif(true);
+    try {
+      await yoyoNotificationService.sendTestNotification(profile.id, profile.full_name);
+      setNotifFeedback('Test notification sent!');
+    } catch {
+      setNotifFeedback('Could not send test notification.');
+    } finally {
+      setBusyNotif(false);
+    }
+  };
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
@@ -103,6 +151,122 @@ export function SettingsPage() {
         </form>
 
         <div className="stack" style={{ gap: '1.5rem' }}>
+          <section className="card">
+            <div className="row spread align-center wrap" style={{ gap: '0.75rem', marginBottom: '0.5rem' }}>
+              <div>
+                <h2 style={{ margin: 0 }}>YOYO Notifications</h2>
+                <p className="small muted" style={{ margin: '0.2rem 0 0' }}>
+                  Native browser and background updates from your digital companion YOYO.
+                </p>
+              </div>
+              <div>
+                {notifEnabled ? (
+                  <span
+                    className="tag"
+                    style={{
+                      background: 'rgba(34, 197, 94, 0.12)',
+                      color: '#15803d',
+                      border: '1px solid rgba(34, 197, 94, 0.25)',
+                      padding: '0.25rem 0.6rem',
+                      borderRadius: '999px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Enabled
+                  </span>
+                ) : notifSupport.permission === 'denied' ? (
+                  <span
+                    className="tag"
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      color: '#b91c1c',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      padding: '0.25rem 0.6rem',
+                      borderRadius: '999px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Blocked
+                  </span>
+                ) : (
+                  <span
+                    className="tag"
+                    style={{
+                      background: 'var(--surface-muted, #f3f4f6)',
+                      color: 'var(--text-muted, #6b7280)',
+                      border: '1px solid var(--line, #e5e7eb)',
+                      padding: '0.25rem 0.6rem',
+                      borderRadius: '999px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Disabled
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <p className="small" style={{ margin: '0 0 1rem', lineHeight: 1.5 }}>
+              Receive instant desktop and mobile browser alerts for QC approvals, audio uploads, studio bookings, and show scheduling—even when browsing other tabs or when the browser tab is closed.
+            </p>
+
+            {notifFeedback && (
+              <div
+                className="banner info"
+                style={{
+                  margin: '0 0 1rem',
+                  fontSize: '0.85rem',
+                  padding: '0.5rem 0.85rem',
+                }}
+              >
+                <span>{notifFeedback}</span>
+              </div>
+            )}
+
+            {!notifSupport.isSupported ? (
+              <div className="banner info" style={{ margin: 0 }}>
+                <span>Native browser notifications are not supported by this browser.</span>
+              </div>
+            ) : notifSupport.permission === 'denied' ? (
+              <div className="banner danger" style={{ margin: 0 }}>
+                <span>
+                  <strong>Notifications are blocked:</strong> To enable YOYO native alerts, click the lock or settings icon in your browser address bar and change Notifications to <strong>Allow</strong>.
+                </span>
+              </div>
+            ) : notifEnabled ? (
+              <div className="row align-center wrap" style={{ gap: '0.65rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary small"
+                  onClick={handleSendTestNotification}
+                  disabled={busyNotif}
+                >
+                  Send Test Notification
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline small"
+                  onClick={handleDisableNotifications}
+                  disabled={busyNotif}
+                >
+                  Disable YOYO Notifications
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary small"
+                onClick={handleEnableNotifications}
+                disabled={busyNotif}
+              >
+                {busyNotif ? 'Requesting permission...' : 'Enable YOYO Notifications'}
+              </button>
+            )}
+          </section>
+
           <section className="card">
             <h2>Password & Security</h2>
             <div className="banner info" style={{ margin: '0.5rem 0 0.75rem' }}>

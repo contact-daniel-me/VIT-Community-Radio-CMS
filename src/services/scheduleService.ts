@@ -3,6 +3,7 @@ import { assertWritten } from '@/lib/errors';
 import { unwrap } from '@/lib/query';
 import type { ScheduleDetailsRow, ScheduleRow, ScheduleStatus } from '@/types/database';
 import { stationDay, stationDayRange } from '@/utils/datetime';
+import { activityEventService } from './activityEventService';
 
 /** Mirrors the `schedules_sane_duration` CHECK: no slot may exceed six hours. */
 const MAX_SLOT_MS = 6 * 60 * 60 * 1000;
@@ -86,7 +87,7 @@ export const scheduleService = {
    * reported by name rather than as a constraint code.
    */
   async createSchedule(input: ScheduleInput): Promise<ScheduleRow> {
-    return unwrap(
+    const row = await unwrap(
       supabase.rpc('schedule_episode', {
         p_program_id: input.program_id,
         p_episode_id: input.episode_id,
@@ -95,6 +96,17 @@ export const scheduleService = {
         p_notes: input.notes ?? null,
       }),
     );
+    try {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user?.id) {
+        activityEventService.recordActivity('SHOW_SCHEDULED', data.user.id, {
+          details: input.episode_id ?? undefined,
+        });
+      }
+    } catch {
+      // Non-blocking activity recording
+    }
+    return row;
   },
 
   /** Times and notes only. Status is owned by the broadcast functions. */

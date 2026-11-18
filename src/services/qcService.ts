@@ -9,6 +9,7 @@ import type {
   ScheduleDetailsRow,
 } from '@/types/database';
 import { episodeService, type EpisodeWithRelations } from './episodeService';
+import { activityEventService } from './activityEventService';
 
 export type BroadcastLifecycleStatus =
   | 'NOT_SCHEDULED'
@@ -469,12 +470,24 @@ export const qcService = {
   },
 
   async approveEpisode(episodeId: string, comment?: string): Promise<EpisodeRow> {
-    return unwrap(
+    const row = await unwrap(
       supabase.rpc('approve_episode', {
         p_episode_id: episodeId,
         p_comment: comment?.trim() || null,
       }),
     );
+    try {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user?.id) {
+        activityEventService.recordActivity('QC_APPROVED', data.user.id, {
+          showName: row.title,
+          details: episodeId,
+        });
+      }
+    } catch {
+      // Non-blocking activity recording
+    }
+    return row;
   },
 
   /** A rejection without a usable reason is refused by the database too. */

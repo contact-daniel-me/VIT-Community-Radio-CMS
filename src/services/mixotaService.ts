@@ -5,6 +5,7 @@ import {
 } from '@/lib/mixota';
 import { authService } from '@/services/authService';
 import { audioService } from '@/services/audioService';
+import { activityEventService } from '@/services/activityEventService';
 import { supabase } from '@/lib/supabase';
 
 export interface OpenMixotaHandlers {
@@ -163,6 +164,18 @@ export const mixotaService = {
           }
         } catch (verifyErr) {
           console.warn('[mixotaService] Error during independent export validation', verifyErr);
+        }
+
+        try {
+          const { data: authData } = await supabase.auth.getUser();
+          if (authData?.user?.id) {
+            activityEventService.recordActivity('FINAL_AUDIO_UPLOADED', authData.user.id, {
+              showName: options.title,
+              details: fileName || 'master.mp3',
+            });
+          }
+        } catch {
+          // Non-blocking
         }
 
         handlers.onExportComplete?.({

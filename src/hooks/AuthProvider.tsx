@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import type { Session } from '@supabase/supabase-js';
 import { authService } from '@/services/authService';
 import { badgeService } from '@/services/badgeService';
+import { activityEventService } from '@/services/activityEventService';
 import { dataCache } from '@/lib/dataCache';
 import { offlineStore } from '@/lib/offlineStore';
 import { errorMessage } from '@/lib/errors';
@@ -88,6 +89,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const subscription = authService.onAuthStateChange((nextSession) => {
       if (!mounted.current) return;
+      if (!nextSession) {
+        activityEventService.resetSessionGreeting();
+      }
       setSession(nextSession);
       void loadProfile(nextSession);
       if (!initialResolved && mounted.current) {
@@ -118,6 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     dataCache.clear();
     if (currentUserId) {
       void offlineStore.clearUserData(currentUserId);
+      activityEventService.resetSessionGreeting(currentUserId);
+    } else {
+      activityEventService.resetSessionGreeting();
     }
     await authService.signOut();
     setSession(null);

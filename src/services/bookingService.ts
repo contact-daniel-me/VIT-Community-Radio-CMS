@@ -18,6 +18,7 @@ import {
   type GridSlot,
 } from '@/utils/studio';
 import { stationDay } from '@/utils/datetime';
+import { activityEventService } from './activityEventService';
 
 // Re-exported so callers keep importing calendar types from the service they
 // already use. The derivation itself lives in utils/studio.ts because it is
@@ -373,7 +374,16 @@ export const bookingService = {
     if (!data) {
       throw new AppError('UNKNOWN', 'The booking could not be created. Please try again.');
     }
-    return data as StudioBookingRow;
+    const booking = data as StudioBookingRow;
+    try {
+      activityEventService.recordActivity('STUDIO_BOOKED', rjId || createdBy, {
+        reference: booking.reference,
+        details: booking.booking_date,
+      });
+    } catch {
+      // Non-blocking activity recording
+    }
+    return booking;
   },
 
   /**
@@ -529,6 +539,16 @@ export const bookingService = {
       if (error.code === '23505') throw new AppError('CONFLICT', 'You already have a pending request for this slot.');
       throw translateBookingError(error);
     }
+
+    try {
+      activityEventService.recordActivity('STUDIO_BOOKED', userId, {
+        reference: data.id,
+        details: data.booking_date,
+      });
+    } catch {
+      // Non-blocking activity recording
+    }
+
     return data;
   },
 

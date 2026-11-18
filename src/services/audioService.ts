@@ -5,6 +5,7 @@ import type { AudioFileRow } from '@/types/database';
 import { storageResolver, type StorageProvider } from '@/services/storageResolver';
 import { r2Service } from '@/services/r2Service';
 import { storageObservabilityService } from '@/services/storageObservabilityService';
+import { activityEventService } from '@/services/activityEventService';
 
 export const MAX_AUDIO_BYTES = 100 * 1024 * 1024; // 100 MB, matches the DB CHECK
 
@@ -259,6 +260,16 @@ export const audioService = {
         latencyMs: uploadDuration,
         details: file.name,
       });
+
+      try {
+        const activityType = targetField === 'final_audio_file_id' ? 'FINAL_AUDIO_UPLOADED' : 'RAW_AUDIO_UPLOADED';
+        activityEventService.recordActivity(activityType, uploadedBy, {
+          showName,
+          details: file.name,
+        });
+      } catch {
+        // Non-blocking activity recording
+      }
 
       return audioRow;
     } catch (err: unknown) {

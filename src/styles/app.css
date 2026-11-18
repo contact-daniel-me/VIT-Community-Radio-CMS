@@ -876,3 +876,364 @@ a.app-brand:hover strong {
     transition: none !important;
   }
 }
+
+/* ==========================================================================
+   YOYO Toast Notification (Growiota Digital Companion)
+   ========================================================================== */
+.yoyo-toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  width: 360px;
+  max-width: calc(100vw - 2rem);
+  pointer-events: none;
+}
+
+.yoyo-toast-card {
+  pointer-events: auto;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--line, #e2dfda);
+  border-radius: 14px;
+  padding: 1.15rem 1.25rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  animation: yoyoSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+[data-theme='dark'] .yoyo-toast-card {
+  background: var(--surface, #1e2028);
+  border-color: var(--line-invert, #2d3139);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
+.yoyo-toast-card.is-closing {
+  transform: translateY(12px) scale(0.96);
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes yoyoSlideIn {
+  from {
+    transform: translateY(24px) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.yoyo-toast-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.yoyo-identity-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  text-align: left;
+}
+
+.yoyo-heading {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink, #14161c);
+  line-height: 1.25;
+  text-align: left;
+}
+
+[data-theme='dark'] .yoyo-heading {
+  color: var(--ink-invert, #f6f5f3);
+}
+
+.yoyo-subtitle {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--ink-muted, #5a6068);
+  line-height: 1.3;
+  text-align: left;
+}
+
+[data-theme='dark'] .yoyo-subtitle {
+  color: var(--ink-invert-muted, #9aa1ab);
+}
+
+.yoyo-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--ink-muted, #5a6068);
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  line-height: 1;
+}
+
+.yoyo-close-btn:hover {
+  background: var(--bg-sunk, #efedea);
+  color: var(--ink, #14161c);
+}
+
+[data-theme='dark'] .yoyo-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink-invert, #f6f5f3);
+}
+
+.yoyo-message {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--ink, #14161c);
+  font-weight: 450;
+}
+
+[data-theme='dark'] .yoyo-message {
+  color: var(--ink-invert, #f6f5f3);
+}
+
+.yoyo-detail {
+  font-size: 0.8rem;
+  color: var(--ink-muted, #5a6068);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.yoyo-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--line, #e2dfda);
+  font-size: 0.75rem;
+  color: var(--ink-muted, #5a6068);
+}
+
+[data-theme='dark'] .yoyo-footer {
+  border-top-color: var(--line-invert, #2d3139);
+  color: var(--ink-invert-muted, #9aa1ab);
+}
+
+.yoyo-tag-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--info-wash, #ecedf8);
+  color: var(--brand-navy, #2e3192);
+}
+
+.yoyo-toast-card.has-activity .yoyo-tag-badge {
+  background: var(--ok-wash, #eaf6ee);
+  color: var(--ok, #17703a);
+}
+
+.yoyo-time-text {
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+@media (max-width: 480px) {
+  .yoyo-toast-container {
+    bottom: 1rem;
+    right: 1rem;
+    left: 1rem;
+    width: auto;
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yoyo-toast-card {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ==========================================================================
+   Personalized Dashboard Greeting Card ("A little note for you")
+   ========================================================================== */
+.note-for-you-card {
+  background: var(--surface);
+  border: 1px solid var(--line, #e2dfda);
+  border-left: 4px solid var(--brand-navy, #2e3192);
+  border-radius: var(--r-md, 12px);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+[data-theme='dark'] .note-for-you-card {
+  background: var(--surface, #1e2028);
+  border-color: var(--line-invert, #2d3139);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.note-for-you-card.has-activity {
+  border-left-color: var(--ok, #17703a);
+}
+
+.note-for-you-card.is-lunch {
+  border-left-color: #d97706;
+}
+
+.note-for-you-card.is-late-night {
+  border-left-color: #6366f1;
+}
+
+.note-for-you-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.note-for-you-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.note-for-you-heading {
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted, #5a6068);
+  margin: 0;
+}
+
+.note-for-you-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  background: var(--info-wash, #ecedf8);
+  color: var(--brand-navy, #2e3192);
+  letter-spacing: 0.02em;
+}
+
+[data-theme='dark'] .note-for-you-badge {
+  background: rgba(46, 49, 146, 0.25);
+  color: #a5b4fc;
+}
+
+.note-for-you-card.has-activity .note-for-you-badge {
+  background: var(--ok-wash, #eaf6ee);
+  color: var(--ok, #17703a);
+}
+
+[data-theme='dark'] .note-for-you-card.has-activity .note-for-you-badge {
+  background: rgba(23, 112, 58, 0.25);
+  color: #86efac;
+}
+
+.note-for-you-card.is-lunch .note-for-you-badge {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+[data-theme='dark'] .note-for-you-card.is-lunch .note-for-you-badge {
+  background: rgba(217, 119, 6, 0.2);
+  color: #fde68a;
+}
+
+.note-for-you-card.is-late-night .note-for-you-badge {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+[data-theme='dark'] .note-for-you-card.is-late-night .note-for-you-badge {
+  background: rgba(99, 102, 241, 0.2);
+  color: #c7d2fe;
+}
+
+.note-for-you-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.note-for-you-action-btn {
+  background: none;
+  border: 1px solid var(--line, #e2dfda);
+  border-radius: 6px;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-muted, #5a6068);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.note-for-you-action-btn:hover {
+  background: var(--bg-sunk, #efedea);
+  color: var(--ink, #14161c);
+}
+
+[data-theme='dark'] .note-for-you-action-btn {
+  border-color: var(--line-invert, #2d3139);
+  color: var(--ink-invert-muted, #9aa1ab);
+}
+
+[data-theme='dark'] .note-for-you-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink-invert, #f6f5f3);
+}
+
+.note-for-you-body {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.55;
+  color: var(--ink, #14161c);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+[data-theme='dark'] .note-for-you-body {
+  color: var(--ink-invert, #f6f5f3);
+}
+
+.note-for-you-detail {
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--ink-muted, #5a6068);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .note-for-you-card {
+    padding: 1rem 1.15rem;
+    margin-bottom: 1.5rem;
+  }
+  .note-for-you-body {
+    font-size: 1.02rem;
+    line-height: 1.5;
+  }
+}

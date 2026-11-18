@@ -93,6 +93,55 @@ self.addEventListener('message', (event) => {
   }
 });
 
+// Web Push: handle background push notifications even when the browser tab is closed
+self.addEventListener('push', (event) => {
+  let data = {};
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch {
+      data = { body: event.data.text() };
+    }
+  }
+
+  const title = data.title || "Hey, I'm Yoyo!";
+  const options = {
+    body: data.body || data.message || 'Your little friend from Growiota.',
+    icon: data.icon || '/favicon-192.png',
+    badge: data.badge || '/favicon-32.png',
+    tag: data.tag || 'yoyo-notification',
+    data: {
+      url: data.url || '/dashboard',
+      ...data,
+    },
+    renotify: true,
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Notification click: focus existing CMS tab or open a new window at the target route
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/dashboard';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          if ('navigate' in client) {
+            client.navigate(targetUrl);
+          }
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
 // Fetch: enforce strict isolation and safe static caching
 self.addEventListener('fetch', (event) => {
   const request = event.request;

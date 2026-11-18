@@ -16,6 +16,7 @@ import { isStudioTourBooking, slotStartsAt } from '@/utils/studio';
 import { can } from '@/lib/permissions';
 import { formatTime, formatDate, formatDateTime, stationDay } from '@/utils/datetime';
 import { MetricCard, MetricCardSkeleton, CompactEmptyState, QuickAction, PipelineVisual } from '@/components/ui/DashboardCards';
+import { extractFirstName } from '@/services/greetingService';
 import { supabase } from '@/lib/supabase';
 import type { ContentLifecycleBucket, PublicScheduleRow, AnnouncementRow, ScheduleRow } from '@/types/database';
 
@@ -273,13 +274,15 @@ export function DashboardPage() {
   const expiringAudio = primaryDashboard.data?.expiringAudio ?? [];
   const totalEpisodes = primaryDashboard.data?.totalEpisodes ?? 0;
 
+  const firstName = extractFirstName(profile.full_name);
+
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
       {/* HEADER: Renders synchronously with 0ms delay */}
       <div className="row spread align-center wrap" style={{ gap: '1.5rem', marginBottom: '2rem' }}>
         <div>
           <h1 style={{ margin: '0 0 0.25rem', fontSize: '2rem', fontWeight: 800 }}>
-            Good day, {profile.full_name.split(' ')[0]}
+            Good day, {firstName}
           </h1>
           <p className="muted" style={{ margin: 0, fontSize: '1.05rem' }}>
             Here's what's happening at VIT Community Radio today.

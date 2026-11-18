@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { AuthProvider } from '@/hooks/AuthProvider';
 import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/layouts/AppLayout';
@@ -106,6 +106,11 @@ function SetupRequired() {
   );
 }
 
+function ShareEpisodeRedirect() {
+  const { episodeId } = useParams<{ episodeId: string }>();
+  return <Navigate to={`/?episode=${encodeURIComponent(episodeId || '')}`} replace />;
+}
+
 export default function App() {
   if (!isSupabaseConfigured) return <SetupRequired />;
 
@@ -120,6 +125,7 @@ export default function App() {
                 <Routes>
                 {/* Public: anyone can reach these, signed in or not. */}
               <Route path="/" element={<HomePage />} />
+              <Route path="/share/:episodeId" element={<ShareEpisodeRedirect />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               {/* Public: anyone can see studio availability. Booking inside it still

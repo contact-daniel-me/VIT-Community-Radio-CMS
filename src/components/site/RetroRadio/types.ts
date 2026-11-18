@@ -15,6 +15,7 @@ export interface RadioItem {
   episode?: PublicApprovedEpisodeRow;
   nowPlaying?: PublicNowPlayingRow;
   artworkUrl?: string | null;
+  isSharedScheduled?: boolean;
 }
 
 export interface RadioVisualizerData {

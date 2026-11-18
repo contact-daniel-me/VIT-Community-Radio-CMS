@@ -1,3 +1,4 @@
+import { useSearchParams } from 'react-router-dom';
 import { useAsync } from '@/hooks/useAsync';
 import { useHashScroll } from '@/hooks/useHashScroll';
 import { publicService } from '@/services/publicService';
@@ -18,6 +19,21 @@ import { RadioPlayer } from '@/components/site/RadioPlayer';
  * the section says so rather than the page failing.
  */
 export function HomePage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sharedEpisodeId = searchParams.get('episode') || searchParams.get('shared');
+
+  const shared = useAsync(async () => {
+    if (!sharedEpisodeId) return null;
+    return publicService.getSharedScheduledEpisode(sharedEpisodeId);
+  }, [sharedEpisodeId]);
+
+  const handleReturnToDefaultRadio = () => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('episode');
+    newParams.delete('shared');
+    setSearchParams(newParams, { replace: true });
+  };
+
   const station = useAsync(async () => {
     const [nowPlaying, schedule, chart, programmes, announcements] = await Promise.all([
       publicService.getNowPlaying(),
@@ -41,7 +57,40 @@ export function HomePage() {
       <SiteHeader />
 
       <main id="main">
-        <Hero now={now} />
+        {sharedEpisodeId && !shared.loading && !shared.data && (
+          <aside
+            className="shared-episode-notice"
+            role="status"
+            style={{
+              maxWidth: '720px',
+              margin: '1.25rem auto',
+              padding: '1rem 1.25rem',
+              backgroundColor: '#FEF3C7',
+              border: '1px solid #F59E0B',
+              borderRadius: '8px',
+              color: '#92400E',
+              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem',
+            }}
+          >
+            <div>
+              <strong>Episode Link Unavailable:</strong> This episode is currently not published on the Radio Home Page or is no longer available.
+            </div>
+            <a href="/" style={{ color: '#B45309', fontWeight: 600, textDecoration: 'underline' }}>
+              View Live Schedule
+            </a>
+          </aside>
+        )}
+
+        {/* Shared episodes play directly inside the existing retro radio receiver */}
+        <Hero
+          now={now}
+          sharedEpisode={shared.data}
+          onReturnToDefault={handleReturnToDefaultRadio}
+        />
 
         {station.data?.announcements && station.data.announcements.length > 0 && (
           <StationAnnouncements announcements={station.data.announcements} />

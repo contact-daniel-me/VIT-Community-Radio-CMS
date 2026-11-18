@@ -12,6 +12,8 @@ import {
   UnifiedStatusBadge,
 } from '@/components/ui';
 import { HomepageScheduleDialog } from '@/components/studio/HomepageScheduleDialog';
+import { ShareEpisodeDialog } from '@/components/ShareEpisodeDialog';
+import { isEpisodeScheduledAndShareable } from '@/utils/sharing';
 import { episodeService, type EpisodeInput, type EpisodeWithRelations } from '@/services/episodeService';
 import { resolveEpisodePublishStatus } from '@/services/qcService';
 import { programService } from '@/services/programService';
@@ -168,6 +170,7 @@ export function EpisodesPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const { notifySave } = useSuccessFeedback();
   const [schedulingEpisode, setSchedulingEpisode] = useState<EpisodeWithRelations | null>(null);
+  const [sharingEpisode, setSharingEpisode] = useState<EpisodeWithRelations | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const activePrograms = (programs.data ?? []).filter((p) => p.active);
@@ -484,7 +487,10 @@ export function EpisodesPage() {
                 </tr>
               </thead>
               <tbody>
-                {publishSummary.visible.map((episode) => (
+                {publishSummary.visible.map((episode) => {
+                  const pubStatus = publishSummary.statusMap.get(episode.id) ?? resolveEpisodePublishStatus(episode);
+                  const isShareable = isEpisodeScheduledAndShareable(episode, pubStatus);
+                  return (
                   <tr key={episode.id}>
                     {profile.role === 'ADMIN' && (
                       <td>
@@ -585,6 +591,24 @@ export function EpisodesPage() {
                       >
                         Manage
                       </Link>
+                      {isShareable && (
+                        <button
+                          type="button"
+                          className="btn btn-outline small btn-share-episode"
+                          style={{
+                            padding: '0.25rem 0.5rem',
+                            fontSize: '0.82rem',
+                            marginLeft: '0.4rem',
+                            color: '#1d4ed8',
+                            borderColor: '#bfdbfe',
+                            backgroundColor: '#eff6ff',
+                          }}
+                          title="Share scheduled episode public link"
+                          onClick={() => setSharingEpisode(episode)}
+                        >
+                          Share
+                        </button>
+                      )}
                       {(episode.final_audio_file_id || episode.audio_file_id) && (
                         <button
                           type="button"
@@ -606,7 +630,8 @@ export function EpisodesPage() {
                       )}
                     </td>
                   </tr>
-                ))}
+                );
+              })}
               </tbody>
             </table>
           </div>
@@ -743,6 +768,19 @@ export function EpisodesPage() {
             setNotice(msg);
             void Promise.all([episodes.reload(), counts.reload()]);
           }}
+        />
+      )}
+
+      {sharingEpisode && (
+        <ShareEpisodeDialog
+          episode={{
+            id: sharingEpisode.id,
+            title: sharingEpisode.title,
+            program: sharingEpisode.program,
+            scheduled_at: sharingEpisode.scheduled_at,
+            homepage_publish_at: sharingEpisode.homepage_publish_at,
+          }}
+          onClose={() => setSharingEpisode(null)}
         />
       )}
     </>

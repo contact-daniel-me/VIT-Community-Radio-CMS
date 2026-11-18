@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { PublicNowPlayingRow } from '@/types/database';
+import type { PublicNowPlayingRow, SharedScheduledEpisode } from '@/types/database';
 import { HERO_HEADLINES } from '@/constants/heroHeadlines';
 import { RetroRadio } from './RetroRadio/RetroRadio';
 
@@ -62,7 +62,15 @@ function RotatingHeroHeadline() {
  * The layout is deliberately asymmetric: headline sits left and low, the live
  * panel breaks the grid on the right.
  */
-export function Hero({ now }: { now: PublicNowPlayingRow | null }) {
+export function Hero({
+  now,
+  sharedEpisode,
+  onReturnToDefault,
+}: {
+  now: PublicNowPlayingRow | null;
+  sharedEpisode?: SharedScheduledEpisode | null;
+  onReturnToDefault?: () => void;
+}) {
   return (
     <section className="hero" id="top">
       <div className="hero-grid">
@@ -96,7 +104,15 @@ export function Hero({ now }: { now: PublicNowPlayingRow | null }) {
         </div>
 
         <div className="hero-live">
-          <RetroRadio now={now} />
+          {sharedEpisode ? (
+            <RetroRadio
+              now={now}
+              sharedEpisode={sharedEpisode}
+              onReturnToDefault={onReturnToDefault}
+            />
+          ) : (
+            <RetroRadio now={now} />
+          )}
         </div>
       </div>
 

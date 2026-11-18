@@ -489,9 +489,11 @@ export type PublicApprovedEpisodeRow = {
   description: string | null;
   host_name: string | null;
   duration_seconds: number | null;
+  program_id?: string;
   program_name: string;
   program_category: string;
   storage_path: string;
+  storage_provider?: 'supabase' | 'r2';
   file_name: string;
   audio_duration_seconds: number | null;
   created_at: string;
@@ -502,6 +504,25 @@ export type PublicApprovedEpisodeRow = {
   scheduled_at?: string | null;
   published_at?: string | null;
   expires_at?: string | null;
+};
+
+/** Projection for publicly shared scheduled episodes. */
+export type SharedScheduledEpisode = {
+  is_eligible: boolean;
+  error?: string;
+  episode_id: string;
+  title: string;
+  description: string | null;
+  host_name: string | null;
+  program_id: string;
+  program_name: string;
+  program_category: string;
+  artwork_url: string | null;
+  duration_seconds: number | null;
+  scheduled_at: string | null;
+  storage_path: string;
+  storage_provider?: 'supabase' | 'r2';
+  file_name: string;
 };
 
 /** A cached podcast episode from the Spotify/Anchor RSS feed. */

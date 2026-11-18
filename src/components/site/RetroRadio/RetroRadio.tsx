@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import type { PublicApprovedEpisodeRow, PublicNowPlayingRow } from '@/types/database';
+import type { PublicApprovedEpisodeRow, PublicNowPlayingRow, SharedScheduledEpisode } from '@/types/database';
 import { publicService } from '@/services/publicService';
 import { useGlobalAudio } from '@/hooks/GlobalAudioContext';
 import { RadioOnAirLamp } from './RadioOnAirLamp';
@@ -12,6 +12,8 @@ import '@/styles/retro-radio.css';
 
 interface RetroRadioProps {
   now?: PublicNowPlayingRow | null;
+  sharedEpisode?: SharedScheduledEpisode | null;
+  onReturnToDefault?: () => void;
 }
 
 /** Formats ISO string into retro display date e.g. "11 NOV 2026" */
@@ -71,7 +73,7 @@ function parseHighlights(ep: PublicApprovedEpisodeRow): string[] {
   return highlights.slice(0, 3);
 }
 
-export function RetroRadio({ now }: RetroRadioProps) {
+export function RetroRadio({ now, sharedEpisode, onReturnToDefault }: RetroRadioProps) {
   const [items, setItems] = useState<RadioItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -85,6 +87,40 @@ export function RetroRadio({ now }: RetroRadioProps) {
   const radioRef = useRef<HTMLDivElement>(null);
 
   const isLive = now?.broadcast_status === 'ON_AIR';
+
+  // When a shared episode is loaded, pre-load its audio source metadata directly without autoplaying
+  useEffect(() => {
+    if (sharedEpisode && sharedEpisode.is_eligible && sharedEpisode.storage_path) {
+      const epRow: PublicApprovedEpisodeRow = {
+        episode_id: sharedEpisode.episode_id,
+        title: sharedEpisode.title,
+        description: sharedEpisode.description,
+        host_name: sharedEpisode.host_name,
+        program_name: sharedEpisode.program_name,
+        program_category: sharedEpisode.program_category,
+        audio_duration_seconds: sharedEpisode.duration_seconds,
+        created_at: sharedEpisode.scheduled_at || new Date().toISOString(),
+        storage_path: sharedEpisode.storage_path,
+        storage_provider: sharedEpisode.storage_provider,
+        file_name: sharedEpisode.file_name,
+        duration_seconds: sharedEpisode.duration_seconds,
+        show_on_homepage: true,
+        scheduled_at: sharedEpisode.scheduled_at,
+      };
+
+      if (!globalAudio.isPlaying && globalAudio.currentTrack?.episode_id !== sharedEpisode.episode_id) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        globalAudio.setTrack(epRow as unknown as any);
+      }
+    }
+  }, [sharedEpisode?.episode_id, sharedEpisode?.storage_path, globalAudio]);
+
+  // Scroll into view if opened via shared episode link
+  useEffect(() => {
+    if (sharedEpisode && radioRef.current) {
+      radioRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [sharedEpisode]);
 
   // Startup animation sequence: display illuminates, tuning needle glides and settles
   useEffect(() => {
@@ -162,10 +198,60 @@ export function RetroRadio({ now }: RetroRadioProps) {
           });
         }
 
-        // Add published CMS episodes
-        activeEpisodes.forEach((ep, idx) => {
+        // If a scheduled episode was shared via link, add it as a highlighted radio item
+        if (sharedEpisode && sharedEpisode.is_eligible) {
+          const sharedEpRow: PublicApprovedEpisodeRow = {
+            episode_id: sharedEpisode.episode_id,
+            title: sharedEpisode.title,
+            description: sharedEpisode.description,
+            host_name: sharedEpisode.host_name,
+            program_name: sharedEpisode.program_name,
+            program_category: sharedEpisode.program_category,
+            audio_duration_seconds: sharedEpisode.duration_seconds,
+            created_at: sharedEpisode.scheduled_at || new Date().toISOString(),
+            storage_path: sharedEpisode.storage_path,
+            storage_provider: sharedEpisode.storage_provider,
+            file_name: sharedEpisode.file_name,
+            duration_seconds: sharedEpisode.duration_seconds,
+            show_on_homepage: true,
+            scheduled_at: sharedEpisode.scheduled_at,
+          };
+
+          const sharedFreq = radioList.length > 0 ? 91.2 : 90.8;
+          radioList.push({
+            id: sharedEpisode.episode_id,
+            isLive: false,
+            frequency: sharedFreq,
+            category: `PUBLISHED • ${sharedEpisode.program_category || 'COMMUNITY'}`,
+            title: sharedEpisode.title,
+            host: sharedEpisode.host_name || 'VIT Community Radio',
+            description:
+              sharedEpisode.description ||
+              'Catch the latest stories, perspectives and conversation from VIT Community Radio.',
+            highlights: [
+              sharedEpisode.scheduled_at
+                ? `Published: ${new Date(sharedEpisode.scheduled_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
+                : 'Available on Radio',
+              `${sharedEpisode.program_name} Series`,
+              `${Math.max(1, Math.round((sharedEpisode.duration_seconds || 300) / 60))} min Full Audio`,
+            ],
+            date: sharedEpisode.scheduled_at ? formatDisplayDate(sharedEpisode.scheduled_at) : formatDisplayDate(new Date().toISOString()),
+            isNew: true,
+            durationSeconds: sharedEpisode.duration_seconds,
+            episode: sharedEpRow,
+            artworkUrl: sharedEpisode.artwork_url,
+            isSharedScheduled: true,
+          });
+        }
+
+        // Add published CMS episodes, avoiding duplicate if this episode is already shared
+        const filteredEpisodes = sharedEpisode
+          ? activeEpisodes.filter((ep) => ep.episode_id !== sharedEpisode.episode_id)
+          : activeEpisodes;
+
+        filteredEpisodes.forEach((ep, idx) => {
           // Compute a frequency spread along the FM band (91.4 .. 106.8 MHz)
-          const baseFreq = 91.5 + idx * 2.8;
+          const baseFreq = (sharedEpisode ? 92.0 : 91.5) + idx * 2.8;
           const displayFreq = parseFloat(baseFreq.toFixed(1));
           const epArtwork = ep.program_name
             ? artworkMap.get(ep.program_name.toLowerCase().trim()) || null
@@ -183,7 +269,7 @@ export function RetroRadio({ now }: RetroRadioProps) {
               'Catch the latest stories, perspectives and conversation from VIT Community Radio.',
             highlights: parseHighlights(ep),
             date: formatDisplayDate(ep.created_at),
-            isNew: idx === 0,
+            isNew: idx === 0 && !sharedEpisode,
             durationSeconds: ep.audio_duration_seconds || ep.duration_seconds,
             episode: ep,
             artworkUrl: epArtwork,
@@ -212,6 +298,12 @@ export function RetroRadio({ now }: RetroRadioProps) {
         }
 
         setItems(radioList);
+        if (sharedEpisode) {
+          const targetIdx = radioList.findIndex((it) => it.id === sharedEpisode.episode_id);
+          if (targetIdx !== -1) {
+            setCurrentIndex(targetIdx);
+          }
+        }
       } catch (err) {
         console.error('[RetroRadio] Failed to load radio content:', err);
       } finally {
@@ -225,7 +317,7 @@ export function RetroRadio({ now }: RetroRadioProps) {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [isLive, now]);
+  }, [isLive, now, sharedEpisode]);
 
   // Navigate to target item with smooth tuning flicker
   const tuneToIndex = useCallback(
@@ -260,6 +352,15 @@ export function RetroRadio({ now }: RetroRadioProps) {
       globalAudio.playTrack(nextItem.episode as unknown as any);
     }
   }, [currentIndex, items, tuneToIndex, globalAudio]);
+
+  const handleReturnToDefault = useCallback(() => {
+    if (items.length > 0) {
+      tuneToIndex(0);
+    }
+    if (onReturnToDefault) {
+      onReturnToDefault();
+    }
+  }, [items, tuneToIndex, onReturnToDefault]);
 
   // Active item
   const currentItem = items[currentIndex] ?? null;
@@ -445,6 +546,7 @@ export function RetroRadio({ now }: RetroRadioProps) {
               isPoweredOn={isPoweredOn}
               onSeek={handleSeek}
               onTogglePlay={handleTogglePlay}
+              onReturnToDefault={onReturnToDefault ? handleReturnToDefault : undefined}
             />
           </div>
         </div>

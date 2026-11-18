@@ -12,6 +12,7 @@ interface RadioDisplayProps {
   isPoweredOn?: boolean;
   onSeek?: (seconds: number) => void;
   onTogglePlay?: () => void;
+  onReturnToDefault?: () => void;
 }
 
 function formatClock(seconds: number): string {
@@ -122,6 +123,7 @@ export function RadioDisplay({
   isPoweredOn = true,
   onSeek,
   onTogglePlay,
+  onReturnToDefault,
 }: RadioDisplayProps) {
   const [imgFailed, setImgFailed] = useState(false);
   const [vuLevels, setVuLevels] = useState<{ left: number; right: number }>({ left: 1, right: 1 });
@@ -275,6 +277,71 @@ export function RadioDisplay({
             </span>
             <span className="retro-lcd-tag category">{item.category}</span>
             {item.isNew && <span className="retro-lcd-badge new">NEW</span>}
+            {item.isSharedScheduled && (
+              <span
+                className="retro-lcd-badge shared"
+                style={{
+                  background: 'var(--radio-play-btn, #D91F2B)',
+                  color: '#FFF',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <span>SHARED</span>
+                {onReturnToDefault && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onReturnToDefault();
+                    }}
+                    title="Return to normal radio (live broadcast / default dial)"
+                    aria-label="Return to normal radio"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#FFF',
+                      cursor: 'pointer',
+                      fontSize: '10px',
+                      padding: '0 2px',
+                      lineHeight: 1,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      fontWeight: 800,
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </span>
+            )}
+            {item.isSharedScheduled && onReturnToDefault && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onReturnToDefault();
+                }}
+                className="retro-lcd-return-btn"
+                title="Return to normal 90.8 FM radio playback"
+                aria-label="Return to live radio"
+                style={{
+                  background: 'rgba(0, 0, 0, 0.08)',
+                  border: '1px solid rgba(0, 0, 0, 0.2)',
+                  borderRadius: '3px',
+                  color: 'inherit',
+                  fontFamily: 'inherit',
+                  fontSize: '0.52rem',
+                  fontWeight: 700,
+                  padding: '0.1rem 0.35rem',
+                  cursor: 'pointer',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Return to Live Dial
+              </button>
+            )}
           </div>
 
           <div className="retro-display-right-status">

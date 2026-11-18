@@ -17,6 +17,8 @@ import {
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { DeleteEpisodeDialog } from '@/components/DeleteEpisodeDialog';
 import { HomepageScheduleDialog } from '@/components/studio/HomepageScheduleDialog';
+import { ShareEpisodeDialog } from '@/components/ShareEpisodeDialog';
+import { isEpisodeScheduledAndShareable } from '@/utils/sharing';
 import { episodeService } from '@/services/episodeService';
 import { audioService } from '@/services/audioService';
 import { mixotaService } from '@/services/mixotaService';
@@ -33,6 +35,7 @@ export function EpisodeDetailPage() {
   const navigate = useNavigate();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showHomepageSchedule, setShowHomepageSchedule] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const episode = useAsync(async () => {
@@ -257,6 +260,9 @@ export function EpisodeDetailPage() {
   };
 
   const latestRejection = (reviews.data ?? []).find((r) => r.decision === 'REJECTED');
+  const episodeScheduleList = epSchedules.data?.get(ep.id) ?? [];
+  const headerPubStatus = resolveEpisodePublishStatus(ep, new Date(), episodeScheduleList);
+  const isShareable = isEpisodeScheduledAndShareable(ep, headerPubStatus);
 
   return (
     <>
@@ -271,6 +277,20 @@ export function EpisodeDetailPage() {
               {ep.episode_id}
             </span>
             <UnifiedStatusBadge episode={ep} />
+            {isShareable && (
+              <button
+                type="button"
+                className="small btn-share-episode"
+                style={{
+                  color: '#1d4ed8',
+                  borderColor: '#bfdbfe',
+                  backgroundColor: '#eff6ff',
+                }}
+                onClick={() => setShowShareDialog(true)}
+              >
+                Share Episode
+              </button>
+            )}
             <button type="button" className="small" onClick={() => navigate('/admin/episodes')}>
               Back to episodes
             </button>
@@ -916,6 +936,21 @@ export function EpisodeDetailPage() {
                           : 'Edit Schedule / Expiry'}
                     </button>
 
+                    {isEpisodeScheduledAndShareable(ep, pubStatus) && (
+                      <button
+                        type="button"
+                        className="small btn-share-episode"
+                        style={{
+                          color: '#1d4ed8',
+                          borderColor: '#bfdbfe',
+                          backgroundColor: '#eff6ff',
+                        }}
+                        onClick={() => setShowShareDialog(true)}
+                      >
+                        Share Episode
+                      </button>
+                    )}
+
                     {(pubStatus === 'NOT_SCHEDULED' || pubStatus === 'DRAFT') && (
                       <button
                         type="button"
@@ -1023,6 +1058,19 @@ export function EpisodeDetailPage() {
             setNotice(msg);
             void refresh();
           }}
+        />
+      )}
+
+      {showShareDialog && (
+        <ShareEpisodeDialog
+          episode={{
+            id: ep.id,
+            title: ep.title,
+            program: ep.program,
+            scheduled_at: ep.scheduled_at,
+            homepage_publish_at: ep.homepage_publish_at,
+          }}
+          onClose={() => setShowShareDialog(false)}
         />
       )}
     </>

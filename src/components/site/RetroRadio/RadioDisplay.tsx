@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import type { RadioItem } from './types';
 
 interface RadioDisplayProps {
@@ -10,12 +10,19 @@ interface RadioDisplayProps {
   authMessage: string | null;
   isTuning: boolean;
   isPoweredOn?: boolean;
+  onSeek?: (seconds: number) => void;
+  onTogglePlay?: () => void;
 }
 
 function formatClock(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds <= 0) return '0:00';
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
+  const totalSecs = Math.floor(seconds);
+  const hrs = Math.floor(totalSecs / 3600);
+  const m = Math.floor((totalSecs % 3600) / 60);
+  const s = totalSecs % 60;
+  if (hrs > 0) {
+    return `${hrs}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
@@ -113,9 +120,96 @@ export function RadioDisplay({
   authMessage,
   isTuning,
   isPoweredOn = true,
+  onSeek,
+  onTogglePlay,
 }: RadioDisplayProps) {
   const [imgFailed, setImgFailed] = useState(false);
   const [vuLevels, setVuLevels] = useState<{ left: number; right: number }>({ left: 1, right: 1 });
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+
+  const effectiveDuration = duration > 0 ? duration : (item?.durationSeconds || 0);
+  const isSeekable = effectiveDuration > 0 && !item?.isLive;
+  const displayCurrentTime = isScrubbing && scrubTime !== null ? scrubTime : currentTime;
+  const progressRatio = effectiveDuration > 0
+    ? Math.min(1, Math.max(0, displayCurrentTime / effectiveDuration))
+    : progress;
+  const progressPct = Math.min(100, Math.max(0, progressRatio * 100));
+
+  const getTimeFromPointer = (clientX: number): number => {
+    if (!trackRef.current || effectiveDuration <= 0) return 0;
+    const rect = trackRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return 0;
+    const offsetX = Math.min(Math.max(0, clientX - rect.left), rect.width);
+    const ratio = offsetX / rect.width;
+    return ratio * effectiveDuration;
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isSeekable || !onSeek) return;
+    if (e.button !== 0) return;
+
+    e.preventDefault();
+    const targetEl = e.currentTarget;
+    try {
+      targetEl.setPointerCapture?.(e.pointerId);
+    } catch {
+      // ignore
+    }
+
+    const targetTime = getTimeFromPointer(e.clientX);
+    setIsScrubbing(true);
+    setScrubTime(targetTime);
+
+    const onPointerMove = (moveEvt: PointerEvent) => {
+      const movedTime = getTimeFromPointer(moveEvt.clientX);
+      setScrubTime(movedTime);
+    };
+
+    const onPointerUp = (upEvt: PointerEvent) => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+      try {
+        targetEl.releasePointerCapture?.(upEvt.pointerId);
+      } catch {
+        // ignore
+      }
+
+      const finalTime = getTimeFromPointer(upEvt.clientX);
+      setIsScrubbing(false);
+      setScrubTime(null);
+      onSeek(finalTime);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!isSeekable || !onSeek) return;
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      onSeek(Math.max(0, currentTime - 5));
+    } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      onSeek(Math.min(effectiveDuration, currentTime + 5));
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      onSeek(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      onSeek(effectiveDuration);
+    } else if (e.key === 'PageDown') {
+      e.preventDefault();
+      onSeek(Math.max(0, currentTime - 30));
+    } else if (e.key === 'PageUp') {
+      e.preventDefault();
+      onSeek(Math.min(effectiveDuration, currentTime + 30));
+    }
+  };
 
   // Reset image failure state when item changes
   useEffect(() => {
@@ -297,22 +391,106 @@ export function RadioDisplay({
 
             {/* Compact Playback Progress & Time */}
             <div className="retro-display-compact-progress">
-              <div className="retro-progress-track">
+              <div
+                ref={trackRef}
+                className={`retro-progress-track ${isSeekable ? 'is-seekable' : ''} ${
+                  isScrubbing ? 'is-scrubbing' : ''
+                }`}
+                onPointerDown={handlePointerDown}
+                onKeyDown={handleKeyDown}
+                role="slider"
+                aria-label="Audio progress scrubber"
+                aria-valuemin={0}
+                aria-valuemax={Math.round(effectiveDuration)}
+                aria-valuenow={Math.round(displayCurrentTime)}
+                aria-valuetext={`${formatClock(displayCurrentTime)} of ${formatClock(effectiveDuration)}`}
+                tabIndex={isSeekable ? 0 : -1}
+                title={
+                  isSeekable
+                    ? `Click or drag to seek [${formatClock(displayCurrentTime)} / ${formatClock(effectiveDuration)}]`
+                    : undefined
+                }
+              >
                 <div
                   className="retro-progress-fill"
-                  style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }}
+                  style={{ width: `${progressPct}%` }}
                 />
+                {isSeekable && (
+                  <div
+                    className="retro-progress-thumb"
+                    style={{ left: `${progressPct}%` }}
+                    aria-hidden="true"
+                  />
+                )}
               </div>
+
               <div className="retro-time-readout">
-                <span className="time-curr">{formatClock(currentTime)}</span>
+                <span className="time-curr">{formatClock(displayCurrentTime)}</span>
                 <span className="time-sep">/</span>
                 <span className="time-dur">
-                  {duration > 0
-                    ? formatClock(duration)
-                    : item.durationSeconds
-                    ? formatClock(item.durationSeconds)
-                    : '--:--'}
+                  {effectiveDuration > 0 ? formatClock(effectiveDuration) : '--:--'}
                 </span>
+              </div>
+
+              {/* Small Modern Audio Controls: Seek -10s, Play/Pause, Seek +10s */}
+              <div className="retro-display-seek-controls">
+                <button
+                  type="button"
+                  className="retro-seek-btn retro-seek-backward"
+                  onClick={() => onSeek && onSeek(Math.max(0, currentTime - 10))}
+                  disabled={!isSeekable}
+                  aria-label="Seek backward 10 seconds"
+                  title="Seek backward 10 seconds [-10s]"
+                >
+                  <svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true" className="seek-icon">
+                    <path
+                      fill="currentColor"
+                      d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.2 3.16-1.98 5.12-1.98 3.79 0 7 2.76 7.7 6.39l2.45-.63C21.65 11.64 17.51 8 12.5 8z"
+                    />
+                  </svg>
+                  <span>-10s</span>
+                </button>
+
+                <button
+                  type="button"
+                  className={`retro-seek-btn retro-seek-play ${isPlaying ? 'is-playing' : ''}`}
+                  onClick={onTogglePlay}
+                  disabled={!item || (item.isLive && !import.meta.env.VITE_STREAM_URL)}
+                  aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
+                  title={isPlaying ? 'Pause audio' : 'Play audio'}
+                >
+                  {isPlaying ? (
+                    <svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true" className="seek-icon">
+                      <rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor" />
+                      <rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true" className="seek-icon">
+                      <path
+                        fill="currentColor"
+                        d="M8 5.2v13.6a.6.6 0 0 0 .92.51l10.5-6.8a.6.6 0 0 0 0-1.02L8.92 4.69A.6.6 0 0 0 8 5.2Z"
+                      />
+                    </svg>
+                  )}
+                  <span>{isPlaying ? 'PAUSE' : 'PLAY'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="retro-seek-btn retro-seek-forward"
+                  onClick={() => onSeek && onSeek(Math.min(effectiveDuration, currentTime + 10))}
+                  disabled={!isSeekable}
+                  aria-label="Seek forward 10 seconds"
+                  title="Seek forward 10 seconds [+10s]"
+                >
+                  <span>+10s</span>
+                  <svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true" className="seek-icon">
+                    <path
+                      fill="currentColor"
+                      d="M11.5 8c2.65 0 5.05.99 6.9 2.6L22 7v9h-9l3.62-3.62c-1.39-1.2-3.16-1.98-5.12-1.98-3.79 0-7 2.76-7.7 6.39l-2.45-.63C2.35 11.64 6.49 8 11.5 8z"
+                    />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>

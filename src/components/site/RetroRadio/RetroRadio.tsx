@@ -240,32 +240,68 @@ export function RetroRadio({ now }: RetroRadioProps) {
   );
 
   const handlePrev = useCallback(() => {
-    tuneToIndex(currentIndex - 1);
-  }, [currentIndex, tuneToIndex]);
+    if (items.length === 0) return;
+    const nextIdx = (currentIndex - 1 + items.length) % items.length;
+    tuneToIndex(nextIdx);
+    const nextItem = items[nextIdx];
+    if (globalAudio.isPlaying && nextItem?.episode) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      globalAudio.playTrack(nextItem.episode as unknown as any);
+    }
+  }, [currentIndex, items, tuneToIndex, globalAudio]);
 
   const handleNext = useCallback(() => {
-    tuneToIndex(currentIndex + 1);
-  }, [currentIndex, tuneToIndex]);
-
-  // Autoplay dial cycle: advances tuning when not playing audio and not hovered
-  useEffect(() => {
-    if (isHovered || globalAudio.isPlaying || items.length <= 1) {
-      return;
+    if (items.length === 0) return;
+    const nextIdx = (currentIndex + 1) % items.length;
+    tuneToIndex(nextIdx);
+    const nextItem = items[nextIdx];
+    if (globalAudio.isPlaying && nextItem?.episode) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      globalAudio.playTrack(nextItem.episode as unknown as any);
     }
-    const timer = setInterval(() => {
-      tuneToIndex(currentIndex + 1);
-    }, 12000);
-    return () => clearInterval(timer);
-  }, [items.length, isHovered, globalAudio.isPlaying, currentIndex, tuneToIndex]);
+  }, [currentIndex, items, tuneToIndex, globalAudio]);
 
   // Active item
   const currentItem = items[currentIndex] ?? null;
 
-  // Track playback status
-  const isCurrentEpisodePlaying =
+  // Determine if currently tuned item is active in global audio
+  const isThisItemActive = Boolean(
     currentItem?.episode &&
-    globalAudio.currentTrack?.episode_id === currentItem.episode.episode_id &&
-    globalAudio.isPlaying;
+    globalAudio.currentTrack?.episode_id === currentItem.episode.episode_id
+  );
+
+  const activeDuration = isThisItemActive
+    ? (globalAudio.duration > 0 ? globalAudio.duration : (currentItem?.durationSeconds || 0))
+    : (currentItem?.durationSeconds || 0);
+
+  const activeCurrentTime = isThisItemActive ? globalAudio.currentTime : 0;
+  const activeProgress = activeDuration > 0 ? activeCurrentTime / activeDuration : 0;
+  const isPlaying = Boolean(isThisItemActive && globalAudio.isPlaying);
+
+  // Seek handler allowing listeners to jump to any timestamp
+  const handleSeek = useCallback(
+    (targetSeconds: number) => {
+      if (!currentItem) return;
+
+      if (currentItem.isLive) {
+        setAuthMessage('Live 90.8 FM broadcast is in real time.');
+        setTimeout(() => setAuthMessage(null), 3000);
+        return;
+      }
+
+      const ep = currentItem.episode;
+      if (!ep) return;
+
+      if (isThisItemActive) {
+        globalAudio.seek(targetSeconds);
+      } else {
+        // Cue and play this episode starting at target timestamp
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        globalAudio.playTrack(ep as unknown as any, targetSeconds);
+      }
+    },
+    [currentItem, isThisItemActive, globalAudio],
+  );
 
   // Handle Play/Pause
   const handleTogglePlay = async () => {
@@ -348,8 +384,6 @@ export function RetroRadio({ now }: RetroRadioProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handlePrev, handleNext, handleTogglePlay, isHovered]);
 
-  const isPlaying = Boolean(isCurrentEpisodePlaying);
-
   return (
     <div
       ref={radioRef}
@@ -403,12 +437,14 @@ export function RetroRadio({ now }: RetroRadioProps) {
             <RadioDisplay
               item={currentItem}
               isPlaying={isPlaying}
-              progress={globalAudio.progress}
-              currentTime={globalAudio.currentTime}
-              duration={globalAudio.duration}
+              progress={activeProgress}
+              currentTime={activeCurrentTime}
+              duration={activeDuration}
               authMessage={authMessage}
               isTuning={isTuning}
               isPoweredOn={isPoweredOn}
+              onSeek={handleSeek}
+              onTogglePlay={handleTogglePlay}
             />
           </div>
         </div>

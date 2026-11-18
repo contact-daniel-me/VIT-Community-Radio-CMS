@@ -9,8 +9,8 @@ interface GlobalAudioState {
   progress: number; // 0 to 1
   currentTime: number;
   duration: number;
-  playTrack: (track: PublicTopAudioRow) => void;
-  setTrack: (track: PublicTopAudioRow) => void;
+  playTrack: (track: PublicTopAudioRow, startTime?: number) => void;
+  setTrack: (track: PublicTopAudioRow, startTime?: number) => void;
   pause: () => void;
   resume: () => void;
   seek: (time: number) => void;
@@ -25,6 +25,7 @@ const GlobalAudioContext = createContext<GlobalAudioState | undefined>(undefined
 
 export function GlobalAudioProvider({ children }: { children: ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const pendingSeekTimeRef = useRef<number | null>(null);
   const [currentTrack, setCurrentTrack] = useState<PublicTopAudioRow | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -37,21 +38,58 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
       audioRef.current = new Audio();
       try {
         audioRef.current.crossOrigin = 'anonymous';
-        audioRef.current.preload = 'none';
+        audioRef.current.preload = 'metadata';
       } catch {
         // no-op if browser restricts crossOrigin attribute assignment
       }
     }
     const audio = audioRef.current;
 
-    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const onLoadedMetadata = () => setDuration(audio.duration);
+    const onTimeUpdate = () => {
+      // If a pending seek is not in flight, track audio playback time
+      if (pendingSeekTimeRef.current === null) {
+        setCurrentTime(audio.currentTime);
+      }
+    };
+
+    const applyPendingSeek = () => {
+      if (pendingSeekTimeRef.current !== null && Number.isFinite(pendingSeekTimeRef.current)) {
+        const target = pendingSeekTimeRef.current;
+        try {
+          audio.currentTime = target;
+          setCurrentTime(target);
+        } catch (e) {
+          console.warn('[GlobalAudio] Failed to apply pending seek:', e);
+        }
+        pendingSeekTimeRef.current = null;
+      }
+    };
+
+    const onLoadedMetadata = () => {
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+      }
+      applyPendingSeek();
+    };
+
+    const onDurationChange = () => {
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        setDuration(audio.duration);
+      }
+    };
+
+    const onCanPlay = () => {
+      applyPendingSeek();
+    };
+
     const onEnded = () => setIsPlaying(false);
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
 
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('durationchange', onDurationChange);
+    audio.addEventListener('canplay', onCanPlay);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('play', onPlay);
     audio.addEventListener('pause', onPause);
@@ -59,6 +97,8 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
     return () => {
       audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('durationchange', onDurationChange);
+      audio.removeEventListener('canplay', onCanPlay);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('play', onPlay);
       audio.removeEventListener('pause', onPause);
@@ -83,7 +123,7 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const playTrack = async (track: PublicTopAudioRow) => {
+  const playTrack = async (track: PublicTopAudioRow, startTime = 0) => {
     // Stop any currently playing audio first
     if (audioRef.current && !audioRef.current.paused) {
       audioRef.current.pause();
@@ -97,20 +137,29 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
 
     setCurrentTrack(track);
     setIsPlaying(false);
-    setCurrentTime(0);
+    setCurrentTime(startTime);
     setDuration(track.audio_duration_seconds || 0);
+    pendingSeekTimeRef.current = startTime > 0 ? startTime : null;
 
     try {
       const url = await audioService.getPlaybackUrl(track.storage_path);
       console.debug('[GlobalAudio] playTrack url:', url);
       if (audioRef.current) {
+        audioRef.current.preload = 'auto';
         audioRef.current.src = url;
         audioRef.current.volume = volume;
         audioRef.current.muted = muted || volume === 0;
         audioRef.current.load(); // ensure browser re-reads the new src
-        audioRef.current.volume = volume;
-        audioRef.current.volume = volume;
-        audioRef.current.muted = muted || volume === 0;
+
+        if (startTime > 0 && audioRef.current.readyState >= 1) {
+          try {
+            audioRef.current.currentTime = startTime;
+            pendingSeekTimeRef.current = null;
+          } catch {
+            // will be applied on loadedmetadata / canplay
+          }
+        }
+
         const playPromise = audioRef.current.play();
         if (playPromise !== undefined) {
           await playPromise;
@@ -122,11 +171,12 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const setTrack = async (track: PublicTopAudioRow) => {
+  const setTrack = async (track: PublicTopAudioRow, startTime = 0) => {
     setCurrentTrack(track);
     setIsPlaying(false);
-    setCurrentTime(0);
+    setCurrentTime(startTime);
     setDuration(track.audio_duration_seconds || 0);
+    pendingSeekTimeRef.current = startTime > 0 ? startTime : null;
 
     try {
       const url = await audioService.getPlaybackUrl(track.storage_path);
@@ -156,14 +206,13 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
         if (!hasValidSrc) {
           const url = await audioService.getPlaybackUrl(currentTrack.storage_path);
           console.debug('[GlobalAudio] resume: re-fetching url', url);
+          audioRef.current.preload = 'auto';
           audioRef.current.src = url;
           audioRef.current.load();
+          if (currentTime > 0) {
+            pendingSeekTimeRef.current = currentTime;
+          }
         }
-        console.debug(
-          '[GlobalAudio] resume: paused=', audioRef.current.paused,
-          'src=', audioRef.current.src,
-          'readyState=', audioRef.current.readyState,
-        );
         audioRef.current.volume = volume;
         audioRef.current.muted = muted || volume === 0;
         const playPromise = audioRef.current.play();
@@ -177,9 +226,21 @@ export function GlobalAudioProvider({ children }: { children: ReactNode }) {
   };
 
   const seek = (time: number) => {
+    const target = Number.isFinite(time) ? Math.max(0, time) : 0;
+    const clamped = duration > 0 ? Math.min(target, duration) : target;
+    setCurrentTime(clamped);
+
     if (audioRef.current) {
-      audioRef.current.currentTime = time;
-      setCurrentTime(time);
+      if (audioRef.current.readyState >= 1) {
+        try {
+          audioRef.current.currentTime = clamped;
+          pendingSeekTimeRef.current = null;
+        } catch {
+          pendingSeekTimeRef.current = clamped;
+        }
+      } else {
+        pendingSeekTimeRef.current = clamped;
+      }
     }
   };
 

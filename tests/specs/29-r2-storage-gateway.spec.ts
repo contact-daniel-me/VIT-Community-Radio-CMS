@@ -215,16 +215,16 @@ describe('Phase 2: Cloudflare R2 Storage Comprehensive Verification', () => {
   describe('2. Edge Function Security & RBAC Matrix', () => {
     it('evaluates permission matrix across every supported station role', async () => {
       const roles = ['ADMIN', 'PRODUCER', 'RJ', 'QC', 'EDITOR', 'SECTION_HEAD'];
-      const allowedRolesForUpload = ['ADMIN', 'PRODUCER', 'RJ'];
+      const allowedRolesForUpload = ['ADMIN', 'PRODUCER', 'RJ', 'QC'];
 
       for (const role of roles) {
         const canUpload = allowedRolesForUpload.includes(role);
         if (role === 'ADMIN' || role === 'PRODUCER') {
           expect(canUpload).toBe(true);
-        } else if (role === 'RJ') {
+        } else if (role === 'RJ' || role === 'QC') {
           expect(canUpload).toBe(true); // conditional on episode ownership
         } else {
-          expect(canUpload).toBe(false); // QC, EDITOR, SECTION_HEAD cannot upload raw takes
+          expect(canUpload).toBe(false); // EDITOR, SECTION_HEAD cannot upload raw takes
         }
       }
 

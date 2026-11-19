@@ -182,8 +182,8 @@ export function EpisodesPage() {
       title: '',
       description: '',
       episode_number: null,
-      host_name: profile.role === 'RJ' ? profile.full_name : '',
-      assigned_rj: profile.role === 'RJ' ? profile.id : null,
+      host_name: (profile.role === 'RJ' || profile.role === 'QC') ? profile.full_name : '',
+      assigned_rj: (profile.role === 'RJ' || profile.role === 'QC') ? profile.id : null,
     });
   };
 

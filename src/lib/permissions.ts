@@ -34,13 +34,13 @@ export const can = {
     role === 'SECTION_HEAD' || role === 'ADMIN',
 
   createEpisode: (role: UserRole): boolean =>
-    role === 'ADMIN' || role === 'PRODUCER' || role === 'RJ',
+    role === 'ADMIN' || role === 'PRODUCER' || role === 'RJ' || role === 'QC',
 
   editEpisode: (role: UserRole, episode: Pick<EpisodeRow,
     'status' | 'created_by' | 'assigned_rj'>, userId: string): boolean => {
     if (!EDITABLE_EPISODE_STATUSES.includes(episode.status)) return false;
     if (role === 'ADMIN' || role === 'PRODUCER') return true;
-    if (role === 'RJ') return episode.created_by === userId || episode.assigned_rj === userId;
+    if (role === 'RJ' || role === 'QC') return episode.created_by === userId || episode.assigned_rj === userId;
     return false;
   },
 
@@ -89,7 +89,7 @@ export const ROLE_SUMMARY: Record<UserRole, string> = {
   ADMIN: 'Full access to content, scheduling, users and settings.',
   PRODUCER: 'Manages programmes, episodes, audio and the schedule.',
   RJ: 'Books the studio, records and uploads shows, and goes on air.',
-  QC: 'Reviews finished audio, approves or rejects it for broadcast, and books the studio.',
+  QC: 'Reviews finished audio, approves or rejects it for broadcast, books the studio, and uploads recordings.',
   EDITOR: 'Cuts and returns the audio for shows assigned to them.',
   SECTION_HEAD: 'Approves show scripts before recording.',
 };

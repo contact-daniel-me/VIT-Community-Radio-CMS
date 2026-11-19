@@ -155,7 +155,7 @@ async function checkUploadEligibility(
 
   const role = profile.role;
   const isAdminOrProducer = role === 'ADMIN' || role === 'PRODUCER';
-  const isOwnerRj = role === 'RJ' && (episode.created_by === profile.id || episode.assigned_rj === profile.id);
+  const isOwnerRj = (role === 'RJ' || role === 'QC') && (episode.created_by === profile.id || episode.assigned_rj === profile.id);
   const isDraftOrRejected = episode.status === 'DRAFT' || episode.status === 'REJECTED';
 
   if (!isAdminOrProducer && (!isOwnerRj || !isDraftOrRejected)) {

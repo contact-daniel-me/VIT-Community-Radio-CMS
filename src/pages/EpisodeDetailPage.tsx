@@ -778,7 +778,7 @@ export function EpisodeDetailPage() {
 
               {(ep.status === 'REJECTED' || ep.status === 'APPROVED') &&
                 (can.manageProgram(profile.role) ||
-                  (profile.role === 'RJ' && ep.status === 'REJECTED')) && (
+                  ((profile.role === 'RJ' || profile.role === 'QC') && ep.status === 'REJECTED')) && (
                   <button
                     type="button"
                     disabled={busy}

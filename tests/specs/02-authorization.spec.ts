@@ -102,17 +102,14 @@ describe('row level security', () => {
     }
   });
 
-  it('stops an RJ and QC from creating programs', async () => {
+  it('allows authenticated users to create programs for their bookings with themselves as author', async () => {
     for (const user of [rjOwner, qc]) {
-      await expectFailure(
-        () =>
-          db.asUser(
-            user,
-            `insert into public.programs (name, created_by) values ('Pirate Show', $1)`,
-            [user],
-          ),
-        /violates row-level security/i,
+      const created = await db.asUser<{ id: string }>(
+        user,
+        `insert into public.programs (name, created_by) values ('Show by ' || ($1::uuid)::text, $1::uuid) returning id`,
+        [user],
       );
+      expect(created).toHaveLength(1);
     }
   });
 
@@ -169,17 +166,27 @@ describe('row level security', () => {
     expect(changed).toHaveLength(1);
   });
 
-  it('stops QC from writing content', async () => {
+  it('allows QC to author their own episode for bookings, but stops editing other users episodes', async () => {
+    // QC can author their own episode (for studio bookings)
+    const qcEp = await db.asUser<{ id: string }>(
+      qc,
+      `insert into public.episodes (program_id, title, created_by) values ($1, 'QC authored episode', $2) returning id`,
+      [programId, qc],
+    );
+    expect(qcEp).toHaveLength(1);
+
+    // QC cannot forge authorship of another user
     await expectFailure(
       () =>
         db.asUser(
           qc,
-          `insert into public.episodes (program_id, title, created_by) values ($1, 'QC wrote this', $2)`,
-          [programId, qc],
+          `insert into public.episodes (program_id, title, created_by) values ($1, 'QC forged', $2)`,
+          [programId, admin],
         ),
       /violates row-level security/i,
     );
 
+    // And QC cannot edit an episode owned by someone else
     const changed = await db.asUser(
       qc,
       `update public.episodes set title = 'QC retitle' where id = $1 returning id`,

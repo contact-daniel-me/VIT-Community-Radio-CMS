@@ -202,4 +202,121 @@ describe('QC Role Studio Booking Permissions & Workflow', () => {
       expect(cancelled[0].status).toBe('CANCELLED');
     });
   });
+
+  describe('3. Audio Recording Upload & Episode Workflow for QC Role', () => {
+    it('evaluates can.createEpisode and can.editEpisode as true for QC users on their own content', () => {
+      expect(can.createEpisode('QC')).toBe(true);
+      expect(can.editEpisode('QC', { status: 'DRAFT', created_by: qc, assigned_rj: qc }, qc)).toBe(true);
+      expect(can.editEpisode('QC', { status: 'DRAFT', created_by: rj, assigned_rj: rj }, qc)).toBe(false);
+      expect(can.submitEpisode('QC', { status: 'DRAFT', created_by: qc, assigned_rj: qc }, qc)).toBe(true);
+      expect(can.submitEpisode('QC', { status: 'DRAFT', created_by: rj, assigned_rj: rj }, qc)).toBe(false);
+    });
+
+    it('allows QC users to insert a DRAFT episode for their booking and stops forging authorship', async () => {
+      const epRows = await db.asUser<{ id: string; status: string; created_by: string }>(
+        qc,
+        `insert into public.episodes (program_id, title, host_name, assigned_rj, created_by)
+         values ($1, 'Thinkathon Theme Song', 'QC Officer Arun', $2, $2)
+         returning id, status, created_by`,
+        [defaultProgram, qc],
+      );
+
+      expect(epRows).toHaveLength(1);
+      expect(epRows[0].status).toBe('DRAFT');
+      expect(epRows[0].created_by).toBe(qc);
+
+      // QC user cannot forge created_by as someone else
+      await expectFailure(
+        () =>
+          db.asUser(
+            qc,
+            `insert into public.episodes (program_id, title, created_by)
+             values ($1, 'Forged Author', $2)`,
+            [defaultProgram, rj],
+          ),
+        /violates row-level security/i,
+      );
+    });
+
+    it('allows QC users to upload audio files for their own draft episode and link to booking', async () => {
+      // 1. Create a booking for QC
+      const date = weekdayFromNow(7);
+      const bRows = await book(qc, { date, start: '10:00' });
+      const bookingId = (bRows[0] as { id: string }).id;
+
+      // 2. Create episode for QC
+      const epRows = await db.asUser<{ id: string }>(
+        qc,
+        `insert into public.episodes (program_id, title, created_by, assigned_rj)
+         values ($1, 'QC Session Episode', $2, $2)
+         returning id`,
+        [defaultProgram, qc],
+      );
+      const epId = epRows[0].id;
+
+      // 3. Insert audio file into audio_files
+      const audioRows = await db.asUser<{ id: string; file_name: string }>(
+        qc,
+        `insert into public.audio_files
+           (episode_id, file_name, storage_path, storage_provider, mime_type, file_size, uploaded_by)
+         values ($1::uuid, 'thinkathon.mp3', 'episodes/' || ($1::uuid)::text || '/thinkathon.mp3', 'r2', 'audio/mpeg', 4800000, $2::uuid)
+         returning id, file_name`,
+        [epId, qc],
+      );
+      expect(audioRows).toHaveLength(1);
+      const audioId = audioRows[0].id;
+
+      // 4. Update episode to attach audio_file_id
+      const updatedEp = await db.asUser<{ id: string; audio_file_id: string }>(
+        qc,
+        `update public.episodes set audio_file_id = $1 where id = $2 returning id, audio_file_id`,
+        [audioId, epId],
+      );
+      expect(updatedEp).toHaveLength(1);
+      expect(updatedEp[0].audio_file_id).toBe(audioId);
+
+      // 5. Link episode to studio booking
+      const linkedBooking = await db.asUser<{ id: string; episode_id: string }>(
+        qc,
+        `update public.studio_bookings set episode_id = $1 where id = $2 returning id, episode_id`,
+        [epId, bookingId],
+      );
+      expect(linkedBooking).toHaveLength(1);
+      expect(linkedBooking[0].episode_id).toBe(epId);
+
+      // 6. Submit episode for QC
+      const submitted = await db.asUser<{ id: string; status: string }>(
+        qc,
+        `select id, status from public.submit_episode_for_qc($1)`,
+        [epId],
+      );
+      expect(submitted).toHaveLength(1);
+      expect(submitted[0].status).toBe('PENDING_QC');
+    });
+
+    it('prevents QC users from uploading audio to another users episode', async () => {
+      // Create episode owned by RJ
+      const rjEp = await db.asUser<{ id: string }>(
+        rj,
+        `insert into public.episodes (program_id, title, created_by, assigned_rj)
+         values ($1, 'RJ Exclusive Take', $2, $2)
+         returning id`,
+        [defaultProgram, rj],
+      );
+      const rjEpId = rjEp[0].id;
+
+      // QC attempts to upload audio to RJ episode -> denied
+      await expectFailure(
+        () =>
+          db.asUser(
+            qc,
+            `insert into public.audio_files
+               (episode_id, file_name, storage_path, storage_provider, mime_type, file_size, uploaded_by)
+             values ($1::uuid, 'intruder.mp3', 'episodes/' || ($1::uuid)::text || '/intruder.mp3', 'r2', 'audio/mpeg', 1000, $2::uuid)`,
+            [rjEpId, qc],
+          ),
+        /violates row-level security/i,
+      );
+    });
+  });
 });

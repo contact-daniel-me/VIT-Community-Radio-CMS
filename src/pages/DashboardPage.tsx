@@ -97,7 +97,7 @@ export function DashboardPage() {
           })),
       dashboardMetricsService.getExpiringRawAudio().catch(() => []),
       bookingService
-        .getUpcomingBookings(5, profile.role === 'RJ' ? profile.id : undefined)
+        .getUpcomingBookings(5, (profile.role === 'RJ' || profile.role === 'QC') ? profile.id : undefined)
         .catch(() => []),
       can.schedule(profile.role)
         ? scheduleService.getTodaySchedule(today).catch(() => [])

@@ -266,9 +266,28 @@ describe('studio bookings', () => {
     );
   });
 
-  it('refuses QC creating bookings at all', async () => {
+  it('allows QC to book the studio for themselves, just like RJs', async () => {
+    const rows = await book(qc, { date: weekdayFromNow(9), start: '14:30' });
+    expect(rows).toHaveLength(1);
+    expect(String((rows[0] as { reference: string }).reference)).toMatch(/^VCR-\d{4}-\d{6}$/);
+  });
+
+  it('refuses QC booking on somebody else behalf', async () => {
     await expectFailure(
-      () => book(qc, { date: weekdayFromNow(9), start: '14:30' }),
+      () =>
+        book(qc, {
+          date: weekdayFromNow(9),
+          start: '15:00',
+          rj: otherRj,
+          createdBy: qc,
+        }),
+      /violates row-level security/i,
+    );
+  });
+
+  it('refuses an editor creating bookings', async () => {
+    await expectFailure(
+      () => book(editor, { date: weekdayFromNow(9), start: '15:30' }),
       /violates row-level security/i,
     );
   });

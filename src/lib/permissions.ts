@@ -15,7 +15,7 @@ export const can = {
 
   /** Book the studio for oneself. Admins book on anyone's behalf. */
   bookStudio: (role: UserRole): boolean =>
-    role === 'ADMIN' || role === 'PRODUCER' || role === 'RJ',
+    role === 'ADMIN' || role === 'PRODUCER' || role === 'RJ' || role === 'QC',
 
   /** Waive the 24-hour rule. Enforced again by app.enforce_booking_window(). */
   overrideBookingWindow: (role: UserRole): boolean => role === 'ADMIN',
@@ -89,7 +89,7 @@ export const ROLE_SUMMARY: Record<UserRole, string> = {
   ADMIN: 'Full access to content, scheduling, users and settings.',
   PRODUCER: 'Manages programmes, episodes, audio and the schedule.',
   RJ: 'Books the studio, records and uploads shows, and goes on air.',
-  QC: 'Reviews finished audio and approves or rejects it for broadcast.',
+  QC: 'Reviews finished audio, approves or rejects it for broadcast, and books the studio.',
   EDITOR: 'Cuts and returns the audio for shows assigned to them.',
   SECTION_HEAD: 'Approves show scripts before recording.',
 };

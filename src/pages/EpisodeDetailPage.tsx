@@ -68,6 +68,8 @@ export function EpisodeDetailPage() {
   const [showReject, setShowReject] = useState(false);
   const [rawFile, setRawFile] = useState<File | null>(null);
   const [finalFile, setFinalFile] = useState<File | null>(null);
+  const [isRawPlaying, setIsRawPlaying] = useState(false);
+  const [isFinalPlaying, setIsFinalPlaying] = useState(false);
   const finalFileInput = useRef<HTMLInputElement>(null);
   const { celebratePublish, notifyUpload, notifyApproval, notifySave } = useSuccessFeedback();
 
@@ -410,17 +412,45 @@ export function EpisodeDetailPage() {
           </section>
 
           <section className="card">
-            <div className="card-title">
-              <h2>Audio Files</h2>
+            <div className="card-title row align-center" style={{ justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div className="row align-center" style={{ gap: '0.65rem' }}>
+                <h2 style={{ margin: 0 }}>Audio Files</h2>
+                {(isRawPlaying || isFinalPlaying) && (
+                  <span
+                    className={`badge ${isFinalPlaying ? 'badge-pink' : 'badge-orange'} eq-badge-pulse`}
+                    title={isFinalPlaying ? 'Final Audio is playing' : 'Raw Audio is playing'}
+                    aria-live="polite"
+                  >
+                    <span className="eq-mini-bars" aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                      <span />
+                    </span>
+                    <span>{isFinalPlaying ? 'Final Audio Playing' : 'Raw Audio Playing'}</span>
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="stack" style={{ gap: '1.5rem' }}>
               <div>
-                <h3 className="row" style={{ gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <h3 className="row align-center" style={{ gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
                   <span className="badge badge-orange">{isReviewer ? 'Raw Audio — Reference Only' : 'Raw Audio'}</span>
                   {ep.audio_file && !ep.audio_file.deleted_at && (
                     <span className="small muted font-normal">
                       {formatDuration(ep.audio_file.duration_seconds)} &middot; {formatFileSize(ep.audio_file.file_size)}
+                    </span>
+                  )}
+                  {isRawPlaying && (
+                    <span className="badge badge-orange eq-badge-pulse" aria-live="polite">
+                      <span className="eq-mini-bars" aria-hidden="true">
+                        <span />
+                        <span />
+                        <span />
+                        <span />
+                      </span>
+                      <span>Playing Raw</span>
                     </span>
                   )}
                   {ep.raw_file_delete_at && (!ep.audio_file || !ep.audio_file.deleted_at) && (
@@ -437,7 +467,11 @@ export function EpisodeDetailPage() {
                 ) : ep.audio_file ? (
                   <>
                     <p className="small" style={{ margin: '0 0 0.5rem' }}>{ep.audio_file.file_name}</p>
-                    <AudioPlayer storagePath={ep.audio_file.storage_path} />
+                    <AudioPlayer
+                      storagePath={ep.audio_file.storage_path}
+                      variant="raw"
+                      onPlayingChange={setIsRawPlaying}
+                    />
                   </>
                 ) : (
                   <Empty>
@@ -544,11 +578,22 @@ export function EpisodeDetailPage() {
 
               {/* Final Audio Section */}
               <div style={{ paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
-                <h3 className="row" style={{ gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <h3 className="row align-center" style={{ gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
                   <span className="badge badge-pink">Final Audio</span>
                   {ep.final_audio_file && (
                     <span className="small muted font-normal">
                       {formatDuration(ep.final_audio_file.duration_seconds)} &middot; {formatFileSize(ep.final_audio_file.file_size)}
+                    </span>
+                  )}
+                  {isFinalPlaying && (
+                    <span className="badge badge-pink eq-badge-pulse" aria-live="polite">
+                      <span className="eq-mini-bars" aria-hidden="true">
+                        <span />
+                        <span />
+                        <span />
+                        <span />
+                      </span>
+                      <span>Playing Final</span>
                     </span>
                   )}
                   <span className="badge badge-grey" style={{ marginLeft: 'auto' }}>Permanent</span>
@@ -557,7 +602,11 @@ export function EpisodeDetailPage() {
                 {ep.final_audio_file ? (
                   <>
                     <p className="small" style={{ margin: '0 0 0.5rem' }}>{ep.final_audio_file.file_name}</p>
-                    <AudioPlayer storagePath={ep.final_audio_file.storage_path} />
+                    <AudioPlayer
+                      storagePath={ep.final_audio_file.storage_path}
+                      variant="final"
+                      onPlayingChange={setIsFinalPlaying}
+                    />
                   </>
                 ) : (
                   <Empty>No final edited audio uploaded yet.</Empty>

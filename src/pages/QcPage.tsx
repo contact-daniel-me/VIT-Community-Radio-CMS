@@ -500,6 +500,7 @@ export function QcPage() {
                 <AudioPlayer
                   storagePath={episode.final_audio_file?.storage_path}
                   label={episode.final_audio_file?.file_name}
+                  variant="final"
                 />
 
                 {open && (
@@ -868,6 +869,7 @@ export function QcPage() {
                 <AudioPlayer
                   storagePath={episode.final_audio_file.storage_path}
                   label={episode.final_audio_file.file_name}
+                  variant="final"
                 />
               </div>
             )}

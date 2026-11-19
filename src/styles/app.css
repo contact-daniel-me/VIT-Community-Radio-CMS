@@ -731,6 +731,291 @@ audio {
   margin-top: 0.4rem;
 }
 
+/* ---------- Audio Player & Animated Waveform Equalizer ---------- */
+.cms-audio-player-wrap {
+  width: 100%;
+  margin: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.cms-waveform-equalizer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.65rem 0.85rem 0.6rem;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  transition: border-color var(--t-fast) ease, box-shadow var(--t-fast) ease, background var(--t-base) ease;
+  user-select: none;
+  cursor: pointer;
+}
+
+.cms-waveform-equalizer:hover {
+  border-color: var(--line-strong);
+}
+
+.cms-waveform-equalizer:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.cms-waveform-equalizer.is-playing {
+  box-shadow: var(--shadow-sm);
+}
+
+.cms-waveform-equalizer.variant-raw.is-playing {
+  border-color: var(--status-audio-upload-border);
+  background: linear-gradient(to bottom, var(--status-audio-upload-bg), var(--surface));
+}
+
+.cms-waveform-equalizer.variant-final.is-playing {
+  border-color: var(--status-final-upload-border);
+  background: linear-gradient(to bottom, var(--status-final-upload-bg), var(--surface));
+}
+
+.cms-waveform-equalizer.variant-default.is-playing {
+  border-color: var(--accent-line);
+  background: linear-gradient(to bottom, var(--accent-wash), var(--surface));
+}
+
+.cms-waveform-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  font-weight: 500;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.cms-waveform-label {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.cms-waveform-time-sync {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 0.12rem 0.45rem;
+  border-radius: var(--r-sm);
+  background: var(--bg-sunk);
+  border: 1px solid var(--line);
+}
+
+.cms-waveform-state-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--r-pill);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+.cms-waveform-state-pill.is-live {
+  background: var(--ok-wash);
+  color: var(--ok);
+  border: 1px solid color-mix(in srgb, var(--ok) 30%, transparent);
+}
+
+.variant-raw .cms-waveform-state-pill.is-live {
+  background: var(--status-audio-upload-badge-bg);
+  color: var(--status-audio-upload-badge-text);
+  border: 1px solid var(--status-audio-upload-badge-border);
+}
+
+.variant-final .cms-waveform-state-pill.is-live {
+  background: var(--status-final-upload-badge-bg);
+  color: var(--status-final-upload-badge-text);
+  border: 1px solid var(--status-final-upload-badge-border);
+}
+
+.cms-waveform-state-pill.is-idle {
+  background: var(--bg-sunk);
+  color: var(--ink-muted);
+  border: 1px solid var(--line);
+}
+
+.cms-waveform-bars-track {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 2.5px;
+  width: 100%;
+  height: 42px;
+  padding: 4px 4px 2px;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--bg-sunk) 45%, transparent);
+  box-sizing: border-box;
+  touch-action: none;
+  cursor: pointer;
+}
+
+.cms-waveform-bar {
+  flex: 1 1 0;
+  min-width: 1.5px;
+  height: 100%;
+  border-radius: 2px 2px 0 0;
+  transform-origin: bottom center;
+  transition: transform 0.08s ease-out, background 0.2s ease, opacity 0.2s ease;
+  pointer-events: none;
+}
+
+/* Scrubber Playhead Line */
+.cms-waveform-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #ffffff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.95), 0 0 2px rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+  border-radius: 1px;
+  z-index: 4;
+  transform: translateX(-50%);
+  transition: left 0.04s linear;
+}
+
+/* Variant Raw Colors */
+.variant-raw .cms-waveform-bar.is-played {
+  background: linear-gradient(to top, #ea580c, #f97316);
+  opacity: 1;
+}
+.variant-raw .cms-waveform-bar.is-unplayed {
+  background: var(--line-strong);
+  opacity: 0.35;
+}
+.variant-raw .cms-waveform-bar.is-head {
+  background: linear-gradient(to top, #f97316, #fdba74);
+  box-shadow: 0 0 6px rgba(249, 115, 22, 0.7);
+  opacity: 1;
+}
+
+/* Variant Final Colors */
+.variant-final .cms-waveform-bar.is-played {
+  background: linear-gradient(to top, #db2777, #ec4899);
+  opacity: 1;
+}
+.variant-final .cms-waveform-bar.is-unplayed {
+  background: var(--line-strong);
+  opacity: 0.35;
+}
+.variant-final .cms-waveform-bar.is-head {
+  background: linear-gradient(to top, #ec4899, #f472b6);
+  box-shadow: 0 0 6px rgba(236, 72, 153, 0.7);
+  opacity: 1;
+}
+
+/* Variant Default Colors */
+.variant-default .cms-waveform-bar.is-played {
+  background: linear-gradient(to top, var(--brand-red-deep), var(--brand-red));
+  opacity: 1;
+}
+.variant-default .cms-waveform-bar.is-unplayed {
+  background: var(--line-strong);
+  opacity: 0.35;
+}
+.variant-default .cms-waveform-bar.is-head {
+  background: linear-gradient(to top, var(--brand-red), #f87171);
+  box-shadow: 0 0 6px rgba(210, 30, 40, 0.7);
+  opacity: 1;
+}
+
+@media (max-width: 640px) {
+  .cms-waveform-bars-track {
+    gap: 1.5px;
+    padding: 3px 2px 2px;
+  }
+  .cms-waveform-bar {
+    min-width: 1px;
+  }
+}
+
+/* Mini Equalizer used in Badges and Headers */
+.eq-mini-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 11px;
+  width: 13px;
+  margin-right: 2px;
+}
+
+.eq-mini-bars span {
+  display: block;
+  width: 2px;
+  background: currentColor;
+  border-radius: 1px;
+  animation: eqMiniDance 0.75s ease-in-out infinite alternate;
+  transform-origin: bottom center;
+}
+
+.eq-mini-bars span:nth-child(1) { height: 40%; animation-delay: -0.15s; }
+.eq-mini-bars span:nth-child(2) { height: 95%; animation-delay: -0.4s; }
+.eq-mini-bars span:nth-child(3) { height: 70%; animation-delay: -0.25s; }
+.eq-mini-bars span:nth-child(4) { height: 50%; animation-delay: -0.55s; }
+
+@keyframes eqMiniDance {
+  0% {
+    transform: scaleY(0.25);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+.eq-badge-pulse {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  animation: eqBadgeFadeIn 0.25s ease-out;
+}
+
+@keyframes eqBadgeFadeIn {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.eq-live-pulse-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: eqDotPulse 1.2s infinite ease-in-out;
+}
+
+@keyframes eqDotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.75); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cms-waveform-bar,
+  .eq-mini-bars span,
+  .eq-badge-pulse,
+  .eq-live-pulse-dot {
+    animation: none !important;
+  }
+}
+
 /* ---------- Login ---------- */
 .login-wrap {
   min-height: 100vh;

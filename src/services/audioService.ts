@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, AUDIO_BUCKET } from '@/lib/supabase';
 import { AppError, toAppError } from '@/lib/errors';
 import { unwrap } from '@/lib/query';
 import type { AudioFileRow } from '@/types/database';
@@ -123,12 +123,23 @@ async function computeSha256(file: File | Blob): Promise<string> {
   return '';
 }
 
+function storagePathFor(episodeId: string, fileName: string): string {
+  const safe = fileName
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(-80);
+  const randomSuffix = Math.random().toString(36).slice(2, 8);
+  return `episodes/${episodeId}/${Date.now()}-${randomSuffix}-${safe || 'audio.mp3'}`;
+}
+
 export const audioService = {
   /**
    * Upload order matters.
-   * Phase 4 Hybrid Storage: All newly created audio files route to Cloudflare R2 via authenticated gateway.
-   * Binary is uploaded directly to R2 first, then the metadata row with storage_provider = 'r2' and SHA-256 checksum,
-   * then the episode pointer. Failed uploads never leave orphaned or invalid database references.
+   * Phase 4 Hybrid Storage: All newly created audio files route to Cloudflare R2 via authenticated gateway,
+   * with automatic fallback to Supabase Storage if the gateway is restricted or unavailable.
+   * Binary is uploaded first, then the metadata row with checksum, then the episode pointer.
+   * Failed uploads never leave orphaned or invalid database references.
    */
   async uploadAudio(
     episodeId: string,
@@ -143,20 +154,40 @@ export const audioService = {
       const durationSeconds = await readDurationSeconds(file);
       const checksum = await computeSha256(file);
 
-      // 1. Obtain presigned PUT authorization from the authenticated R2 Edge Function gateway
-      const uploadAuth = await r2Service.requestUploadUrl({
-        episodeId,
-        fileName: file.name,
-        mimeType,
-        fileSize: file.size,
-        targetField,
-      });
+      let effectiveStoragePath = '';
+      let effectiveProvider: 'r2' | 'supabase' = 'r2';
 
-      // 2. Upload binary directly to Cloudflare R2
-      // If the upload fails, it aborts immediately before any database records are created.
-      await r2Service.uploadBinary(uploadAuth.uploadUrl, file, mimeType, onProgress);
+      try {
+        // 1. Obtain presigned PUT authorization from the authenticated R2 Edge Function gateway
+        const uploadAuth = await r2Service.requestUploadUrl({
+          episodeId,
+          fileName: file.name,
+          mimeType,
+          fileSize: file.size,
+          targetField,
+        });
 
-      // 3. Insert metadata record into audio_files with storage_provider = 'r2'
+        // 2. Upload binary directly to Cloudflare R2
+        await r2Service.uploadBinary(uploadAuth.uploadUrl, file, mimeType, onProgress);
+        effectiveStoragePath = uploadAuth.storagePath;
+        effectiveProvider = 'r2';
+      } catch (r2Error) {
+        if (import.meta.env.DEV) {
+          console.warn('[audioService] R2 Gateway unavailable or returned error, falling back to Supabase Storage:', r2Error);
+        }
+        effectiveProvider = 'supabase';
+        effectiveStoragePath = storagePathFor(episodeId, file.name);
+
+        const { error: sbUploadError } = await supabase.storage
+          .from(AUDIO_BUCKET)
+          .upload(effectiveStoragePath, file, { contentType: mimeType, upsert: true });
+
+        if (sbUploadError) {
+          throw toAppError(sbUploadError);
+        }
+      }
+
+      // 3. Insert metadata record into audio_files with effective storage_provider
       let audioRow: AudioFileRow;
       try {
         audioRow = await unwrap(
@@ -165,10 +196,10 @@ export const audioService = {
             .insert({
               episode_id: episodeId,
               file_name: file.name.slice(0, 255),
-              storage_path: uploadAuth.storagePath,
-              storage_provider: 'r2',
+              storage_path: effectiveStoragePath,
+              storage_provider: effectiveProvider,
               storage_checksum: checksum || null,
-              storage_migrated_at: new Date().toISOString(),
+              storage_migrated_at: effectiveProvider === 'r2' ? new Date().toISOString() : null,
               mime_type: mimeType,
               file_size: file.size,
               duration_seconds: durationSeconds,
@@ -178,8 +209,12 @@ export const audioService = {
             .single(),
         );
       } catch (error) {
-        // Clean up orphaned R2 object if database insert fails
-        await r2Service.deleteObject(uploadAuth.storagePath, episodeId);
+        // Clean up orphaned object if database insert fails
+        if (effectiveProvider === 'r2') {
+          await r2Service.deleteObject(effectiveStoragePath, episodeId);
+        } else {
+          await supabase.storage.from(AUDIO_BUCKET).remove([effectiveStoragePath]);
+        }
         throw error;
       }
 
@@ -212,7 +247,11 @@ export const audioService = {
           }
         } catch {
           await supabase.from('audio_files').delete().eq('id', audioRow.id);
-          await r2Service.deleteObject(uploadAuth.storagePath, episodeId);
+          if (effectiveProvider === 'r2') {
+            await r2Service.deleteObject(effectiveStoragePath, episodeId);
+          } else {
+            await supabase.storage.from(AUDIO_BUCKET).remove([effectiveStoragePath]);
+          }
           throw error;
         }
       }
@@ -251,12 +290,12 @@ export const audioService = {
       }
 
       // Cache the resolved provider for immediate playback without database query overhead
-      storageResolver.setCachedProvider(uploadAuth.storagePath, 'r2');
+      storageResolver.setCachedProvider(effectiveStoragePath, effectiveProvider);
 
       const uploadDuration = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - uploadStartTime;
       storageObservabilityService.recordUpload({
         success: true,
-        provider: 'r2',
+        provider: effectiveProvider,
         latencyMs: uploadDuration,
         details: file.name,
       });

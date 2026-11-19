@@ -68,7 +68,19 @@ export const r2Service = {
     });
 
     if (error || !data?.uploadUrl) {
-      const msg = error?.message || 'Could not obtain R2 upload authorization.';
+      let serverMsg = '';
+      if (error && typeof error === 'object' && 'context' in error && (error as any).context) {
+        try {
+          const res = (error as any).context as Response;
+          const body = await res.clone().json();
+          if (body?.error) {
+            serverMsg = body.error;
+          }
+        } catch {
+          // Ignore context body parsing error
+        }
+      }
+      const msg = serverMsg || error?.message || 'Could not obtain R2 upload authorization.';
       if (/locked|permission|forbidden/i.test(msg)) {
         throw new AppError('PERMISSION', 'You cannot upload audio for this episode. It may be locked for QC review.');
       }

@@ -659,40 +659,6 @@ export function EpisodeDetailPage() {
                 )}
               </div>
             </div>
-
-            <div
-              className="audio-upload-guidelines"
-              style={{
-                marginTop: '1.25rem',
-                padding: '0.85rem 1rem',
-                background: 'var(--surface-sunken, #f8f8f8)',
-                border: '1px solid var(--border-subtle, #e0e0e0)',
-                borderRadius: '6px',
-                fontSize: '0.84rem',
-              }}
-            >
-              <div style={{ fontWeight: 600, color: 'var(--ink, #1f1f1f)', marginBottom: '0.45rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <span>🎙 Audio Upload &amp; Broadcast Guidelines</span>
-                <span className="badge" style={{ fontSize: '0.75rem', padding: '0.1rem 0.45rem', backgroundColor: 'var(--brand-red, #D32F2F)', color: '#fff' }}>
-                  100 MB Limit
-                </span>
-              </div>
-              <div className="grid cols-2" style={{ gap: '0.4rem 1.5rem', margin: '0.4rem 0' }}>
-                <div>
-                  <span className="muted">Supported Format:</span> <strong>MP3 (.mp3)</strong>
-                </div>
-                <div>
-                  <span className="muted">Maximum File Size:</span> <strong>100 MB</strong>
-                </div>
-                <div>
-                  <span className="muted">Recommended Quality:</span> <strong>192 kbps, 44.1 kHz, Stereo (CBR)</strong>
-                </div>
-                <div>
-                  <span className="muted">Recommended Duration:</span> <strong>Up to 60 minutes</strong>
-                </div>
-              </div>
-
-            </div>
           </section>
 
           {isReviewer && ep.status === 'PENDING_QC' && (
